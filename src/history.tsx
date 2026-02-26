@@ -10,6 +10,7 @@ import {
   Toast,
 } from "@raycast/api";
 import { useEffect, useState } from "react";
+import { buildTranslationDetailMarkdown } from "./lib/markdown";
 import { clearHistory, deleteTranslation, getHistory } from "./lib/storage";
 import { Translation } from "./lib/types";
 
@@ -98,7 +99,7 @@ export default function History() {
             ]}
             detail={
               <List.Item.Detail
-                markdown={`## ${item.word}\n\n**${item.translation}** *(${item.partOfSpeech})*\n\n---\n\n**Example:**\n\n> ${item.example}\n\n*${item.exampleTranslation}*`}
+                markdown={buildTranslationDetailMarkdown(item)}
               />
             }
             actions={

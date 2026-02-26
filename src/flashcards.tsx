@@ -1,5 +1,6 @@
 import { Action, ActionPanel, Color, List } from "@raycast/api";
 import { useEffect, useReducer } from "react";
+import { buildFlashcardDetailMarkdown } from "./lib/markdown";
 import { getSessionCards, saveFlashcardProgress } from "./lib/storage";
 import { FlashcardProgress, Rating, Translation } from "./lib/types";
 
@@ -147,15 +148,7 @@ export default function Flashcards() {
   const isNew = !progress || progress.repetitions === 0;
   const position = `${state.currentIndex + 1} / ${state.sessionCards.length}`;
 
-  const detailMarkdown = `# ${card.word}
-
-**${card.partOfSpeech}** · ${card.translation}
-
----
-
-*${card.example}*
-
-${card.exampleTranslation}`;
+  const detailMarkdown = buildFlashcardDetailMarkdown(card);
 
   return (
     <List isShowingDetail={state.revealed} searchBarPlaceholder="">

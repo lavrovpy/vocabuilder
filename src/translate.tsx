@@ -13,11 +13,26 @@ import {
 import { useEffect, useRef, useState } from "react";
 import History from "./history";
 import { translateWord } from "./lib/gemini";
+import { buildTranslationDetailMarkdown } from "./lib/markdown";
 import { getHistory, saveTranslation } from "./lib/storage";
 import { Translation } from "./lib/types";
 
 interface Preferences {
   geminiApiKey: string;
+}
+
+function getUserFacingErrorMessage(errorCode: string): string {
+  switch (errorCode) {
+    case "INVALID_API_KEY":
+      return "Invalid API key. Please check your Gemini API key in preferences.";
+    case "GEMINI_REQUEST_FAILED":
+      return "Gemini request failed. Please try again.";
+    case "GEMINI_EMPTY_RESPONSE":
+    case "GEMINI_INVALID_RESPONSE":
+      return "Gemini returned an unexpected response. Please try again.";
+    default:
+      return "Translation failed. Please try again.";
+  }
 }
 
 export default function Translate() {
@@ -111,19 +126,14 @@ export default function Translate() {
     } catch (err) {
       if (controller.signal.aborted) return;
 
-      const message = err instanceof Error ? err.message : String(err);
-      if (message === "INVALID_API_KEY") {
-        setError(
-          "Invalid API key. Please check your Gemini API key in preferences.",
-        );
-      } else {
-        setError(message);
-      }
+      const errorCode = err instanceof Error ? err.message : "UNKNOWN_ERROR";
+      const userMessage = getUserFacingErrorMessage(errorCode);
+      setError(userMessage);
 
       await showToast({
         style: Toast.Style.Failure,
         title: "Translation failed",
-        message: message === "INVALID_API_KEY" ? "Invalid API key" : message,
+        message: userMessage,
       });
     } finally {
       if (!controller.signal.aborted) {
@@ -168,7 +178,7 @@ export default function Translate() {
             accessories={[{ tag: result.partOfSpeech }]}
             detail={
               <List.Item.Detail
-                markdown={`## ${result.word}\n\n**${result.translation}** *(${result.partOfSpeech})*\n\n---\n\n**Example:**\n\n> ${result.example}\n\n*${result.exampleTranslation}*`}
+                markdown={buildTranslationDetailMarkdown(result)}
               />
             }
             actions={
