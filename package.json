@@ -6,6 +6,7 @@
   "author": "AngryBeaver",
   "categories": ["Productivity"],
   "license": "MIT",
+  "packageManager": "npm@10",
   "commands": [
     {
       "name": "translate",
