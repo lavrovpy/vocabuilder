@@ -26,8 +26,41 @@ function updateProgress(
   rating: Rating,
   now: number,
 ): FlashcardProgress {
-  void rating; // remove when implementing
-  return { ...progress, nextReviewDate: now + progress.interval * 86_400_000 };
+  const dayMs = 86_400_000;
+  const previousRepetitions = progress.repetitions;
+  const previousInterval = progress.interval;
+  const previousEaseFactor = progress.easeFactor;
+
+  let repetitions: number;
+  let interval: number;
+  let easeFactor: number;
+
+  if (rating === "again") {
+    repetitions = 0;
+    interval = 1;
+    easeFactor = Math.max(1.3, previousEaseFactor - 0.2);
+  } else {
+    repetitions = previousRepetitions + 1;
+    interval =
+      previousRepetitions < 2
+        ? previousRepetitions === 1
+          ? 6
+          : 1
+        : Math.round(previousInterval * previousEaseFactor);
+
+    if (rating === "easy") {
+      interval = Math.round(interval * 1.3);
+      easeFactor = Math.min(2.5, previousEaseFactor + 0.15);
+    }
+  }
+
+  return {
+    ...progress,
+    repetitions,
+    interval,
+    easeFactor,
+    nextReviewDate: now + interval * dayMs,
+  };
 }
 
 function freshProgress(word: string): FlashcardProgress {
