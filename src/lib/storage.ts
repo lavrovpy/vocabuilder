@@ -92,9 +92,7 @@ export async function clearHistory(): Promise<void> {
   await LocalStorage.removeItem(STORAGE_KEY);
 }
 
-async function getFlashcardProgress(): Promise<
-  Map<string, FlashcardProgress>
-> {
+async function getFlashcardProgress(): Promise<Map<string, FlashcardProgress>> {
   const raw = await LocalStorage.getItem<string>(FLASHCARD_KEY);
   if (!raw) return new Map();
   const arr = await parseStoredArray(
