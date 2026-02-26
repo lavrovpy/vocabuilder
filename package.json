@@ -4,7 +4,9 @@
   "description": "Translate English words to Ukrainian and build your vocabulary",
   "icon": "extension-icon.png",
   "author": "AngryBeaver",
-  "categories": ["Productivity"],
+  "categories": [
+    "Productivity"
+  ],
   "license": "MIT",
   "packageManager": "npm@10",
   "commands": [
@@ -46,7 +48,7 @@
     }
   ],
   "dependencies": {
-    "@raycast/api": "^1.93.2",
+    "@raycast/api": "^1.104.7",
     "zod": "^4.3.6"
   },
   "devDependencies": {

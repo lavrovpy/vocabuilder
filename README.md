@@ -6,6 +6,7 @@ A [Raycast](https://raycast.com) extension that translates English words to Ukra
 
 - **Translate Word** — type any English word and get an instant Ukrainian translation with part of speech and an example sentence
 - **Translation History** — browse, search, and manage all your saved translations
+- **Flashcards** — review saved words with spaced repetition
 - Auto-saves every successful translation
 - Debounced search (no request fired mid-keystroke)
 - Graceful error handling for API issues
@@ -26,6 +27,7 @@ A [Raycast](https://raycast.com) extension that translates English words to Ukra
 |---|---|
 | Translate Word | Translate an English word to Ukrainian |
 | Translation History | Browse saved translations |
+| Flashcards | Review saved words with spaced repetition |
 
 ## Keyboard Shortcuts
 

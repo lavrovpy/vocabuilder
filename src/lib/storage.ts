@@ -92,7 +92,7 @@ export async function clearHistory(): Promise<void> {
   await LocalStorage.removeItem(STORAGE_KEY);
 }
 
-export async function getFlashcardProgress(): Promise<
+async function getFlashcardProgress(): Promise<
   Map<string, FlashcardProgress>
 > {
   const raw = await LocalStorage.getItem<string>(FLASHCARD_KEY);
@@ -126,7 +126,7 @@ export async function saveFlashcardProgress(
   return true;
 }
 
-export interface SessionData {
+interface SessionData {
   sessionCards: Translation[];
   progressMap: Map<string, FlashcardProgress>;
 }
