@@ -14,13 +14,23 @@ import { FlashcardProgress, Rating, Translation } from "./lib/types";
 //   nextReviewDate = now + interval * 86_400_000
 //   Do NOT mutate `progress` — return a new object.
 //
-function updateProgress(progress: FlashcardProgress, rating: Rating, now: number): FlashcardProgress {
+function updateProgress(
+  progress: FlashcardProgress,
+  rating: Rating,
+  now: number,
+): FlashcardProgress {
   void rating; // remove when implementing
   return { ...progress, nextReviewDate: now + progress.interval * 86_400_000 };
 }
 
 function freshProgress(word: string): FlashcardProgress {
-  return { word, easeFactor: 2.5, interval: 1, repetitions: 0, nextReviewDate: 0 };
+  return {
+    word,
+    easeFactor: 2.5,
+    interval: 1,
+    repetitions: 0,
+    nextReviewDate: 0,
+  };
 }
 
 // ─── State machine ────────────────────────────────────────────────────────────
@@ -39,7 +49,11 @@ interface StudyState {
 }
 
 type StudyAction =
-  | { type: "loaded"; cards: Translation[]; progressMap: Map<string, FlashcardProgress> }
+  | {
+      type: "loaded";
+      cards: Translation[];
+      progressMap: Map<string, FlashcardProgress>;
+    }
   | { type: "reveal" }
   | { type: "rate"; rating: Rating; updated: FlashcardProgress };
 
@@ -62,7 +76,10 @@ function reducer(state: StudyState, action: StudyAction): StudyState {
         phase: isDone ? "done" : "studying",
         currentIndex: isDone ? state.currentIndex : next,
         revealed: false,
-        progressMap: new Map(state.progressMap).set(action.updated.word, action.updated),
+        progressMap: new Map(state.progressMap).set(
+          action.updated.word,
+          action.updated,
+        ),
         againCount: state.againCount + (action.rating === "again" ? 1 : 0),
         goodCount: state.goodCount + (action.rating === "good" ? 1 : 0),
         easyCount: state.easyCount + (action.rating === "easy" ? 1 : 0),
@@ -95,7 +112,8 @@ export default function Flashcards() {
 
   async function handleRate(rating: Rating) {
     const card = state.sessionCards[state.currentIndex];
-    const existing = state.progressMap.get(card.word) ?? freshProgress(card.word);
+    const existing =
+      state.progressMap.get(card.word) ?? freshProgress(card.word);
     const updated = updateProgress(existing, rating, Date.now());
     await saveFlashcardProgress(updated);
     dispatch({ type: "rate", rating, updated });
@@ -153,7 +171,10 @@ ${card.exampleTranslation}`;
         actions={
           <ActionPanel>
             {!state.revealed ? (
-              <Action title="Reveal Answer" onAction={() => dispatch({ type: "reveal" })} />
+              <Action
+                title="Reveal Answer"
+                onAction={() => dispatch({ type: "reveal" })}
+              />
             ) : (
               <>
                 <Action

@@ -1,6 +1,11 @@
 import { LocalStorage } from "@raycast/api";
 import { z } from "zod";
-import { FlashcardProgress, FlashcardProgressSchema, Translation, TranslationSchema } from "./types";
+import {
+  FlashcardProgress,
+  FlashcardProgressSchema,
+  Translation,
+  TranslationSchema,
+} from "./types";
 
 const STORAGE_KEY = "vocabuilder-history";
 
@@ -32,7 +37,9 @@ export async function clearHistory(): Promise<void> {
 
 const FLASHCARD_KEY = "vocabuilder-flashcards";
 
-export async function getFlashcardProgress(): Promise<Map<string, FlashcardProgress>> {
+export async function getFlashcardProgress(): Promise<
+  Map<string, FlashcardProgress>
+> {
   const raw = await LocalStorage.getItem<string>(FLASHCARD_KEY);
   if (!raw) return new Map();
   try {
@@ -43,7 +50,9 @@ export async function getFlashcardProgress(): Promise<Map<string, FlashcardProgr
   }
 }
 
-export async function saveFlashcardProgress(progress: FlashcardProgress): Promise<void> {
+export async function saveFlashcardProgress(
+  progress: FlashcardProgress,
+): Promise<void> {
   const map = await getFlashcardProgress();
   map.set(progress.word, progress);
   await LocalStorage.setItem(FLASHCARD_KEY, JSON.stringify([...map.values()]));
@@ -64,7 +73,10 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 export async function getSessionCards(): Promise<SessionData> {
-  const [history, progressMap] = await Promise.all([getHistory(), getFlashcardProgress()]);
+  const [history, progressMap] = await Promise.all([
+    getHistory(),
+    getFlashcardProgress(),
+  ]);
   const now = Date.now();
 
   const due = history

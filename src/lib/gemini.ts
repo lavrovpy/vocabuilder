@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { GeminiApiResponseSchema, GeminiResponse, GeminiResponseSchema } from "./types";
+import {
+  GeminiApiResponseSchema,
+  GeminiResponse,
+  GeminiResponseSchema,
+} from "./types";
 
 const MODEL = "gemini-2.5-flash-lite";
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
@@ -34,7 +38,9 @@ Respond ONLY with valid JSON in this exact format:
   }
 
   if (!response.ok) {
-    throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Gemini API error: ${response.status} ${response.statusText}`,
+    );
   }
 
   // Validate the outer Gemini API response shape
@@ -46,15 +52,24 @@ Respond ONLY with valid JSON in this exact format:
   }
 
   // Strip markdown code fences if present
-  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+  const cleaned = raw
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "")
+    .trim();
 
   try {
     // Validate the translation JSON shape
     return GeminiResponseSchema.parse(JSON.parse(cleaned));
   } catch (err) {
     if (err instanceof z.ZodError) {
-      throw new Error(`Unexpected translation format: ${err.issues.map((i) => i.message).join(", ")}`);
+      throw new Error(
+        `Unexpected translation format: ${err.issues.map((i) => i.message).join(", ")}`,
+        { cause: err },
+      );
     }
-    throw new Error(`Failed to parse Gemini response: ${cleaned.slice(0, 100)}`);
+    throw new Error(
+      `Failed to parse Gemini response: ${cleaned.slice(0, 100)}`,
+      { cause: err },
+    );
   }
 }

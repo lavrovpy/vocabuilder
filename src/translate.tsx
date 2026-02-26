@@ -40,11 +40,18 @@ export default function Translate() {
 
     Clipboard.readText()
       .then((text) => {
-        if (text && text.trim().length > 0 && text.length <= 50 && !text.includes("\n")) {
+        if (
+          text &&
+          text.trim().length > 0 &&
+          text.length <= 50 &&
+          !text.includes("\n")
+        ) {
           setClipboardSuggestion(text.trim());
         }
       })
-      .catch(() => {/* ignore */});
+      .catch(() => {
+        /* ignore */
+      });
   }, []);
 
   function handleSearchChange(text: string) {
@@ -76,7 +83,11 @@ export default function Translate() {
     setResult(null);
 
     try {
-      const geminiResult = await translateWord(word, geminiApiKey, controller.signal);
+      const geminiResult = await translateWord(
+        word,
+        geminiApiKey,
+        controller.signal,
+      );
 
       if (controller.signal.aborted) return;
 
@@ -94,13 +105,17 @@ export default function Translate() {
 
       // Auto-save
       await saveTranslation(translation);
-      setRecentHistory((prev) => [translation, ...prev.filter((h) => h.word !== word)].slice(0, 5));
+      setRecentHistory((prev) =>
+        [translation, ...prev.filter((h) => h.word !== word)].slice(0, 5),
+      );
     } catch (err) {
       if (controller.signal.aborted) return;
 
       const message = err instanceof Error ? err.message : String(err);
       if (message === "INVALID_API_KEY") {
-        setError("Invalid API key. Please check your Gemini API key in preferences.");
+        setError(
+          "Invalid API key. Please check your Gemini API key in preferences.",
+        );
       } else {
         setError(message);
       }
@@ -136,7 +151,11 @@ export default function Translate() {
           actions={
             <ActionPanel>
               {error.includes("API key") && (
-                <Action title="Open Preferences" onAction={openExtensionPreferences} icon={Icon.Gear} />
+                <Action
+                  title="Open Preferences"
+                  onAction={openExtensionPreferences}
+                  icon={Icon.Gear}
+                />
               )}
             </ActionPanel>
           }

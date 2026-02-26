@@ -62,7 +62,10 @@ export default function History() {
     const confirmed = await confirmAlert({
       title: "Clear All History",
       message: "This will permanently delete all saved translations.",
-      primaryAction: { title: "Clear All", style: Alert.ActionStyle.Destructive },
+      primaryAction: {
+        title: "Clear All",
+        style: Alert.ActionStyle.Destructive,
+      },
     });
     if (!confirmed) return;
 
@@ -79,7 +82,10 @@ export default function History() {
       onSearchTextChange={setSearchText}
     >
       {filtered.length === 0 && !isLoading ? (
-        <List.EmptyView title="No translations yet" description="Use Translate Word to get started" />
+        <List.EmptyView
+          title="No translations yet"
+          description="Use Translate Word to get started"
+        />
       ) : (
         filtered.map((item) => (
           <List.Item
