@@ -13,6 +13,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import History from "./history";
 import { translateWord } from "./lib/gemini";
+import { MAX_WORD_LENGTH, normalizeWordInput } from "./lib/input";
 import { buildTranslationDetailMarkdown } from "./lib/markdown";
 import { getHistory, saveTranslation } from "./lib/storage";
 import { Translation } from "./lib/types";
@@ -22,15 +23,13 @@ interface Preferences {
   readClipboardOnOpen?: boolean;
 }
 
-const CLIPBOARD_WORD_RE = /^[A-Za-z]+(?:['-][A-Za-z]+)?$/;
 const SECRET_PREFIX_RE = /^(sk-|ghp_|github_pat_|xox[baprs]-|AKIA|ASIA|AIza)/i;
 
 function isSafeClipboardSuggestion(raw: string): boolean {
   const text = raw.trim();
   if (!text || text.includes("\n")) return false;
-  if (text.length > 32) return false;
   if (SECRET_PREFIX_RE.test(text)) return false;
-  return CLIPBOARD_WORD_RE.test(text);
+  return normalizeWordInput(text) !== null;
 }
 
 function getUserFacingErrorMessage(errorCode: string): string {
@@ -42,6 +41,8 @@ function getUserFacingErrorMessage(errorCode: string): string {
     case "GEMINI_EMPTY_RESPONSE":
     case "GEMINI_INVALID_RESPONSE":
       return "Gemini returned an unexpected response. Please try again.";
+    case "INVALID_WORD_INPUT":
+      return `Enter one English word (letters, apostrophe, hyphen, max ${MAX_WORD_LENGTH} chars).`;
     default:
       return "Translation failed. Please try again.";
   }
@@ -123,7 +124,14 @@ export default function Translate() {
     }
 
     debounceRef.current = setTimeout(() => {
-      fetchTranslation(text.trim());
+      const normalizedWord = normalizeWordInput(text);
+      if (!normalizedWord) {
+        setResult(null);
+        setIsLoading(false);
+        setError(getUserFacingErrorMessage("INVALID_WORD_INPUT"));
+        return;
+      }
+      fetchTranslation(normalizedWord);
     }, 1500);
   }
 
@@ -159,10 +167,19 @@ export default function Translate() {
       setResult(translation);
 
       // Auto-save
-      await saveTranslation(translation);
-      setRecentHistory((prev) =>
-        [translation, ...prev.filter((h) => h.word !== word)].slice(0, 5),
-      );
+      const saved = await saveTranslation(translation);
+      if (saved) {
+        setRecentHistory((prev) =>
+          [translation, ...prev.filter((h) => h.word !== word)].slice(0, 5),
+        );
+      } else {
+        await showToast({
+          style: Toast.Style.Failure,
+          title: "Saved data is corrupted",
+          message:
+            "Translation was not written to storage to avoid overwriting existing data.",
+        });
+      }
     } catch (err) {
       if (controller.signal.aborted) return;
 

@@ -1,4 +1,11 @@
-import { Action, ActionPanel, Color, List } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Color,
+  List,
+  showToast,
+  Toast,
+} from "@raycast/api";
 import { useEffect, useReducer } from "react";
 import { buildFlashcardDetailMarkdown } from "./lib/markdown";
 import { getSessionCards, saveFlashcardProgress } from "./lib/storage";
@@ -116,7 +123,15 @@ export default function Flashcards() {
     const existing =
       state.progressMap.get(card.word) ?? freshProgress(card.word);
     const updated = updateProgress(existing, rating, Date.now());
-    await saveFlashcardProgress(updated);
+    const saved = await saveFlashcardProgress(updated);
+    if (!saved) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Flashcard storage is corrupted",
+        message: "Progress was not saved to avoid overwriting existing data.",
+      });
+      return;
+    }
     dispatch({ type: "rate", rating, updated });
   }
 
