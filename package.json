@@ -18,6 +18,12 @@
       "title": "Translation History",
       "description": "Browse your saved translations",
       "mode": "view"
+    },
+    {
+      "name": "flashcards",
+      "title": "Flashcards",
+      "description": "Review saved words with spaced repetition",
+      "mode": "view"
     }
   ],
   "preferences": [

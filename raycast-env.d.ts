@@ -20,6 +20,8 @@ declare namespace Preferences {
   export type Translate = ExtensionPreferences & {}
   /** Preferences accessible in the `history` command */
   export type History = ExtensionPreferences & {}
+  /** Preferences accessible in the `flashcards` command */
+  export type Flashcards = ExtensionPreferences & {}
 }
 
 declare namespace Arguments {
@@ -27,5 +29,7 @@ declare namespace Arguments {
   export type Translate = {}
   /** Arguments passed to the `history` command */
   export type History = {}
+  /** Arguments passed to the `flashcards` command */
+  export type Flashcards = {}
 }
 

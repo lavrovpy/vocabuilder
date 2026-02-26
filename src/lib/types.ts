@@ -29,3 +29,14 @@ export const TranslationSchema = z.object({
 
 export type GeminiResponse = z.infer<typeof GeminiResponseSchema>;
 export type Translation = z.infer<typeof TranslationSchema>;
+
+export const FlashcardProgressSchema = z.object({
+  word: z.string(),
+  easeFactor: z.number(),
+  interval: z.number(),
+  repetitions: z.number(),
+  nextReviewDate: z.number(),
+});
+
+export type FlashcardProgress = z.infer<typeof FlashcardProgressSchema>;
+export type Rating = "again" | "good" | "easy";
