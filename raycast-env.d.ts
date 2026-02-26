@@ -9,7 +9,9 @@
 
 type ExtensionPreferences = {
   /** Gemini API Key - Get a free key at aistudio.google.com */
-  "geminiApiKey": string
+  "geminiApiKey": string,
+  /** Read Clipboard on Open - If enabled, prefill a suggestion only when clipboard content is a safe single word */
+  "readClipboardOnOpen"?: boolean
 }
 
 /** Preferences accessible in all the extension's commands */

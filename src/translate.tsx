@@ -19,6 +19,18 @@ import { Translation } from "./lib/types";
 
 interface Preferences {
   geminiApiKey: string;
+  readClipboardOnOpen?: boolean;
+}
+
+const CLIPBOARD_WORD_RE = /^[A-Za-z]+(?:['-][A-Za-z]+)?$/;
+const SECRET_PREFIX_RE = /^(sk-|ghp_|github_pat_|xox[baprs]-|AKIA|ASIA|AIza)/i;
+
+function isSafeClipboardSuggestion(raw: string): boolean {
+  const text = raw.trim();
+  if (!text || text.includes("\n")) return false;
+  if (text.length > 32) return false;
+  if (SECRET_PREFIX_RE.test(text)) return false;
+  return CLIPBOARD_WORD_RE.test(text);
 }
 
 function getUserFacingErrorMessage(errorCode: string): string {
@@ -36,7 +48,8 @@ function getUserFacingErrorMessage(errorCode: string): string {
 }
 
 export default function Translate() {
-  const { geminiApiKey } = getPreferenceValues<Preferences>();
+  const { geminiApiKey, readClipboardOnOpen } =
+    getPreferenceValues<Preferences>();
   const { push } = useNavigation();
 
   const [searchText, setSearchText] = useState("");
@@ -50,24 +63,51 @@ export default function Translate() {
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  async function readClipboardSuggestion(): Promise<string | null> {
+    const text = await Clipboard.readText();
+    if (!text) return null;
+    const trimmed = text.trim();
+    return isSafeClipboardSuggestion(trimmed) ? trimmed : null;
+  }
+
+  async function handleReadClipboard() {
+    try {
+      const suggestion = await readClipboardSuggestion();
+      if (!suggestion) {
+        await showToast({
+          style: Toast.Style.Failure,
+          title: "Clipboard not used",
+          message: "Clipboard does not look like a single English word.",
+        });
+        return;
+      }
+
+      setClipboardSuggestion(suggestion);
+      setSearchText(suggestion);
+      fetchTranslation(suggestion);
+    } catch {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Clipboard read failed",
+      });
+    }
+  }
+
   useEffect(() => {
     getHistory().then((h) => setRecentHistory(h.slice(0, 5)));
 
-    Clipboard.readText()
-      .then((text) => {
-        if (
-          text &&
-          text.trim().length > 0 &&
-          text.length <= 50 &&
-          !text.includes("\n")
-        ) {
-          setClipboardSuggestion(text.trim());
+    if (!readClipboardOnOpen) return;
+
+    readClipboardSuggestion()
+      .then((suggestion) => {
+        if (suggestion) {
+          setClipboardSuggestion(suggestion);
         }
       })
       .catch(() => {
         /* ignore */
       });
-  }, []);
+  }, [readClipboardOnOpen]);
 
   function handleSearchChange(text: string) {
     setSearchText(text);
@@ -143,7 +183,6 @@ export default function Translate() {
   }
 
   const showEmpty = !searchText.trim();
-  const showClipboard = showEmpty && !!clipboardSuggestion;
   const showRecent = showEmpty && recentHistory.length > 0;
 
   return (
@@ -198,21 +237,39 @@ export default function Translate() {
             }
           />
         </List.Section>
-      ) : showClipboard ? (
+      ) : showEmpty ? (
         <>
           <List.Section title="Clipboard">
             <List.Item
-              title={clipboardSuggestion}
+              title={clipboardSuggestion || "Read Clipboard"}
+              subtitle={
+                clipboardSuggestion
+                  ? "Use the suggested clipboard word"
+                  : "Read clipboard and validate safely"
+              }
               icon={Icon.Clipboard}
               actions={
                 <ActionPanel>
+                  {clipboardSuggestion ? (
+                    <Action
+                      title="Translate Clipboard Word"
+                      icon={Icon.Book}
+                      onAction={() => {
+                        setSearchText(clipboardSuggestion);
+                        fetchTranslation(clipboardSuggestion);
+                      }}
+                    />
+                  ) : (
+                    <Action
+                      title="Read Clipboard"
+                      icon={Icon.Clipboard}
+                      onAction={handleReadClipboard}
+                    />
+                  )}
                   <Action
-                    title="Translate"
-                    icon={Icon.Book}
-                    onAction={() => {
-                      setSearchText(clipboardSuggestion);
-                      fetchTranslation(clipboardSuggestion);
-                    }}
+                    title="Refresh Clipboard"
+                    icon={Icon.ArrowClockwise}
+                    onAction={handleReadClipboard}
                   />
                 </ActionPanel>
               }
@@ -246,32 +303,6 @@ export default function Translate() {
             </List.Section>
           )}
         </>
-      ) : showRecent ? (
-        <List.Section title="Recent">
-          {recentHistory.map((item) => (
-            <List.Item
-              key={item.id}
-              title={item.word}
-              subtitle={item.translation}
-              accessories={[{ tag: item.partOfSpeech }]}
-              actions={
-                <ActionPanel>
-                  <Action.CopyToClipboard
-                    title="Copy Translation"
-                    content={item.translation}
-                    shortcut={{ modifiers: ["cmd"], key: "c" }}
-                  />
-                  <Action
-                    title="Open History"
-                    icon={Icon.Clock}
-                    shortcut={{ modifiers: ["cmd", "shift"], key: "h" }}
-                    onAction={() => push(<History />)}
-                  />
-                </ActionPanel>
-              }
-            />
-          ))}
-        </List.Section>
       ) : null}
     </List>
   );

@@ -34,6 +34,14 @@
       "title": "Gemini API Key",
       "description": "Get a free key at aistudio.google.com",
       "placeholder": "AIza..."
+    },
+    {
+      "name": "readClipboardOnOpen",
+      "type": "checkbox",
+      "required": false,
+      "title": "Read Clipboard on Open",
+      "label": "Enable",
+      "description": "If enabled, prefill a suggestion only when clipboard content is a safe single word"
     }
   ],
   "dependencies": {
