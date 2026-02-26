@@ -64,6 +64,25 @@ export default function Translate() {
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  function clearDebounce() {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+  }
+
+  function submitTranslation(rawText: string, clearPending = true) {
+    if (clearPending) clearDebounce();
+    const normalizedWord = normalizeWordInput(rawText);
+    if (!normalizedWord) {
+      setResult(null);
+      setIsLoading(false);
+      setError(getUserFacingErrorMessage("INVALID_WORD_INPUT"));
+      return;
+    }
+    fetchTranslation(normalizedWord);
+  }
+
   async function readClipboardSuggestion(): Promise<string | null> {
     const text = await Clipboard.readText();
     if (!text) return null;
@@ -113,8 +132,7 @@ export default function Translate() {
   function handleSearchChange(text: string) {
     setSearchText(text);
 
-    // Clear previous debounce
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+    clearDebounce();
 
     if (!text.trim()) {
       setResult(null);
@@ -123,15 +141,11 @@ export default function Translate() {
       return;
     }
 
+    setError(null);
+
     debounceRef.current = setTimeout(() => {
-      const normalizedWord = normalizeWordInput(text);
-      if (!normalizedWord) {
-        setResult(null);
-        setIsLoading(false);
-        setError(getUserFacingErrorMessage("INVALID_WORD_INPUT"));
-        return;
-      }
-      fetchTranslation(normalizedWord);
+      debounceRef.current = null;
+      submitTranslation(text, false);
     }, 1500);
   }
 
@@ -201,6 +215,10 @@ export default function Translate() {
 
   const showEmpty = !searchText.trim();
   const showRecent = showEmpty && recentHistory.length > 0;
+  const normalizedSearchWord = normalizeWordInput(searchText);
+  const showResult = !!result && result.word === normalizedSearchWord;
+  const showManualSubmitItem =
+    !showEmpty && !error && !showResult && !isLoading;
 
   return (
     <List
@@ -226,7 +244,7 @@ export default function Translate() {
             </ActionPanel>
           }
         />
-      ) : result ? (
+      ) : showResult && result ? (
         <List.Section title="Translation">
           <List.Item
             title={result.word}
@@ -249,6 +267,23 @@ export default function Translate() {
                   icon={Icon.Clock}
                   shortcut={{ modifiers: ["cmd", "shift"], key: "h" }}
                   onAction={() => push(<History />)}
+                />
+              </ActionPanel>
+            }
+          />
+        </List.Section>
+      ) : showManualSubmitItem ? (
+        <List.Section title="Translation">
+          <List.Item
+            title={`Translate "${searchText.trim()}"`}
+            subtitle="Press Enter to translate immediately (auto-runs in 1.5s)"
+            icon={Icon.ArrowRight}
+            actions={
+              <ActionPanel>
+                <Action
+                  title="Translate Now"
+                  icon={Icon.Book}
+                  onAction={() => submitTranslation(searchText)}
                 />
               </ActionPanel>
             }
