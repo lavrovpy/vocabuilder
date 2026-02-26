@@ -1,0 +1,47 @@
+{
+  "name": "vocabuilder",
+  "title": "VocaBuilder",
+  "description": "Translate English words to Ukrainian and build your vocabulary",
+  "icon": "extension-icon.png",
+  "author": "alavreniuk",
+  "categories": ["Productivity"],
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "translate",
+      "title": "Translate Word",
+      "description": "Translate an English word to Ukrainian",
+      "mode": "view"
+    },
+    {
+      "name": "history",
+      "title": "Translation History",
+      "description": "Browse your saved translations",
+      "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "geminiApiKey",
+      "type": "password",
+      "required": true,
+      "title": "Gemini API Key",
+      "description": "Get a free key at aistudio.google.com",
+      "placeholder": "AIza..."
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.93.2",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^1.0.11",
+    "typescript": "^5.8.2"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "lint": "ray lint",
+    "lint:fix": "ray lint --fix"
+  }
+}
