@@ -11,17 +11,16 @@ import { buildFlashcardDetailMarkdown } from "./lib/markdown";
 import { getSessionCards, saveFlashcardProgress } from "./lib/storage";
 import { FlashcardProgress, Rating, Translation } from "./lib/types";
 
-// ─── SM-2 Algorithm ──────────────────────────────────────────────────────────
-//
-// TODO: Implement SM-2 spaced repetition algorithm.
-//
-//   AGAIN: repetitions=0, interval=1, EF=max(1.3, EF-0.2)
-//   GOOD:  repetitions++; interval = rep<2 ? (rep===1 ? 6 : 1) : round(prev*EF)
-//   EASY:  same as GOOD; interval=round(interval*1.3); EF=min(2.5, EF+0.15)
-//
-//   nextReviewDate = now + interval * 86_400_000
-//   Do NOT mutate `progress` — return a new object.
-//
+/**
+ * TODO: Implement the SM-2 spaced repetition update.
+ *
+ * - `again`: repetitions=0, interval=1, EF=max(1.3, EF-0.2)
+ * - `good`: repetitions++, interval = rep<2 ? (rep===1 ? 6 : 1) : round(prev*EF)
+ * - `easy`: same as `good`; interval=round(interval*1.3); EF=min(2.5, EF+0.15)
+ *
+ * `nextReviewDate` should be `now + interval * 86_400_000`.
+ * Return a new object and do not mutate `progress`.
+ */
 function updateProgress(
   progress: FlashcardProgress,
   rating: Rating,
@@ -41,8 +40,7 @@ function freshProgress(word: string): FlashcardProgress {
   };
 }
 
-// ─── State machine ────────────────────────────────────────────────────────────
-
+/** Study state phases for the flashcard session reducer. */
 type Phase = "loading" | "studying" | "done";
 
 interface StudyState {
@@ -107,8 +105,7 @@ const initialState: StudyState = {
   easyCount: 0,
 };
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
+/** Flashcard review command view. */
 export default function Flashcards() {
   const [state, dispatch] = useReducer(reducer, initialState);
 
@@ -135,12 +132,10 @@ export default function Flashcards() {
     dispatch({ type: "rate", rating, updated });
   }
 
-  // ── Loading ──
   if (state.phase === "loading") {
     return <List isLoading searchBarPlaceholder="" />;
   }
 
-  // ── Done / empty ──
   if (state.phase === "done") {
     const total = state.againCount + state.goodCount + state.easyCount;
     const description =
@@ -157,7 +152,6 @@ export default function Flashcards() {
     );
   }
 
-  // ── Studying ──
   const card = state.sessionCards[state.currentIndex];
   const progress = state.progressMap.get(card.word);
   const isNew = !progress || progress.repetitions === 0;
