@@ -24,3 +24,6 @@ bun.lockb
 
 # Raycast
 .raycast/
+
+# Claude Code
+.claude/
