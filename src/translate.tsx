@@ -1,6 +1,7 @@
 import {
   Action,
   ActionPanel,
+  Clipboard,
   getPreferenceValues,
   Icon,
   List,
@@ -29,12 +30,21 @@ export default function Translate() {
   const [error, setError] = useState<string | null>(null);
   const [recentHistory, setRecentHistory] = useState<Translation[]>([]);
 
+  const [clipboardSuggestion, setClipboardSuggestion] = useState("");
+
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load recent history on mount
   useEffect(() => {
     getHistory().then((h) => setRecentHistory(h.slice(0, 5)));
+
+    Clipboard.readText()
+      .then((text) => {
+        if (text && text.trim().length > 0 && text.length <= 50 && !text.includes("\n")) {
+          setClipboardSuggestion(text.trim());
+        }
+      })
+      .catch(() => {/* ignore */});
   }, []);
 
   function handleSearchChange(text: string) {
@@ -52,7 +62,7 @@ export default function Translate() {
 
     debounceRef.current = setTimeout(() => {
       fetchTranslation(text.trim());
-    }, 300);
+    }, 1500);
   }
 
   async function fetchTranslation(word: string) {
@@ -107,14 +117,16 @@ export default function Translate() {
     }
   }
 
-  const showRecent = !searchText.trim() && recentHistory.length > 0;
+  const showEmpty = !searchText.trim();
+  const showClipboard = showEmpty && !!clipboardSuggestion;
+  const showRecent = showEmpty && recentHistory.length > 0;
 
   return (
     <List
       isLoading={isLoading}
       searchBarPlaceholder="Type an English word..."
+      searchText={searchText}
       onSearchTextChange={handleSearchChange}
-      throttle
     >
       {error ? (
         <List.EmptyView
@@ -157,6 +169,54 @@ export default function Translate() {
             }
           />
         </List.Section>
+      ) : showClipboard ? (
+        <>
+          <List.Section title="Clipboard">
+            <List.Item
+              title={clipboardSuggestion}
+              icon={Icon.Clipboard}
+              actions={
+                <ActionPanel>
+                  <Action
+                    title="Translate"
+                    icon={Icon.Book}
+                    onAction={() => {
+                      setSearchText(clipboardSuggestion);
+                      fetchTranslation(clipboardSuggestion);
+                    }}
+                  />
+                </ActionPanel>
+              }
+            />
+          </List.Section>
+          {showRecent && (
+            <List.Section title="Recent">
+              {recentHistory.map((item) => (
+                <List.Item
+                  key={item.id}
+                  title={item.word}
+                  subtitle={item.translation}
+                  accessories={[{ tag: item.partOfSpeech }]}
+                  actions={
+                    <ActionPanel>
+                      <Action.CopyToClipboard
+                        title="Copy Translation"
+                        content={item.translation}
+                        shortcut={{ modifiers: ["cmd"], key: "c" }}
+                      />
+                      <Action
+                        title="Open History"
+                        icon={Icon.Clock}
+                        shortcut={{ modifiers: ["cmd", "shift"], key: "h" }}
+                        onAction={() => push(<History />)}
+                      />
+                    </ActionPanel>
+                  }
+                />
+              ))}
+            </List.Section>
+          )}
+        </>
       ) : showRecent ? (
         <List.Section title="Recent">
           {recentHistory.map((item) => (
