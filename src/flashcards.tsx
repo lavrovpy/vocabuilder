@@ -7,7 +7,8 @@ import {
   Toast,
 } from "@raycast/api";
 import { useEffect, useReducer } from "react";
-import { getLanguagePair } from "./lib/languages";
+import LanguageConfigError from "./components/LanguageConfigError";
+import { useLanguagePair } from "./hooks/useLanguagePair";
 import { buildFlashcardDetailMarkdown } from "./lib/markdown";
 import { getSessionCards, saveFlashcardProgress } from "./lib/storage";
 import { FlashcardProgress, Rating, Translation } from "./lib/types";
@@ -141,7 +142,8 @@ const initialState: StudyState = {
 
 /** Flashcard review command view. */
 export default function Flashcards() {
-  const languagePair = getLanguagePair();
+  const { pair: languagePair, error: langError } = useLanguagePair();
+  if (langError) return <LanguageConfigError message={langError} />;
   const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {

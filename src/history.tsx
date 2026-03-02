@@ -10,7 +10,8 @@ import {
   Toast,
 } from "@raycast/api";
 import { useEffect, useState } from "react";
-import { getLanguagePair } from "./lib/languages";
+import LanguageConfigError from "./components/LanguageConfigError";
+import { useLanguagePair } from "./hooks/useLanguagePair";
 import { buildTranslationDetailMarkdown } from "./lib/markdown";
 import { clearHistory, deleteTranslation, getHistory } from "./lib/storage";
 import { Translation } from "./lib/types";
@@ -27,7 +28,8 @@ function relativeTime(timestamp: number): string {
 }
 
 export default function History() {
-  const languagePair = getLanguagePair();
+  const { pair: languagePair, error: langError } = useLanguagePair();
+  if (langError) return <LanguageConfigError message={langError} />;
   const [history, setHistory] = useState<Translation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isShowingDetail, setIsShowingDetail] = useState(false);

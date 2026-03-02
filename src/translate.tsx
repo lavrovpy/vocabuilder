@@ -11,10 +11,11 @@ import {
   useNavigation,
 } from "@raycast/api";
 import { useEffect, useRef, useState } from "react";
+import LanguageConfigError from "./components/LanguageConfigError";
+import { useLanguagePair } from "./hooks/useLanguagePair";
 import History from "./history";
 import { translateWord } from "./lib/gemini";
 import { MAX_WORD_LENGTH, normalizeWordInput } from "./lib/input";
-import { getLanguagePair } from "./lib/languages";
 import { buildTranslationDetailMarkdown } from "./lib/markdown";
 import { getHistory, saveTranslation } from "./lib/storage";
 import { Translation } from "./lib/types";
@@ -47,7 +48,8 @@ function getUserFacingErrorMessage(errorCode: string): string {
 export default function Translate() {
   const { geminiApiKey, readClipboardOnOpen } =
     getPreferenceValues<Preferences.Translate>();
-  const languagePair = getLanguagePair();
+  const { pair: languagePair, error: langError } = useLanguagePair();
+  if (langError) return <LanguageConfigError message={langError} />;
   const { source } = languagePair;
   const { push } = useNavigation();
 
