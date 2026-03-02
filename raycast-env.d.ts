@@ -10,6 +10,10 @@
 type ExtensionPreferences = {
   /** Gemini API Key - Get a free key at aistudio.google.com */
   "geminiApiKey": string,
+  /** Source Language - The language you want to translate from */
+  "sourceLanguage": "en" | "uk" | "pl" | "de" | "fr" | "es" | "it" | "pt" | "nl" | "cs" | "sv" | "ja" | "ko" | "zh" | "tr",
+  /** Target Language - The language you want to translate to */
+  "targetLanguage": "en" | "uk" | "pl" | "de" | "fr" | "es" | "it" | "pt" | "nl" | "cs" | "sv" | "ja" | "ko" | "zh" | "tr",
   /** Read Clipboard on Open - If enabled, prefill a suggestion only when clipboard content is a safe single word */
   "readClipboardOnOpen"?: boolean
 }

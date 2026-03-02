@@ -1,5 +1,5 @@
 export const MAX_WORD_LENGTH = 32;
-const WORD_INPUT_RE = /^[A-Za-z]+(?:['-][A-Za-z]+)?$/;
+const WORD_INPUT_RE = /^[\p{L}]+(?:['-][\p{L}]+)?$/u;
 
 export function normalizeWordInput(raw: string): string | null {
   const word = raw.trim();

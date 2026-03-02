@@ -11,6 +11,8 @@ import {
   useNavigation,
 } from "@raycast/api";
 import { useEffect, useRef, useState } from "react";
+import LanguageConfigError from "./components/LanguageConfigError";
+import { useLanguagePair } from "./hooks/useLanguagePair";
 import History from "./history";
 import { translateWord } from "./lib/gemini";
 import { MAX_WORD_LENGTH, normalizeWordInput } from "./lib/input";
@@ -37,7 +39,7 @@ function getUserFacingErrorMessage(errorCode: string): string {
     case "GEMINI_INVALID_RESPONSE":
       return "Gemini returned an unexpected response. Please try again.";
     case "INVALID_WORD_INPUT":
-      return `Enter one English word (letters, apostrophe, hyphen, max ${MAX_WORD_LENGTH} chars).`;
+      return `Enter one word (letters, apostrophe, hyphen, max ${MAX_WORD_LENGTH} chars).`;
     default:
       return "Translation failed. Please try again.";
   }
@@ -46,6 +48,7 @@ function getUserFacingErrorMessage(errorCode: string): string {
 export default function Translate() {
   const { geminiApiKey, readClipboardOnOpen } =
     getPreferenceValues<Preferences.Translate>();
+  const langResult = useLanguagePair();
   const { push } = useNavigation();
 
   const [searchText, setSearchText] = useState("");
@@ -58,6 +61,28 @@ export default function Translate() {
 
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!langResult.pair) return;
+
+    getHistory(langResult.pair).then((h) => setRecentHistory(h.slice(0, 5)));
+
+    if (!readClipboardOnOpen) return;
+
+    readClipboardSuggestion()
+      .then((suggestion) => {
+        if (suggestion) {
+          setClipboardSuggestion(suggestion);
+        }
+      })
+      .catch(() => {
+        /* ignore */
+      });
+  }, [readClipboardOnOpen]);
+
+  if (langResult.error) return <LanguageConfigError message={langResult.error} />;
+  const languagePair = langResult.pair;
+  const { source } = languagePair;
 
   function clearDebounce() {
     if (debounceRef.current) {
@@ -92,7 +117,7 @@ export default function Translate() {
         await showToast({
           style: Toast.Style.Failure,
           title: "Clipboard not used",
-          message: "Clipboard does not look like a single English word.",
+          message: "Clipboard does not look like a single word.",
         });
         return;
       }
@@ -107,22 +132,6 @@ export default function Translate() {
       });
     }
   }
-
-  useEffect(() => {
-    getHistory().then((h) => setRecentHistory(h.slice(0, 5)));
-
-    if (!readClipboardOnOpen) return;
-
-    readClipboardSuggestion()
-      .then((suggestion) => {
-        if (suggestion) {
-          setClipboardSuggestion(suggestion);
-        }
-      })
-      .catch(() => {
-        /* ignore */
-      });
-  }, [readClipboardOnOpen]);
 
   function handleSearchChange(text: string) {
     setSearchText(text);
@@ -158,6 +167,7 @@ export default function Translate() {
       const geminiResult = await translateWord(
         word,
         geminiApiKey,
+        languagePair,
         controller.signal,
       );
 
@@ -176,7 +186,7 @@ export default function Translate() {
       setResult(translation);
 
       // Auto-save
-      const saved = await saveTranslation(translation);
+      const saved = await saveTranslation(translation, languagePair);
       if (saved) {
         setRecentHistory((prev) =>
           [translation, ...prev.filter((h) => h.word !== word)].slice(0, 5),
@@ -218,7 +228,7 @@ export default function Translate() {
   return (
     <List
       isLoading={isLoading}
-      searchBarPlaceholder="Type an English word..."
+      searchBarPlaceholder={`Type a ${source.name} word...`}
       searchText={searchText}
       onSearchTextChange={handleSearchChange}
     >

@@ -7,6 +7,8 @@ import {
   Toast,
 } from "@raycast/api";
 import { useEffect, useReducer } from "react";
+import LanguageConfigError from "./components/LanguageConfigError";
+import { useLanguagePair } from "./hooks/useLanguagePair";
 import { buildFlashcardDetailMarkdown } from "./lib/markdown";
 import { getSessionCards, saveFlashcardProgress } from "./lib/storage";
 import { FlashcardProgress, Rating, Translation } from "./lib/types";
@@ -140,20 +142,25 @@ const initialState: StudyState = {
 
 /** Flashcard review command view. */
 export default function Flashcards() {
+  const langResult = useLanguagePair();
   const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {
-    getSessionCards().then(({ sessionCards, progressMap }) => {
+    if (!langResult.pair) return;
+    getSessionCards(langResult.pair).then(({ sessionCards, progressMap }) => {
       dispatch({ type: "loaded", cards: sessionCards, progressMap });
     });
   }, []);
+
+  if (langResult.error) return <LanguageConfigError message={langResult.error} />;
+  const languagePair = langResult.pair;
 
   async function handleRate(rating: Rating) {
     const card = state.sessionCards[state.currentIndex];
     const existing =
       state.progressMap.get(card.word) ?? freshProgress(card.word);
     const updated = updateProgress(existing, rating, Date.now());
-    const saved = await saveFlashcardProgress(updated);
+    const saved = await saveFlashcardProgress(updated, languagePair);
     if (!saved) {
       await showToast({
         style: Toast.Style.Failure,

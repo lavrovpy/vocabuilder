@@ -4,6 +4,7 @@ import {
   GeminiResponseSchema,
 } from "./types";
 import { asJsonStringLiteral, normalizeWordInput } from "./input";
+import { LanguagePair } from "./languages";
 
 const MODEL = "gemini-2.5-flash-lite";
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
@@ -11,6 +12,7 @@ const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 export async function translateWord(
   word: string,
   apiKey: string,
+  languagePair: LanguagePair,
   signal?: AbortSignal,
 ): Promise<GeminiResponse> {
   const normalizedWord = normalizeWordInput(word);
@@ -18,13 +20,15 @@ export async function translateWord(
     throw new Error("INVALID_WORD_INPUT");
   }
 
-  const prompt = `Translate the English word ${asJsonStringLiteral(normalizedWord)} to Ukrainian.
+  const { source, target } = languagePair;
+
+  const prompt = `Translate the ${source.name} word ${asJsonStringLiteral(normalizedWord)} to ${target.name}.
 Respond ONLY with valid JSON in this exact format:
 {
-  "translation": "Ukrainian word",
+  "translation": "${target.name} word",
   "partOfSpeech": "noun/verb/adjective/etc",
-  "example": "Ukrainian example sentence",
-  "exampleTranslation": "English translation of the example"
+  "example": "${target.name} example sentence",
+  "exampleTranslation": "${source.name} translation of the example"
 }`;
 
   const url = `${BASE_URL}/${MODEL}:generateContent`;

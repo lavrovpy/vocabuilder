@@ -10,6 +10,8 @@ import {
   Toast,
 } from "@raycast/api";
 import { useEffect, useState } from "react";
+import LanguageConfigError from "./components/LanguageConfigError";
+import { useLanguagePair } from "./hooks/useLanguagePair";
 import { buildTranslationDetailMarkdown } from "./lib/markdown";
 import { clearHistory, deleteTranslation, getHistory } from "./lib/storage";
 import { Translation } from "./lib/types";
@@ -26,17 +28,22 @@ function relativeTime(timestamp: number): string {
 }
 
 export default function History() {
+  const langResult = useLanguagePair();
   const [history, setHistory] = useState<Translation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isShowingDetail, setIsShowingDetail] = useState(false);
   const [searchText, setSearchText] = useState("");
 
   useEffect(() => {
-    getHistory().then((h) => {
+    if (!langResult.pair) return;
+    getHistory(langResult.pair).then((h) => {
       setHistory(h);
       setIsLoading(false);
     });
   }, []);
+
+  if (langResult.error) return <LanguageConfigError message={langResult.error} />;
+  const languagePair = langResult.pair;
 
   const filtered = searchText
     ? history.filter(
@@ -54,7 +61,7 @@ export default function History() {
     });
     if (!confirmed) return;
 
-    const deleted = await deleteTranslation(id);
+    const deleted = await deleteTranslation(id, languagePair);
     if (!deleted) {
       await showToast({
         style: Toast.Style.Failure,
@@ -79,7 +86,7 @@ export default function History() {
     });
     if (!confirmed) return;
 
-    await clearHistory();
+    await clearHistory(languagePair);
     setHistory([]);
     await showToast({ style: Toast.Style.Success, title: "History cleared" });
   }
