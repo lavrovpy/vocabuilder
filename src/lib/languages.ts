@@ -3,7 +3,6 @@ import { getPreferenceValues } from "@raycast/api";
 export interface Language {
   code: string;
   name: string;
-  nativeName: string;
 }
 
 export interface LanguagePair {
@@ -12,21 +11,21 @@ export interface LanguagePair {
 }
 
 export const LANGUAGES: Language[] = [
-  { code: "en", name: "English", nativeName: "English" },
-  { code: "uk", name: "Ukrainian", nativeName: "Українська" },
-  { code: "pl", name: "Polish", nativeName: "Polski" },
-  { code: "de", name: "German", nativeName: "Deutsch" },
-  { code: "fr", name: "French", nativeName: "Français" },
-  { code: "es", name: "Spanish", nativeName: "Español" },
-  { code: "it", name: "Italian", nativeName: "Italiano" },
-  { code: "pt", name: "Portuguese", nativeName: "Português" },
-  { code: "nl", name: "Dutch", nativeName: "Nederlands" },
-  { code: "cs", name: "Czech", nativeName: "Čeština" },
-  { code: "sv", name: "Swedish", nativeName: "Svenska" },
-  { code: "ja", name: "Japanese", nativeName: "日本語" },
-  { code: "ko", name: "Korean", nativeName: "한국어" },
-  { code: "zh", name: "Chinese", nativeName: "中文" },
-  { code: "tr", name: "Turkish", nativeName: "Türkçe" },
+  { code: "en", name: "English" },
+  { code: "uk", name: "Ukrainian" },
+  { code: "pl", name: "Polish" },
+  { code: "de", name: "German" },
+  { code: "fr", name: "French" },
+  { code: "es", name: "Spanish" },
+  { code: "it", name: "Italian" },
+  { code: "pt", name: "Portuguese" },
+  { code: "nl", name: "Dutch" },
+  { code: "cs", name: "Czech" },
+  { code: "sv", name: "Swedish" },
+  { code: "ja", name: "Japanese" },
+  { code: "ko", name: "Korean" },
+  { code: "zh", name: "Chinese" },
+  { code: "tr", name: "Turkish" },
 ];
 
 export function getLanguageByCode(code: string): Language | undefined {
@@ -39,6 +38,9 @@ export function storageKeyPrefix(pair: LanguagePair): string {
 
 export function getLanguagePair(): LanguagePair {
   const { sourceLanguage = "en", targetLanguage = "uk" } = getPreferenceValues<Preferences>();
+  if (sourceLanguage === targetLanguage) {
+    throw new Error("Source and target language must be different.");
+  }
   const source = getLanguageByCode(sourceLanguage);
   const target = getLanguageByCode(targetLanguage);
   if (!source || !target) {
