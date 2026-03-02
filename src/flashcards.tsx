@@ -142,15 +142,18 @@ const initialState: StudyState = {
 
 /** Flashcard review command view. */
 export default function Flashcards() {
-  const { pair: languagePair, error: langError } = useLanguagePair();
-  if (langError) return <LanguageConfigError message={langError} />;
+  const langResult = useLanguagePair();
   const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {
-    getSessionCards(languagePair).then(({ sessionCards, progressMap }) => {
+    if (!langResult.pair) return;
+    getSessionCards(langResult.pair).then(({ sessionCards, progressMap }) => {
       dispatch({ type: "loaded", cards: sessionCards, progressMap });
     });
   }, []);
+
+  if (langResult.error) return <LanguageConfigError message={langResult.error} />;
+  const languagePair = langResult.pair;
 
   async function handleRate(rating: Rating) {
     const card = state.sessionCards[state.currentIndex];

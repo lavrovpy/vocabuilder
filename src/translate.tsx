@@ -48,9 +48,7 @@ function getUserFacingErrorMessage(errorCode: string): string {
 export default function Translate() {
   const { geminiApiKey, readClipboardOnOpen } =
     getPreferenceValues<Preferences.Translate>();
-  const { pair: languagePair, error: langError } = useLanguagePair();
-  if (langError) return <LanguageConfigError message={langError} />;
-  const { source } = languagePair;
+  const langResult = useLanguagePair();
   const { push } = useNavigation();
 
   const [searchText, setSearchText] = useState("");
@@ -63,6 +61,28 @@ export default function Translate() {
 
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!langResult.pair) return;
+
+    getHistory(langResult.pair).then((h) => setRecentHistory(h.slice(0, 5)));
+
+    if (!readClipboardOnOpen) return;
+
+    readClipboardSuggestion()
+      .then((suggestion) => {
+        if (suggestion) {
+          setClipboardSuggestion(suggestion);
+        }
+      })
+      .catch(() => {
+        /* ignore */
+      });
+  }, [readClipboardOnOpen]);
+
+  if (langResult.error) return <LanguageConfigError message={langResult.error} />;
+  const languagePair = langResult.pair;
+  const { source } = languagePair;
 
   function clearDebounce() {
     if (debounceRef.current) {
@@ -112,22 +132,6 @@ export default function Translate() {
       });
     }
   }
-
-  useEffect(() => {
-    getHistory(languagePair).then((h) => setRecentHistory(h.slice(0, 5)));
-
-    if (!readClipboardOnOpen) return;
-
-    readClipboardSuggestion()
-      .then((suggestion) => {
-        if (suggestion) {
-          setClipboardSuggestion(suggestion);
-        }
-      })
-      .catch(() => {
-        /* ignore */
-      });
-  }, [readClipboardOnOpen]);
 
   function handleSearchChange(text: string) {
     setSearchText(text);

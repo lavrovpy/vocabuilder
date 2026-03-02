@@ -28,19 +28,22 @@ function relativeTime(timestamp: number): string {
 }
 
 export default function History() {
-  const { pair: languagePair, error: langError } = useLanguagePair();
-  if (langError) return <LanguageConfigError message={langError} />;
+  const langResult = useLanguagePair();
   const [history, setHistory] = useState<Translation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isShowingDetail, setIsShowingDetail] = useState(false);
   const [searchText, setSearchText] = useState("");
 
   useEffect(() => {
-    getHistory(languagePair).then((h) => {
+    if (!langResult.pair) return;
+    getHistory(langResult.pair).then((h) => {
       setHistory(h);
       setIsLoading(false);
     });
   }, []);
+
+  if (langResult.error) return <LanguageConfigError message={langResult.error} />;
+  const languagePair = langResult.pair;
 
   const filtered = searchText
     ? history.filter(
