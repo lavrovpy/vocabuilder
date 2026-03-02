@@ -6,11 +6,51 @@ import {
   Translation,
   TranslationSchema,
 } from "./types";
+import { LanguagePair, storageKeyPrefix } from "./languages";
 
-const STORAGE_KEY = "vocabuilder-history";
-const HISTORY_CORRUPT_BACKUP_KEY = `${STORAGE_KEY}-corrupt-backup`;
-const FLASHCARD_KEY = "vocabuilder-flashcards";
-const FLASHCARD_CORRUPT_BACKUP_KEY = `${FLASHCARD_KEY}-corrupt-backup`;
+const LEGACY_HISTORY_KEY = "vocabuilder-history";
+const LEGACY_FLASHCARD_KEY = "vocabuilder-flashcards";
+
+function historyKey(pair: LanguagePair): string {
+  return `vocabuilder-history-${storageKeyPrefix(pair)}`;
+}
+
+function historyCorruptBackupKey(pair: LanguagePair): string {
+  return `${historyKey(pair)}-corrupt-backup`;
+}
+
+function flashcardKey(pair: LanguagePair): string {
+  return `vocabuilder-flashcards-${storageKeyPrefix(pair)}`;
+}
+
+function flashcardCorruptBackupKey(pair: LanguagePair): string {
+  return `${flashcardKey(pair)}-corrupt-backup`;
+}
+
+async function migrateIfNeeded(
+  legacyKey: string,
+  newKey: string,
+): Promise<void> {
+  const existing = await LocalStorage.getItem<string>(newKey);
+  if (existing) return;
+
+  const legacy = await LocalStorage.getItem<string>(legacyKey);
+  if (!legacy) return;
+
+  await LocalStorage.setItem(newKey, legacy);
+}
+
+function isEnUkPair(pair: LanguagePair): boolean {
+  return pair.source.code === "en" && pair.target.code === "uk";
+}
+
+async function ensureMigrated(pair: LanguagePair): Promise<void> {
+  if (!isEnUkPair(pair)) return;
+  await Promise.all([
+    migrateIfNeeded(LEGACY_HISTORY_KEY, historyKey(pair)),
+    migrateIfNeeded(LEGACY_FLASHCARD_KEY, flashcardKey(pair)),
+  ]);
+}
 
 async function backupCorruptedStorage(
   sourceKey: string,
@@ -42,24 +82,31 @@ async function parseStoredArray<T>(
   }
 }
 
-export async function getHistory(): Promise<Translation[]> {
-  const raw = await LocalStorage.getItem<string>(STORAGE_KEY);
+export async function getHistory(pair: LanguagePair): Promise<Translation[]> {
+  await ensureMigrated(pair);
+  const key = historyKey(pair);
+  const raw = await LocalStorage.getItem<string>(key);
   if (!raw) return [];
   const parsed = await parseStoredArray(
-    STORAGE_KEY,
-    HISTORY_CORRUPT_BACKUP_KEY,
+    key,
+    historyCorruptBackupKey(pair),
     raw,
     z.array(TranslationSchema),
   );
   return parsed ?? [];
 }
 
-export async function saveTranslation(t: Translation): Promise<boolean> {
-  const raw = await LocalStorage.getItem<string>(STORAGE_KEY);
+export async function saveTranslation(
+  t: Translation,
+  pair: LanguagePair,
+): Promise<boolean> {
+  await ensureMigrated(pair);
+  const key = historyKey(pair);
+  const raw = await LocalStorage.getItem<string>(key);
   const history = raw
     ? await parseStoredArray(
-        STORAGE_KEY,
-        HISTORY_CORRUPT_BACKUP_KEY,
+        key,
+        historyCorruptBackupKey(pair),
         raw,
         z.array(TranslationSchema),
       )
@@ -67,16 +114,21 @@ export async function saveTranslation(t: Translation): Promise<boolean> {
   if (!history) return false;
 
   const updated = [t, ...history.filter((h) => h.word !== t.word)];
-  await LocalStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  await LocalStorage.setItem(key, JSON.stringify(updated));
   return true;
 }
 
-export async function deleteTranslation(id: string): Promise<boolean> {
-  const raw = await LocalStorage.getItem<string>(STORAGE_KEY);
+export async function deleteTranslation(
+  id: string,
+  pair: LanguagePair,
+): Promise<boolean> {
+  await ensureMigrated(pair);
+  const key = historyKey(pair);
+  const raw = await LocalStorage.getItem<string>(key);
   const history = raw
     ? await parseStoredArray(
-        STORAGE_KEY,
-        HISTORY_CORRUPT_BACKUP_KEY,
+        key,
+        historyCorruptBackupKey(pair),
         raw,
         z.array(TranslationSchema),
       )
@@ -84,20 +136,24 @@ export async function deleteTranslation(id: string): Promise<boolean> {
   if (!history) return false;
 
   const updated = history.filter((h) => h.id !== id);
-  await LocalStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  await LocalStorage.setItem(key, JSON.stringify(updated));
   return true;
 }
 
-export async function clearHistory(): Promise<void> {
-  await LocalStorage.removeItem(STORAGE_KEY);
+export async function clearHistory(pair: LanguagePair): Promise<void> {
+  await LocalStorage.removeItem(historyKey(pair));
 }
 
-async function getFlashcardProgress(): Promise<Map<string, FlashcardProgress>> {
-  const raw = await LocalStorage.getItem<string>(FLASHCARD_KEY);
+async function getFlashcardProgress(
+  pair: LanguagePair,
+): Promise<Map<string, FlashcardProgress>> {
+  await ensureMigrated(pair);
+  const key = flashcardKey(pair);
+  const raw = await LocalStorage.getItem<string>(key);
   if (!raw) return new Map();
   const arr = await parseStoredArray(
-    FLASHCARD_KEY,
-    FLASHCARD_CORRUPT_BACKUP_KEY,
+    key,
+    flashcardCorruptBackupKey(pair),
     raw,
     z.array(FlashcardProgressSchema),
   );
@@ -106,12 +162,15 @@ async function getFlashcardProgress(): Promise<Map<string, FlashcardProgress>> {
 
 export async function saveFlashcardProgress(
   progress: FlashcardProgress,
+  pair: LanguagePair,
 ): Promise<boolean> {
-  const raw = await LocalStorage.getItem<string>(FLASHCARD_KEY);
+  await ensureMigrated(pair);
+  const key = flashcardKey(pair);
+  const raw = await LocalStorage.getItem<string>(key);
   const arr = raw
     ? await parseStoredArray(
-        FLASHCARD_KEY,
-        FLASHCARD_CORRUPT_BACKUP_KEY,
+        key,
+        flashcardCorruptBackupKey(pair),
         raw,
         z.array(FlashcardProgressSchema),
       )
@@ -120,7 +179,7 @@ export async function saveFlashcardProgress(
 
   const map = new Map(arr.map((p) => [p.word, p]));
   map.set(progress.word, progress);
-  await LocalStorage.setItem(FLASHCARD_KEY, JSON.stringify([...map.values()]));
+  await LocalStorage.setItem(key, JSON.stringify([...map.values()]));
   return true;
 }
 
@@ -138,10 +197,12 @@ function shuffle<T>(arr: T[]): T[] {
   return out;
 }
 
-export async function getSessionCards(): Promise<SessionData> {
+export async function getSessionCards(
+  pair: LanguagePair,
+): Promise<SessionData> {
   const [history, progressMap] = await Promise.all([
-    getHistory(),
-    getFlashcardProgress(),
+    getHistory(pair),
+    getFlashcardProgress(pair),
   ]);
   const now = Date.now();
 

@@ -1,3 +1,7 @@
+# Project Conventions
+
+- Use `npm` to run build scripts (e.g. `npm run lint`, `npm run build`).
+
 # Security Guardrails for AI Edits
 
 - Never place secrets (API keys, tokens, passwords) in URLs or query parameters. Send them in headers or request bodies.

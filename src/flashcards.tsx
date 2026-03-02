@@ -7,6 +7,7 @@ import {
   Toast,
 } from "@raycast/api";
 import { useEffect, useReducer } from "react";
+import { getLanguagePair } from "./lib/languages";
 import { buildFlashcardDetailMarkdown } from "./lib/markdown";
 import { getSessionCards, saveFlashcardProgress } from "./lib/storage";
 import { FlashcardProgress, Rating, Translation } from "./lib/types";
@@ -140,10 +141,11 @@ const initialState: StudyState = {
 
 /** Flashcard review command view. */
 export default function Flashcards() {
+  const languagePair = getLanguagePair();
   const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {
-    getSessionCards().then(({ sessionCards, progressMap }) => {
+    getSessionCards(languagePair).then(({ sessionCards, progressMap }) => {
       dispatch({ type: "loaded", cards: sessionCards, progressMap });
     });
   }, []);
@@ -153,7 +155,7 @@ export default function Flashcards() {
     const existing =
       state.progressMap.get(card.word) ?? freshProgress(card.word);
     const updated = updateProgress(existing, rating, Date.now());
-    const saved = await saveFlashcardProgress(updated);
+    const saved = await saveFlashcardProgress(updated, languagePair);
     if (!saved) {
       await showToast({
         style: Toast.Style.Failure,
