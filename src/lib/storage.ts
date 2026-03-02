@@ -8,9 +8,6 @@ import {
 } from "./types";
 import { LanguagePair, storageKeyPrefix } from "./languages";
 
-const LEGACY_HISTORY_KEY = "vocabuilder-history";
-const LEGACY_FLASHCARD_KEY = "vocabuilder-flashcards";
-
 function historyKey(pair: LanguagePair): string {
   return `vocabuilder-history-${storageKeyPrefix(pair)}`;
 }
@@ -25,31 +22,6 @@ function flashcardKey(pair: LanguagePair): string {
 
 function flashcardCorruptBackupKey(pair: LanguagePair): string {
   return `${flashcardKey(pair)}-corrupt-backup`;
-}
-
-async function migrateIfNeeded(
-  legacyKey: string,
-  newKey: string,
-): Promise<void> {
-  const existing = await LocalStorage.getItem<string>(newKey);
-  if (existing) return;
-
-  const legacy = await LocalStorage.getItem<string>(legacyKey);
-  if (!legacy) return;
-
-  await LocalStorage.setItem(newKey, legacy);
-}
-
-function isEnUkPair(pair: LanguagePair): boolean {
-  return pair.source.code === "en" && pair.target.code === "uk";
-}
-
-async function ensureMigrated(pair: LanguagePair): Promise<void> {
-  if (!isEnUkPair(pair)) return;
-  await Promise.all([
-    migrateIfNeeded(LEGACY_HISTORY_KEY, historyKey(pair)),
-    migrateIfNeeded(LEGACY_FLASHCARD_KEY, flashcardKey(pair)),
-  ]);
 }
 
 async function backupCorruptedStorage(
@@ -83,7 +55,6 @@ async function parseStoredArray<T>(
 }
 
 export async function getHistory(pair: LanguagePair): Promise<Translation[]> {
-  await ensureMigrated(pair);
   const key = historyKey(pair);
   const raw = await LocalStorage.getItem<string>(key);
   if (!raw) return [];
@@ -100,7 +71,6 @@ export async function saveTranslation(
   t: Translation,
   pair: LanguagePair,
 ): Promise<boolean> {
-  await ensureMigrated(pair);
   const key = historyKey(pair);
   const raw = await LocalStorage.getItem<string>(key);
   const history = raw
@@ -122,7 +92,6 @@ export async function deleteTranslation(
   id: string,
   pair: LanguagePair,
 ): Promise<boolean> {
-  await ensureMigrated(pair);
   const key = historyKey(pair);
   const raw = await LocalStorage.getItem<string>(key);
   const history = raw
@@ -147,7 +116,6 @@ export async function clearHistory(pair: LanguagePair): Promise<void> {
 async function getFlashcardProgress(
   pair: LanguagePair,
 ): Promise<Map<string, FlashcardProgress>> {
-  await ensureMigrated(pair);
   const key = flashcardKey(pair);
   const raw = await LocalStorage.getItem<string>(key);
   if (!raw) return new Map();
@@ -164,7 +132,6 @@ export async function saveFlashcardProgress(
   progress: FlashcardProgress,
   pair: LanguagePair,
 ): Promise<boolean> {
-  await ensureMigrated(pair);
   const key = flashcardKey(pair);
   const raw = await LocalStorage.getItem<string>(key);
   const arr = raw
