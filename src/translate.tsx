@@ -2,6 +2,7 @@ import {
   Action,
   ActionPanel,
   Clipboard,
+  Color,
   getPreferenceValues,
   Icon,
   List,
@@ -173,9 +174,13 @@ export default function Translate() {
 
       if (controller.signal.aborted) return;
 
+      const corrected = geminiResult.correctedWord;
+      const effectiveWord =
+        corrected && corrected !== word ? corrected : word;
+
       const translation: Translation = {
-        id: `${word}-${Date.now()}`,
-        word,
+        id: `${effectiveWord}-${Date.now()}`,
+        word: effectiveWord,
         translation: geminiResult.translation,
         partOfSpeech: geminiResult.partOfSpeech,
         example: geminiResult.example,
@@ -189,7 +194,7 @@ export default function Translate() {
       const saved = await saveTranslation(translation, languagePair);
       if (saved) {
         setRecentHistory((prev) =>
-          [translation, ...prev.filter((h) => h.word !== word)].slice(0, 5),
+          [translation, ...prev.filter((h) => h.word !== translation.word)].slice(0, 5),
         );
       } else {
         await showToast({
@@ -221,7 +226,7 @@ export default function Translate() {
   const showEmpty = !searchText.trim();
   const showRecent = showEmpty && recentHistory.length > 0;
   const normalizedSearchWord = normalizeWordInput(searchText);
-  const showResult = !!result && result.word === normalizedSearchWord;
+  const showResult = !!result && !isLoading;
   const showManualSubmitItem =
     !showEmpty && !error && !showResult && !isLoading;
 
@@ -254,10 +259,15 @@ export default function Translate() {
           <List.Item
             title={result.word}
             subtitle={result.translation}
-            accessories={[{ tag: result.partOfSpeech }]}
+            accessories={[
+              ...(result.word !== normalizedSearchWord
+                ? [{ tag: { value: `corrected from "${normalizedSearchWord}"`, color: Color.Orange } }]
+                : []),
+              { tag: result.partOfSpeech },
+            ]}
             detail={
               <List.Item.Detail
-                markdown={buildTranslationDetailMarkdown(result)}
+                markdown={buildTranslationDetailMarkdown(result, normalizedSearchWord ?? undefined)}
               />
             }
             actions={
@@ -360,6 +370,8 @@ export default function Translate() {
             </List.Section>
           )}
         </>
+      ) : isLoading ? (
+        <List.EmptyView title="Translating…" icon={Icon.Book} />
       ) : null}
     </List>
   );

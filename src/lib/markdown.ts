@@ -20,8 +20,14 @@ export function buildTranslationDetailMarkdown(
     Translation,
     "word" | "translation" | "partOfSpeech" | "example" | "exampleTranslation"
   >,
+  originalInput?: string,
 ): string {
+  const correctionNote =
+    originalInput && originalInput !== translation.word
+      ? `\n> *Corrected from "${escapeMarkdown(originalInput)}"*\n`
+      : "";
   return `## ${escapeMarkdown(translation.word)}
+${correctionNote}
 
 **${escapeMarkdown(translation.translation)}** *(${escapeMarkdown(translation.partOfSpeech)})*
 

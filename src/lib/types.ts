@@ -5,6 +5,7 @@ export const GeminiResponseSchema = z.object({
   partOfSpeech: z.string(),
   example: z.string(),
   exampleTranslation: z.string(),
+  correctedWord: z.string().optional(),
 });
 
 export const GeminiApiResponseSchema = z.object({

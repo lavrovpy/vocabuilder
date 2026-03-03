@@ -23,12 +23,14 @@ export async function translateWord(
   const { source, target } = languagePair;
 
   const prompt = `Translate the ${source.name} word ${asJsonStringLiteral(normalizedWord)} to ${target.name}.
-Respond ONLY with valid JSON in this exact format:
+If the input is a misspelling or typo, correct it and translate the corrected word.
+Respond ONLY with valid JSON:
 {
-  "translation": "${target.name} word",
+  "translation": "${target.name} translation",
   "partOfSpeech": "noun/verb/adjective/etc",
   "example": "${target.name} example sentence",
-  "exampleTranslation": "${source.name} translation of the example"
+  "exampleTranslation": "${source.name} translation of the example",
+  "correctedWord": "include ONLY if the input was misspelled; omit if correct"
 }`;
 
   const url = `${BASE_URL}/${MODEL}:generateContent`;
