@@ -154,6 +154,10 @@ export default function Translate() {
     setSearchText(text);
 
     clearDebounce();
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
 
     if (!text.trim()) {
       setResult(null);
@@ -164,6 +168,7 @@ export default function Translate() {
 
     setError(null);
     setResult(null);
+    setIsLoading(false);
 
     // Only auto-translate for word-like input
     if (normalizeWordInput(text) !== null) {
