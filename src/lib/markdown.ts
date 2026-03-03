@@ -44,15 +44,15 @@ export function buildTextTranslationDetailMarkdown(
   input: string,
   translation: string,
 ): string {
-  return `## Original
+  return `## Translation
 
-${escapeMarkdownMultiline(input)}
+${escapeMarkdownMultiline(translation)}
 
 ---
 
-## Translation
+## Original
 
-${escapeMarkdownMultiline(translation)}`;
+${escapeMarkdownMultiline(input)}`;
 }
 
 export function buildFlashcardDetailMarkdown(
