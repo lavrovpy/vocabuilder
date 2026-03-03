@@ -5,6 +5,7 @@ A [Raycast](https://raycast.com) extension that translates words between languag
 ## Features
 
 - **Translate Word** — type a word and get an instant translation with part of speech and an example sentence
+- **Typo correction** — misspelled input is auto-corrected before translating, with a visual indicator showing the original input
 - **Translation History** — browse, search, and manage all your saved translations
 - **Flashcards** — review saved words with spaced repetition
 - **Configurable language pair** — pick source and target from 15 supported languages (defaults to English → Ukrainian)
