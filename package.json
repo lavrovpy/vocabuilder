@@ -12,8 +12,8 @@
   "commands": [
     {
       "name": "translate",
-      "title": "Translate Word",
-      "description": "Translate a word to your target language",
+      "title": "Translate",
+      "description": "Translate a word or text to your target language",
       "mode": "view"
     },
     {

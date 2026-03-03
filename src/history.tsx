@@ -12,9 +12,14 @@ import {
 import { useEffect, useState } from "react";
 import LanguageConfigError from "./components/LanguageConfigError";
 import { useLanguagePair } from "./hooks/useLanguagePair";
-import { buildTranslationDetailMarkdown } from "./lib/markdown";
+import { buildTranslationDetailMarkdown, buildTextTranslationDetailMarkdown } from "./lib/markdown";
 import { clearHistory, deleteTranslation, getHistory } from "./lib/storage";
 import { Translation } from "./lib/types";
+
+function truncate(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text;
+  return text.slice(0, maxLen - 1) + "…";
+}
 
 function relativeTime(timestamp: number): string {
   const diff = Date.now() - timestamp;
@@ -101,21 +106,27 @@ export default function History() {
       {filtered.length === 0 && !isLoading ? (
         <List.EmptyView
           title="No translations yet"
-          description="Use Translate Word to get started"
+          description="Use Translate to get started"
         />
       ) : (
         filtered.map((item) => (
           <List.Item
             key={item.id}
-            title={item.word}
-            subtitle={isShowingDetail ? undefined : item.translation}
+            title={item.type === "text" ? truncate(item.word, 60) : item.word}
+            subtitle={isShowingDetail ? undefined : (item.type === "text" ? truncate(item.translation, 60) : item.translation)}
             accessories={[
-              { tag: { value: item.partOfSpeech, color: Color.Blue } },
+              item.type === "text"
+                ? { tag: { value: "text", color: Color.Purple } }
+                : { tag: { value: item.partOfSpeech, color: Color.Blue } },
               { text: relativeTime(item.timestamp) },
             ]}
             detail={
               <List.Item.Detail
-                markdown={buildTranslationDetailMarkdown(item)}
+                markdown={
+                  item.type === "text"
+                    ? buildTextTranslationDetailMarkdown(item.word, item.translation)
+                    : buildTranslationDetailMarkdown(item)
+                }
               />
             }
             actions={

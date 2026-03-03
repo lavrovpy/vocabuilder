@@ -40,6 +40,21 @@ ${escapeMarkdownMultiline(translation.example)}
 *${escapeMarkdownMultiline(translation.exampleTranslation)}*`;
 }
 
+export function buildTextTranslationDetailMarkdown(
+  input: string,
+  translation: string,
+): string {
+  return `## Translation
+
+${escapeMarkdownMultiline(translation)}
+
+---
+
+## Original
+
+${escapeMarkdownMultiline(input)}`;
+}
+
 export function buildFlashcardDetailMarkdown(
   card: Pick<
     Translation,
