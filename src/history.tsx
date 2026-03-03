@@ -106,7 +106,7 @@ export default function History() {
       {filtered.length === 0 && !isLoading ? (
         <List.EmptyView
           title="No translations yet"
-          description="Use Translate Word to get started"
+          description="Use Translate to get started"
         />
       ) : (
         filtered.map((item) => (

@@ -12,7 +12,7 @@
   "commands": [
     {
       "name": "translate",
-      "title": "Translate Word",
+      "title": "Translate",
       "description": "Translate a word or text to your target language",
       "mode": "view"
     },
