@@ -163,6 +163,7 @@ export default function Translate() {
     }
 
     setError(null);
+    setResult(null);
 
     // Only auto-translate for word-like input
     if (normalizeWordInput(text) !== null) {
