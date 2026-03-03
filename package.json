@@ -13,7 +13,7 @@
     {
       "name": "translate",
       "title": "Translate Word",
-      "description": "Translate a word to your target language",
+      "description": "Translate a word or text to your target language",
       "mode": "view"
     },
     {

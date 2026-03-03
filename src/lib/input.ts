@@ -8,6 +8,14 @@ export function normalizeWordInput(raw: string): string | null {
   return word;
 }
 
+export const MAX_TEXT_LENGTH = 2000;
+
+export function normalizeTextInput(raw: string): string | null {
+  const text = raw.trim();
+  if (!text || text.length > MAX_TEXT_LENGTH) return null;
+  return text;
+}
+
 export function asJsonStringLiteral(value: string): string {
   return JSON.stringify(value);
 }

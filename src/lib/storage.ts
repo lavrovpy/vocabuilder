@@ -167,10 +167,11 @@ function shuffle<T>(arr: T[]): T[] {
 export async function getSessionCards(
   pair: LanguagePair,
 ): Promise<SessionData> {
-  const [history, progressMap] = await Promise.all([
+  const [allHistory, progressMap] = await Promise.all([
     getHistory(pair),
     getFlashcardProgress(pair),
   ]);
+  const history = allHistory.filter((t) => t.type !== "text");
   const now = Date.now();
 
   const due = history
