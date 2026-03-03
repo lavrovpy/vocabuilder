@@ -46,21 +46,66 @@
       "description": "The language you want to translate from",
       "default": "en",
       "data": [
-        { "title": "English", "value": "en" },
-        { "title": "Ukrainian", "value": "uk" },
-        { "title": "Polish", "value": "pl" },
-        { "title": "German", "value": "de" },
-        { "title": "French", "value": "fr" },
-        { "title": "Spanish", "value": "es" },
-        { "title": "Italian", "value": "it" },
-        { "title": "Portuguese", "value": "pt" },
-        { "title": "Dutch", "value": "nl" },
-        { "title": "Czech", "value": "cs" },
-        { "title": "Swedish", "value": "sv" },
-        { "title": "Japanese", "value": "ja" },
-        { "title": "Korean", "value": "ko" },
-        { "title": "Chinese", "value": "zh" },
-        { "title": "Turkish", "value": "tr" }
+        {
+          "title": "English",
+          "value": "en"
+        },
+        {
+          "title": "Ukrainian",
+          "value": "uk"
+        },
+        {
+          "title": "Polish",
+          "value": "pl"
+        },
+        {
+          "title": "German",
+          "value": "de"
+        },
+        {
+          "title": "French",
+          "value": "fr"
+        },
+        {
+          "title": "Spanish",
+          "value": "es"
+        },
+        {
+          "title": "Italian",
+          "value": "it"
+        },
+        {
+          "title": "Portuguese",
+          "value": "pt"
+        },
+        {
+          "title": "Dutch",
+          "value": "nl"
+        },
+        {
+          "title": "Czech",
+          "value": "cs"
+        },
+        {
+          "title": "Swedish",
+          "value": "sv"
+        },
+        {
+          "title": "Japanese",
+          "value": "ja"
+        },
+        {
+          "title": "Korean",
+          "value": "ko"
+        },
+        {
+          "title": "Chinese",
+          "value": "zh"
+        },
+        {
+          "title": "Turkish",
+          "value": "tr"
+        }
       ]
     },
     {
@@ -71,21 +116,66 @@
       "description": "The language you want to translate to",
       "default": "uk",
       "data": [
-        { "title": "English", "value": "en" },
-        { "title": "Ukrainian", "value": "uk" },
-        { "title": "Polish", "value": "pl" },
-        { "title": "German", "value": "de" },
-        { "title": "French", "value": "fr" },
-        { "title": "Spanish", "value": "es" },
-        { "title": "Italian", "value": "it" },
-        { "title": "Portuguese", "value": "pt" },
-        { "title": "Dutch", "value": "nl" },
-        { "title": "Czech", "value": "cs" },
-        { "title": "Swedish", "value": "sv" },
-        { "title": "Japanese", "value": "ja" },
-        { "title": "Korean", "value": "ko" },
-        { "title": "Chinese", "value": "zh" },
-        { "title": "Turkish", "value": "tr" }
+        {
+          "title": "English",
+          "value": "en"
+        },
+        {
+          "title": "Ukrainian",
+          "value": "uk"
+        },
+        {
+          "title": "Polish",
+          "value": "pl"
+        },
+        {
+          "title": "German",
+          "value": "de"
+        },
+        {
+          "title": "French",
+          "value": "fr"
+        },
+        {
+          "title": "Spanish",
+          "value": "es"
+        },
+        {
+          "title": "Italian",
+          "value": "it"
+        },
+        {
+          "title": "Portuguese",
+          "value": "pt"
+        },
+        {
+          "title": "Dutch",
+          "value": "nl"
+        },
+        {
+          "title": "Czech",
+          "value": "cs"
+        },
+        {
+          "title": "Swedish",
+          "value": "sv"
+        },
+        {
+          "title": "Japanese",
+          "value": "ja"
+        },
+        {
+          "title": "Korean",
+          "value": "ko"
+        },
+        {
+          "title": "Chinese",
+          "value": "zh"
+        },
+        {
+          "title": "Turkish",
+          "value": "tr"
+        }
       ]
     },
     {
@@ -106,7 +196,8 @@
     "@raycast/eslint-plugin": "^2.1.1",
     "prettier": "^3.8.1",
     "typescript": "^5.8.2",
-    "typescript-eslint": "^8.56.1"
+    "typescript-eslint": "^8.56.1",
+    "vitest": "^4.0.18"
   },
   "scripts": {
     "build": "ray build",
@@ -114,6 +205,8 @@
     "lint": "ray lint",
     "fix-lint": "ray lint --fix",
     "prepublishOnly": "echo \"\\n\\nIt seems like you are trying to publish the Raycast extension to npm.\\n\\nIf you did intend to publish it to npm, remove the \\`prepublishOnly\\` script and rerun \\`npm publish\\` again.\\nIf you wanted to publish it to the Raycast Store instead, use \\`npm run publish\\` instead.\\n\\n\" && exit 1",
-    "publish": "npx @raycast/api@latest publish"
+    "publish": "npx @raycast/api@latest publish",
+    "test": "vitest run",
+    "test:watch": "vitest"
   }
 }
