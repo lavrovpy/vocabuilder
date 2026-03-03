@@ -319,6 +319,7 @@ export default function Translate() {
   return (
     <List
       isLoading={isLoading}
+      isShowingDetail={showResult && isTextResult}
       searchBarPlaceholder={`Type a ${source.name} word or text...`}
       searchText={searchText}
       onSearchTextChange={handleSearchChange}
