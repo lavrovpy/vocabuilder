@@ -181,18 +181,17 @@ export default function Flashcards() {
             ) : (
               <>
                 <Action
-                  title="Again (Forgot)"
+                  title="Good"
+                  onAction={() => handleRate("good")}
+                />
+                <Action
+                  title="Again"
                   shortcut={{ modifiers: [], key: "1" }}
                   onAction={() => handleRate("again")}
                 />
                 <Action
-                  title="Good (Recalled)"
+                  title="Easy"
                   shortcut={{ modifiers: [], key: "2" }}
-                  onAction={() => handleRate("good")}
-                />
-                <Action
-                  title="Easy (Instant Recall)"
-                  shortcut={{ modifiers: [], key: "3" }}
                   onAction={() => handleRate("easy")}
                 />
               </>
