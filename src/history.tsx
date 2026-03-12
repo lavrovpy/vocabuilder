@@ -1,4 +1,5 @@
 import { Action, ActionPanel, Alert, Color, confirmAlert, Icon, List, showToast, Toast } from "@raycast/api";
+import { posColor } from "./lib/colors";
 import { useEffect, useState } from "react";
 import LanguageConfigError from "./components/LanguageConfigError";
 import { useLanguagePair } from "./hooks/useLanguagePair";
@@ -104,7 +105,7 @@ export default function History() {
             accessories={[
               item.type === "text"
                 ? { tag: { value: "text", color: Color.Purple } }
-                : { tag: { value: item.partOfSpeech, color: Color.Blue } },
+                : { tag: { value: item.partOfSpeech, color: posColor(item.partOfSpeech) } },
               { text: relativeTime(item.timestamp) },
             ]}
             detail={

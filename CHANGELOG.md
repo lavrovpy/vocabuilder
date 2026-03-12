@@ -1,5 +1,9 @@
 VocaBuilder Changelog
 
+## [Unreleased]
+
+- Added color-coded part-of-speech chips: nouns (blue), verbs (red), adjectives (green), adverbs (magenta), prepositions (yellow), pronouns (purple), conjunctions (orange).
+
 ## [Initial Release] - {PR_MERGE_DATE}
 
 - Added `Translate` command to translate words and short texts between languages using Gemini.

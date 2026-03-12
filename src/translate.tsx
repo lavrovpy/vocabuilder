@@ -17,6 +17,7 @@ import { useLanguagePair } from "./hooks/useLanguagePair";
 import History from "./history";
 import { translateWord, translateText } from "./lib/gemini";
 import { MAX_WORD_LENGTH, normalizeWordInput, normalizeTextInput } from "./lib/input";
+import { posColor } from "./lib/colors";
 import { buildTranslationDetailMarkdown, buildTextTranslationDetailMarkdown } from "./lib/markdown";
 import { getHistory, saveTranslation } from "./lib/storage";
 import { Translation } from "./lib/types";
@@ -363,7 +364,7 @@ export default function Translate() {
                 ...(result.word !== originalInput
                   ? [{ tag: { value: `corrected from "${originalInput}"`, color: Color.Orange } }]
                   : []),
-                { tag: result.partOfSpeech },
+                { tag: { value: result.partOfSpeech, color: posColor(result.partOfSpeech) } },
               ]}
               detail={
                 <List.Item.Detail
@@ -437,7 +438,7 @@ export default function Translate() {
                   accessories={[
                     item.type === "text"
                       ? { tag: { value: "text", color: Color.Purple } }
-                      : { tag: item.partOfSpeech },
+                      : { tag: { value: item.partOfSpeech, color: posColor(item.partOfSpeech) } },
                   ]}
                   actions={
                     <ActionPanel>
