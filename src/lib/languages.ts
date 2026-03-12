@@ -13,6 +13,8 @@ export interface LanguagePair {
 export const LANGUAGES: Language[] = [
   { code: "en", name: "English" },
   { code: "uk", name: "Ukrainian" },
+  { code: "ru", name: "Russian" },
+  { code: "be", name: "Belarusian" },
   { code: "pl", name: "Polish" },
   { code: "de", name: "German" },
   { code: "fr", name: "French" },
