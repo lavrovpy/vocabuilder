@@ -1,11 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  normalizeWordInput,
-  normalizeTextInput,
-  asJsonStringLiteral,
-  MAX_WORD_LENGTH,
-  MAX_TEXT_LENGTH,
-} from "./input";
+import { normalizeWordInput, normalizeTextInput, asJsonStringLiteral, MAX_WORD_LENGTH, MAX_TEXT_LENGTH } from "./input";
 
 describe("normalizeWordInput", () => {
   it("accepts basic Latin words", () => {

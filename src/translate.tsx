@@ -212,9 +212,7 @@ export default function Translate() {
 
       const saved = await saveTranslation(translation, languagePair);
       if (saved) {
-        setRecentHistory((prev) =>
-          [translation, ...prev.filter((h) => h.word !== translation.word)].slice(0, 5),
-        );
+        setRecentHistory((prev) => [translation, ...prev.filter((h) => h.word !== translation.word)].slice(0, 5));
       } else {
         await showToast({
           style: Toast.Style.Failure,
@@ -271,9 +269,7 @@ export default function Translate() {
 
       const saved = await saveTranslation(translation, languagePair);
       if (saved) {
-        setRecentHistory((prev) =>
-          [translation, ...prev.filter((h) => h.word !== translation.word)].slice(0, 5),
-        );
+        setRecentHistory((prev) => [translation, ...prev.filter((h) => h.word !== translation.word)].slice(0, 5));
       } else {
         await showToast({
           style: Toast.Style.Failure,
@@ -336,9 +332,7 @@ export default function Translate() {
               subtitle={truncate(result.translation, 60)}
               accessories={[{ tag: { value: "text", color: Color.Purple } }]}
               detail={
-                <List.Item.Detail
-                  markdown={buildTextTranslationDetailMarkdown(result.word, result.translation)}
-                />
+                <List.Item.Detail markdown={buildTextTranslationDetailMarkdown(result.word, result.translation)} />
               }
               actions={
                 <ActionPanel>
@@ -366,11 +360,7 @@ export default function Translate() {
                   : []),
                 { tag: { value: result.partOfSpeech, color: posColor(result.partOfSpeech) } },
               ]}
-              detail={
-                <List.Item.Detail
-                  markdown={buildTranslationDetailMarkdown(result, originalInput)}
-                />
-              }
+              detail={<List.Item.Detail markdown={buildTranslationDetailMarkdown(result, originalInput)} />}
               actions={
                 <ActionPanel>
                   <Action.CopyToClipboard
@@ -393,7 +383,9 @@ export default function Translate() {
         <List.Section title="Translation">
           <List.Item
             title={`Translate "${truncate(searchText.trim(), 40)}"`}
-            subtitle={isWordInput ? "Press Enter to translate immediately (auto-runs in 1.5s)" : "Press Enter to translate"}
+            subtitle={
+              isWordInput ? "Press Enter to translate immediately (auto-runs in 1.5s)" : "Press Enter to translate"
+            }
             icon={Icon.ArrowRight}
             actions={
               <ActionPanel>

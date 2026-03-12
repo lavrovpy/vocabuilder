@@ -180,20 +180,9 @@ export default function Flashcards() {
               <Action title="Reveal Answer" onAction={() => dispatch({ type: "reveal" })} />
             ) : (
               <>
-                <Action
-                  title="Good"
-                  onAction={() => handleRate("good")}
-                />
-                <Action
-                  title="Again"
-                  shortcut={{ modifiers: [], key: "1" }}
-                  onAction={() => handleRate("again")}
-                />
-                <Action
-                  title="Easy"
-                  shortcut={{ modifiers: [], key: "2" }}
-                  onAction={() => handleRate("easy")}
-                />
+                <Action title="Good" onAction={() => handleRate("good")} />
+                <Action title="Again" shortcut={{ modifiers: [], key: "1" }} onAction={() => handleRate("again")} />
+                <Action title="Easy" shortcut={{ modifiers: [], key: "2" }} onAction={() => handleRate("easy")} />
               </>
             )}
           </ActionPanel>

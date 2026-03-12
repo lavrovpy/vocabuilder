@@ -1,8 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  buildTranslationDetailMarkdown,
-  buildTextTranslationDetailMarkdown,
-} from "./markdown";
+import { buildTranslationDetailMarkdown, buildTextTranslationDetailMarkdown } from "./markdown";
 
 describe("buildTranslationDetailMarkdown", () => {
   const translation = {

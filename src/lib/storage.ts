@@ -19,7 +19,12 @@ function flashcardCorruptBackupKey(pair: LanguagePair): string {
   return `${flashcardKey(pair)}-corrupt-backup`;
 }
 
-async function backupCorruptedStorage(sourceKey: string, backupKey: string, raw: string, error: unknown): Promise<void> {
+async function backupCorruptedStorage(
+  sourceKey: string,
+  backupKey: string,
+  raw: string,
+  error: unknown,
+): Promise<void> {
   const existingBackup = await LocalStorage.getItem<string>(backupKey);
   if (!existingBackup) {
     await LocalStorage.setItem(backupKey, raw);

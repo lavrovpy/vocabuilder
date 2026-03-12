@@ -1,8 +1,6 @@
 import { getLanguagePair, LanguagePair } from "../lib/languages";
 
-type Result =
-  | { pair: LanguagePair; error: null }
-  | { pair: null; error: string };
+type Result = { pair: LanguagePair; error: null } | { pair: null; error: string };
 
 export function useLanguagePair(): Result {
   try {

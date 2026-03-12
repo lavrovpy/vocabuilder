@@ -51,21 +51,13 @@ describe("translateWord", () => {
   });
 
   it("throws INVALID_API_KEY on 401", async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      new Response("Unauthorized", { status: 401 }),
-    );
-    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow(
-      "INVALID_API_KEY",
-    );
+    vi.mocked(fetch).mockResolvedValue(new Response("Unauthorized", { status: 401 }));
+    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("INVALID_API_KEY");
   });
 
   it("throws INVALID_API_KEY on 403", async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      new Response("Forbidden", { status: 403 }),
-    );
-    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow(
-      "INVALID_API_KEY",
-    );
+    vi.mocked(fetch).mockResolvedValue(new Response("Forbidden", { status: 403 }));
+    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("INVALID_API_KEY");
   });
 
   it("throws GEMINI_EMPTY_RESPONSE when response text is empty", async () => {
@@ -78,9 +70,7 @@ describe("translateWord", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
-    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow(
-      "GEMINI_EMPTY_RESPONSE",
-    );
+    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("GEMINI_EMPTY_RESPONSE");
   });
 
   it("throws GEMINI_INVALID_RESPONSE when JSON is malformed", async () => {
@@ -93,15 +83,11 @@ describe("translateWord", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
-    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow(
-      "GEMINI_INVALID_RESPONSE",
-    );
+    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("GEMINI_INVALID_RESPONSE");
   });
 
   it("throws INVALID_WORD_INPUT for empty input", async () => {
-    await expect(translateWord("", API_KEY, pair)).rejects.toThrow(
-      "INVALID_WORD_INPUT",
-    );
+    await expect(translateWord("", API_KEY, pair)).rejects.toThrow("INVALID_WORD_INPUT");
   });
 });
 
@@ -120,8 +106,6 @@ describe("translateText", () => {
   });
 
   it("throws INVALID_TEXT_INPUT for empty input", async () => {
-    await expect(translateText("", API_KEY, pair)).rejects.toThrow(
-      "INVALID_TEXT_INPUT",
-    );
+    await expect(translateText("", API_KEY, pair)).rejects.toThrow("INVALID_TEXT_INPUT");
   });
 });

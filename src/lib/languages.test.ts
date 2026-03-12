@@ -1,10 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import {
-  getLanguageByCode,
-  storageKeyPrefix,
-  getLanguagePair,
-  LANGUAGES,
-} from "./languages";
+import { getLanguageByCode, storageKeyPrefix, getLanguagePair, LANGUAGES } from "./languages";
 import { getPreferenceValues } from "@raycast/api";
 
 describe("getLanguageByCode", () => {

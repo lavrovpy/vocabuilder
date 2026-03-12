@@ -101,7 +101,9 @@ export default function History() {
           <List.Item
             key={item.id}
             title={item.type === "text" ? truncate(item.word, 60) : item.word}
-            subtitle={isShowingDetail ? undefined : (item.type === "text" ? truncate(item.translation, 60) : item.translation)}
+            subtitle={
+              isShowingDetail ? undefined : item.type === "text" ? truncate(item.translation, 60) : item.translation
+            }
             accessories={[
               item.type === "text"
                 ? { tag: { value: "text", color: Color.Purple } }
