@@ -11,11 +11,7 @@ import { LanguagePair } from "./languages";
 const MODEL = "gemini-2.5-flash-lite";
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
-async function callGemini(
-  prompt: string,
-  apiKey: string,
-  signal?: AbortSignal,
-): Promise<string> {
+async function callGemini(prompt: string, apiKey: string, signal?: AbortSignal): Promise<string> {
   const url = `${BASE_URL}/${MODEL}:generateContent`;
 
   const response = await fetch(url, {

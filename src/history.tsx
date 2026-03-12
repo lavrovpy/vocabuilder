@@ -1,14 +1,4 @@
-import {
-  Action,
-  ActionPanel,
-  Alert,
-  Color,
-  confirmAlert,
-  Icon,
-  List,
-  showToast,
-  Toast,
-} from "@raycast/api";
+import { Action, ActionPanel, Alert, Color, confirmAlert, Icon, List, showToast, Toast } from "@raycast/api";
 import { useEffect, useState } from "react";
 import LanguageConfigError from "./components/LanguageConfigError";
 import { useLanguagePair } from "./hooks/useLanguagePair";
@@ -104,10 +94,7 @@ export default function History() {
       onSearchTextChange={setSearchText}
     >
       {filtered.length === 0 && !isLoading ? (
-        <List.EmptyView
-          title="No translations yet"
-          description="Use Translate to get started"
-        />
+        <List.EmptyView title="No translations yet" description="Use Translate to get started" />
       ) : (
         filtered.map((item) => (
           <List.Item

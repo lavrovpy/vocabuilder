@@ -1,11 +1,6 @@
 import { LocalStorage } from "@raycast/api";
 import { z } from "zod";
-import {
-  FlashcardProgress,
-  FlashcardProgressSchema,
-  Translation,
-  TranslationSchema,
-} from "./types";
+import { FlashcardProgress, FlashcardProgressSchema, Translation, TranslationSchema } from "./types";
 import { LanguagePair, storageKeyPrefix } from "./languages";
 
 function historyKey(pair: LanguagePair): string {
@@ -24,20 +19,12 @@ function flashcardCorruptBackupKey(pair: LanguagePair): string {
   return `${flashcardKey(pair)}-corrupt-backup`;
 }
 
-async function backupCorruptedStorage(
-  sourceKey: string,
-  backupKey: string,
-  raw: string,
-  error: unknown,
-): Promise<void> {
+async function backupCorruptedStorage(sourceKey: string, backupKey: string, raw: string, error: unknown): Promise<void> {
   const existingBackup = await LocalStorage.getItem<string>(backupKey);
   if (!existingBackup) {
     await LocalStorage.setItem(backupKey, raw);
   }
-  console.error(
-    `[storage] Corrupted data detected for "${sourceKey}". Refusing to overwrite existing data.`,
-    error,
-  );
+  console.error(`[storage] Corrupted data detected for "${sourceKey}". Refusing to overwrite existing data.`, error);
 }
 
 async function parseStoredArray<T>(
@@ -58,28 +45,15 @@ export async function getHistory(pair: LanguagePair): Promise<Translation[]> {
   const key = historyKey(pair);
   const raw = await LocalStorage.getItem<string>(key);
   if (!raw) return [];
-  const parsed = await parseStoredArray(
-    key,
-    historyCorruptBackupKey(pair),
-    raw,
-    z.array(TranslationSchema),
-  );
+  const parsed = await parseStoredArray(key, historyCorruptBackupKey(pair), raw, z.array(TranslationSchema));
   return parsed ?? [];
 }
 
-export async function saveTranslation(
-  t: Translation,
-  pair: LanguagePair,
-): Promise<boolean> {
+export async function saveTranslation(t: Translation, pair: LanguagePair): Promise<boolean> {
   const key = historyKey(pair);
   const raw = await LocalStorage.getItem<string>(key);
   const history = raw
-    ? await parseStoredArray(
-        key,
-        historyCorruptBackupKey(pair),
-        raw,
-        z.array(TranslationSchema),
-      )
+    ? await parseStoredArray(key, historyCorruptBackupKey(pair), raw, z.array(TranslationSchema))
     : [];
   if (!history) return false;
 
@@ -88,19 +62,11 @@ export async function saveTranslation(
   return true;
 }
 
-export async function deleteTranslation(
-  id: string,
-  pair: LanguagePair,
-): Promise<boolean> {
+export async function deleteTranslation(id: string, pair: LanguagePair): Promise<boolean> {
   const key = historyKey(pair);
   const raw = await LocalStorage.getItem<string>(key);
   const history = raw
-    ? await parseStoredArray(
-        key,
-        historyCorruptBackupKey(pair),
-        raw,
-        z.array(TranslationSchema),
-      )
+    ? await parseStoredArray(key, historyCorruptBackupKey(pair), raw, z.array(TranslationSchema))
     : [];
   if (!history) return false;
 
@@ -113,34 +79,19 @@ export async function clearHistory(pair: LanguagePair): Promise<void> {
   await LocalStorage.removeItem(historyKey(pair));
 }
 
-async function getFlashcardProgress(
-  pair: LanguagePair,
-): Promise<Map<string, FlashcardProgress>> {
+async function getFlashcardProgress(pair: LanguagePair): Promise<Map<string, FlashcardProgress>> {
   const key = flashcardKey(pair);
   const raw = await LocalStorage.getItem<string>(key);
   if (!raw) return new Map();
-  const arr = await parseStoredArray(
-    key,
-    flashcardCorruptBackupKey(pair),
-    raw,
-    z.array(FlashcardProgressSchema),
-  );
+  const arr = await parseStoredArray(key, flashcardCorruptBackupKey(pair), raw, z.array(FlashcardProgressSchema));
   return new Map((arr ?? []).map((p) => [p.word, p]));
 }
 
-export async function saveFlashcardProgress(
-  progress: FlashcardProgress,
-  pair: LanguagePair,
-): Promise<boolean> {
+export async function saveFlashcardProgress(progress: FlashcardProgress, pair: LanguagePair): Promise<boolean> {
   const key = flashcardKey(pair);
   const raw = await LocalStorage.getItem<string>(key);
   const arr = raw
-    ? await parseStoredArray(
-        key,
-        flashcardCorruptBackupKey(pair),
-        raw,
-        z.array(FlashcardProgressSchema),
-      )
+    ? await parseStoredArray(key, flashcardCorruptBackupKey(pair), raw, z.array(FlashcardProgressSchema))
     : [];
   if (!arr) return false;
 
@@ -164,13 +115,8 @@ function shuffle<T>(arr: T[]): T[] {
   return out;
 }
 
-export async function getSessionCards(
-  pair: LanguagePair,
-): Promise<SessionData> {
-  const [allHistory, progressMap] = await Promise.all([
-    getHistory(pair),
-    getFlashcardProgress(pair),
-  ]);
+export async function getSessionCards(pair: LanguagePair): Promise<SessionData> {
+  const [allHistory, progressMap] = await Promise.all([getHistory(pair), getFlashcardProgress(pair)]);
   const history = allHistory.filter((t) => t.type !== "text");
   const now = Date.now();
 

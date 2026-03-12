@@ -54,8 +54,7 @@ function truncate(text: string, maxLen: number): string {
 }
 
 export default function Translate() {
-  const { geminiApiKey, readClipboardOnOpen } =
-    getPreferenceValues<Preferences.Translate>();
+  const { geminiApiKey, readClipboardOnOpen } = getPreferenceValues<Preferences.Translate>();
   const langResult = useLanguagePair();
   const { push } = useNavigation();
 
@@ -190,18 +189,12 @@ export default function Translate() {
     setOriginalInput(word);
 
     try {
-      const geminiResult = await translateWord(
-        word,
-        geminiApiKey,
-        languagePair,
-        controller.signal,
-      );
+      const geminiResult = await translateWord(word, geminiApiKey, languagePair, controller.signal);
 
       if (controller.signal.aborted) return;
 
       const corrected = geminiResult.correctedWord;
-      const effectiveWord =
-        corrected && corrected !== word ? corrected : word;
+      const effectiveWord = corrected && corrected !== word ? corrected : word;
 
       const translation: Translation = {
         id: `${effectiveWord}-${Date.now()}`,
@@ -225,8 +218,7 @@ export default function Translate() {
         await showToast({
           style: Toast.Style.Failure,
           title: "Saved data is corrupted",
-          message:
-            "Translation was not written to storage to avoid overwriting existing data.",
+          message: "Translation was not written to storage to avoid overwriting existing data.",
         });
       }
     } catch (err) {
@@ -259,12 +251,7 @@ export default function Translate() {
     setOriginalInput(text);
 
     try {
-      const geminiResult = await translateText(
-        text,
-        geminiApiKey,
-        languagePair,
-        controller.signal,
-      );
+      const geminiResult = await translateText(text, geminiApiKey, languagePair, controller.signal);
 
       if (controller.signal.aborted) return;
 
@@ -290,8 +277,7 @@ export default function Translate() {
         await showToast({
           style: Toast.Style.Failure,
           title: "Saved data is corrupted",
-          message:
-            "Translation was not written to storage to avoid overwriting existing data.",
+          message: "Translation was not written to storage to avoid overwriting existing data.",
         });
       }
     } catch (err) {
@@ -318,8 +304,7 @@ export default function Translate() {
   const showResult = !!result && !isLoading;
   const isTextResult = result?.type === "text";
   const isWordInput = normalizeWordInput(searchText) !== null;
-  const showManualSubmitItem =
-    !showEmpty && !error && !showResult && !isLoading;
+  const showManualSubmitItem = !showEmpty && !error && !showResult && !isLoading;
 
   return (
     <List
@@ -337,11 +322,7 @@ export default function Translate() {
           actions={
             <ActionPanel>
               {error.includes("API key") && (
-                <Action
-                  title="Open Preferences"
-                  onAction={openExtensionPreferences}
-                  icon={Icon.Gear}
-                />
+                <Action title="Open Preferences" onAction={openExtensionPreferences} icon={Icon.Gear} />
               )}
             </ActionPanel>
           }
@@ -352,9 +333,7 @@ export default function Translate() {
             <List.Item
               title={truncate(result.word, 60)}
               subtitle={truncate(result.translation, 60)}
-              accessories={[
-                { tag: { value: "text", color: Color.Purple } },
-              ]}
+              accessories={[{ tag: { value: "text", color: Color.Purple } }]}
               detail={
                 <List.Item.Detail
                   markdown={buildTextTranslationDetailMarkdown(result.word, result.translation)}
@@ -417,11 +396,7 @@ export default function Translate() {
             icon={Icon.ArrowRight}
             actions={
               <ActionPanel>
-                <Action
-                  title="Translate Now"
-                  icon={Icon.Book}
-                  onAction={() => submitTranslation(searchText)}
-                />
+                <Action title="Translate Now" icon={Icon.Book} onAction={() => submitTranslation(searchText)} />
               </ActionPanel>
             }
           />
@@ -431,11 +406,7 @@ export default function Translate() {
           <List.Section title="Clipboard">
             <List.Item
               title={clipboardSuggestion || "Read Clipboard"}
-              subtitle={
-                clipboardSuggestion
-                  ? "Use the suggested clipboard word"
-                  : "Read clipboard and validate safely"
-              }
+              subtitle={clipboardSuggestion ? "Use the suggested clipboard word" : "Read clipboard and validate safely"}
               icon={Icon.Clipboard}
               actions={
                 <ActionPanel>
@@ -449,17 +420,9 @@ export default function Translate() {
                       }}
                     />
                   ) : (
-                    <Action
-                      title="Read Clipboard"
-                      icon={Icon.Clipboard}
-                      onAction={handleReadClipboard}
-                    />
+                    <Action title="Read Clipboard" icon={Icon.Clipboard} onAction={handleReadClipboard} />
                   )}
-                  <Action
-                    title="Refresh Clipboard"
-                    icon={Icon.ArrowClockwise}
-                    onAction={handleReadClipboard}
-                  />
+                  <Action title="Refresh Clipboard" icon={Icon.ArrowClockwise} onAction={handleReadClipboard} />
                 </ActionPanel>
               }
             />
