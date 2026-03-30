@@ -1,7 +1,8 @@
-import { Action, ActionPanel, Color, List, showToast, Toast } from "@raycast/api";
-import { useEffect, useReducer } from "react";
+import { Action, ActionPanel, Color, Icon, List, showToast, Toast } from "@raycast/api";
+import { useEffect, useReducer, useState } from "react";
 import LanguageConfigError from "./components/LanguageConfigError";
 import { useLanguagePair } from "./hooks/useLanguagePair";
+import { LanguagePair, storageKeyPrefix, swapLanguagePair } from "./lib/languages";
 import { buildFlashcardDetailMarkdown } from "./lib/markdown";
 import { getSessionCards, saveFlashcardProgress } from "./lib/storage";
 import { FlashcardProgress, Rating, Translation } from "./lib/types";
@@ -70,7 +71,8 @@ type StudyAction =
       progressMap: Map<string, FlashcardProgress>;
     }
   | { type: "reveal" }
-  | { type: "rate"; rating: Rating; updated: FlashcardProgress };
+  | { type: "rate"; rating: Rating; updated: FlashcardProgress }
+  | { type: "reset" };
 
 function reducer(state: StudyState, action: StudyAction): StudyState {
   switch (action.type) {
@@ -97,6 +99,8 @@ function reducer(state: StudyState, action: StudyAction): StudyState {
         easyCount: state.easyCount + (action.rating === "easy" ? 1 : 0),
       };
     }
+    case "reset":
+      return initialState;
   }
 }
 
@@ -112,19 +116,46 @@ const initialState: StudyState = {
 };
 
 /** Flashcard review command view. */
-export default function Flashcards() {
+export default function Flashcards(props: { languagePair?: LanguagePair }) {
   const langResult = useLanguagePair();
+  const initialPair = props.languagePair ?? langResult.pair;
+  const [languagePair, setLanguagePair] = useState<LanguagePair | null>(initialPair);
   const [state, dispatch] = useReducer(reducer, initialState);
 
+  const pairKey = languagePair ? storageKeyPrefix(languagePair) : null;
+
   useEffect(() => {
-    if (!langResult.pair) return;
-    getSessionCards(langResult.pair).then(({ sessionCards, progressMap }) => {
+    if (!languagePair) return;
+    getSessionCards(languagePair).then(({ sessionCards, progressMap }) => {
       dispatch({ type: "loaded", cards: sessionCards, progressMap });
     });
-  }, []);
+  }, [pairKey]);
 
-  if (!langResult.pair) return <LanguageConfigError message={langResult.error ?? "Invalid language configuration."} />;
-  const languagePair = langResult.pair;
+  if (!languagePair) return <LanguageConfigError message={langResult.error ?? "Invalid language configuration."} />;
+
+  function handleToggleLanguages() {
+    dispatch({ type: "reset" });
+    setLanguagePair((prev) => {
+      if (!prev) return prev;
+      const swapped = swapLanguagePair(prev);
+      showToast({
+        style: Toast.Style.Success,
+        title: `${swapped.source.name} → ${swapped.target.name}`,
+      });
+      return swapped;
+    });
+  }
+
+  function ToggleLanguagesAction() {
+    return (
+      <Action
+        title="Toggle Languages"
+        icon={Icon.Switch}
+        shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
+        onAction={handleToggleLanguages}
+      />
+    );
+  }
 
   async function handleRate(rating: Rating) {
     const card = state.sessionCards[state.currentIndex];
@@ -143,7 +174,7 @@ export default function Flashcards() {
   }
 
   if (state.phase === "loading") {
-    return <List isLoading searchBarPlaceholder="" />;
+    return <List navigationTitle={`${languagePair.source.name} → ${languagePair.target.name}`} isLoading searchBarPlaceholder="" />;
   }
 
   if (state.phase === "done") {
@@ -153,8 +184,16 @@ export default function Flashcards() {
         ? "Translate some words first to build your deck."
         : `Again: ${state.againCount}  ·  Good: ${state.goodCount}  ·  Easy: ${state.easyCount}`;
     return (
-      <List searchBarPlaceholder="">
-        <List.EmptyView title={total === 0 ? "Nothing to review" : "Session complete!"} description={description} />
+      <List navigationTitle={`${languagePair.source.name} → ${languagePair.target.name}`} searchBarPlaceholder="">
+        <List.EmptyView
+          title={total === 0 ? "Nothing to review" : "Session complete!"}
+          description={description}
+          actions={
+            <ActionPanel>
+              <ToggleLanguagesAction />
+            </ActionPanel>
+          }
+        />
       </List>
     );
   }
@@ -167,7 +206,7 @@ export default function Flashcards() {
   const detailMarkdown = buildFlashcardDetailMarkdown(card);
 
   return (
-    <List isShowingDetail={state.revealed} searchBarPlaceholder="">
+    <List navigationTitle={`${languagePair.source.name} → ${languagePair.target.name}`} isShowingDetail={state.revealed} searchBarPlaceholder="">
       <List.Item
         key={card.word}
         title={card.word}
@@ -185,9 +224,63 @@ export default function Flashcards() {
                 <Action title="Easy" shortcut={{ modifiers: [], key: "2" }} onAction={() => handleRate("easy")} />
               </>
             )}
+            <ToggleLanguagesAction />
           </ActionPanel>
         }
       />
     </List>
   );
+}
+
+if (import.meta.vitest) {
+  const { describe, it, expect } = import.meta.vitest;
+
+  const makeCard = (word: string): Translation => ({
+    id: `${word}-1`,
+    word,
+    translation: `${word}-translated`,
+    partOfSpeech: "noun",
+    example: "",
+    exampleTranslation: "",
+    timestamp: Date.now(),
+    type: "word",
+  });
+
+  describe("flashcards reducer", () => {
+    it("resets to initial state", () => {
+      const cards = [makeCard("hello"), makeCard("world")];
+      const progressMap = new Map([
+        ["hello", { word: "hello", easeFactor: 2.5, interval: 6, repetitions: 1, nextReviewDate: 0 }],
+      ]);
+
+      const active = reducer(initialState, { type: "loaded", cards, progressMap });
+      const revealed = reducer(active, { type: "reveal" });
+
+      expect(revealed.phase).toBe("studying");
+      expect(revealed.revealed).toBe(true);
+      expect(revealed.sessionCards).toHaveLength(2);
+
+      const reset = reducer(revealed, { type: "reset" });
+      expect(reset).toEqual(initialState);
+    });
+
+    it("can load new cards after reset", () => {
+      const loaded = reducer(initialState, {
+        type: "loaded",
+        cards: [makeCard("apple")],
+        progressMap: new Map(),
+      });
+
+      const reset = reducer(loaded, { type: "reset" });
+      expect(reset.phase).toBe("loading");
+
+      const reloaded = reducer(reset, {
+        type: "loaded",
+        cards: [makeCard("banana")],
+        progressMap: new Map(),
+      });
+      expect(reloaded.phase).toBe("studying");
+      expect(reloaded.sessionCards[0].word).toBe("banana");
+    });
+  });
 }

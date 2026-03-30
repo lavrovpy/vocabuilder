@@ -3,6 +3,7 @@ import { posColor } from "./lib/colors";
 import { useEffect, useState } from "react";
 import LanguageConfigError from "./components/LanguageConfigError";
 import { useLanguagePair } from "./hooks/useLanguagePair";
+import { LanguagePair, storageKeyPrefix, swapLanguagePair } from "./lib/languages";
 import { buildTranslationDetailMarkdown, buildTextTranslationDetailMarkdown } from "./lib/markdown";
 import { clearHistory, deleteTranslation, getHistory } from "./lib/storage";
 import { Translation } from "./lib/types";
@@ -23,23 +24,50 @@ function relativeTime(timestamp: number): string {
   return `${days}d ago`;
 }
 
-export default function History() {
+export default function History(props: { languagePair?: LanguagePair }) {
   const langResult = useLanguagePair();
+  const initialPair = props.languagePair ?? langResult.pair;
+  const [languagePair, setLanguagePair] = useState<LanguagePair | null>(initialPair);
   const [history, setHistory] = useState<Translation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isShowingDetail, setIsShowingDetail] = useState(false);
   const [searchText, setSearchText] = useState("");
 
+  const pairKey = languagePair ? storageKeyPrefix(languagePair) : null;
+
   useEffect(() => {
-    if (!langResult.pair) return;
-    getHistory(langResult.pair).then((h) => {
+    if (!languagePair) return;
+    setIsLoading(true);
+    getHistory(languagePair).then((h) => {
       setHistory(h);
       setIsLoading(false);
     });
-  }, []);
+  }, [pairKey]);
 
-  if (!langResult.pair) return <LanguageConfigError message={langResult.error ?? "Invalid language configuration."} />;
-  const languagePair = langResult.pair;
+  if (!languagePair) return <LanguageConfigError message={langResult.error ?? "Invalid language configuration."} />;
+
+  function handleToggleLanguages() {
+    setLanguagePair((prev) => {
+      if (!prev) return prev;
+      const swapped = swapLanguagePair(prev);
+      showToast({
+        style: Toast.Style.Success,
+        title: `${swapped.source.name} → ${swapped.target.name}`,
+      });
+      return swapped;
+    });
+  }
+
+  function ToggleLanguagesAction() {
+    return (
+      <Action
+        title="Toggle Languages"
+        icon={Icon.Switch}
+        shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
+        onAction={handleToggleLanguages}
+      />
+    );
+  }
 
   const filtered = searchText
     ? history.filter(
@@ -89,6 +117,7 @@ export default function History() {
 
   return (
     <List
+      navigationTitle={`${languagePair.source.name} → ${languagePair.target.name}`}
       isLoading={isLoading}
       isShowingDetail={isShowingDetail}
       searchBarPlaceholder="Search translations..."
@@ -138,6 +167,7 @@ export default function History() {
                   shortcut={{ modifiers: ["cmd"], key: "d" }}
                   onAction={() => handleDelete(item.id)}
                 />
+                <ToggleLanguagesAction />
                 <Action
                   title="Clear All History"
                   icon={Icon.XMarkCircle}

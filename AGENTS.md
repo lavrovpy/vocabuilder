@@ -31,6 +31,11 @@ This merges external contributions into your local repo. Resolve any conflicts b
 
 After the PR is opened, the Raycast team reviews it and may request changes. Once accepted and merged, the extension is automatically published to the Raycast Store.
 
+# Testing
+
+- Use Vitest's in-source testing (`if (import.meta.vitest)`) to test private code without exporting it. Tests live inside the source file, sharing the same closure. They are tree-shaken out of production builds.
+- Do not export functions, constants, or types solely for testing purposes.
+
 # Security Guardrails for AI Edits
 
 - Never place secrets (API keys, tokens, passwords) in URLs or query parameters. Send them in headers or request bodies.
