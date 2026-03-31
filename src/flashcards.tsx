@@ -40,9 +40,10 @@ function updateProgress(progress: FlashcardProgress, rating: Rating, now: number
   };
 }
 
-function freshProgress(word: string): FlashcardProgress {
+function freshProgress(word: string, translationId: string): FlashcardProgress {
   return {
     word,
+    translationId,
     easeFactor: 2.5,
     interval: 1,
     repetitions: 0,
@@ -93,7 +94,7 @@ function reducer(state: StudyState, action: StudyAction): StudyState {
         phase: isDone ? "done" : "studying",
         currentIndex: isDone ? state.currentIndex : next,
         revealed: false,
-        progressMap: new Map(state.progressMap).set(action.updated.word, action.updated),
+        progressMap: new Map(state.progressMap).set(state.sessionCards[state.currentIndex].id, action.updated),
         againCount: state.againCount + (action.rating === "again" ? 1 : 0),
         goodCount: state.goodCount + (action.rating === "good" ? 1 : 0),
         easyCount: state.easyCount + (action.rating === "easy" ? 1 : 0),
@@ -136,7 +137,9 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
     getSessionCards(languagePair).then(({ sessionCards, progressMap }) => {
       if (!stale) dispatch({ type: "loaded", cards: sessionCards, progressMap });
     });
-    return () => { stale = true; };
+    return () => {
+      stale = true;
+    };
   }, [pairKey]);
 
   if (!languagePair) return <LanguageConfigError message={langResult.error ?? "Invalid language configuration."} />;
@@ -167,7 +170,7 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
 
   async function handleRate(rating: Rating) {
     const card = state.sessionCards[state.currentIndex];
-    const existing = state.progressMap.get(card.word) ?? freshProgress(card.word);
+    const existing = state.progressMap.get(card.id) ?? freshProgress(card.word, card.id);
     const updated = updateProgress(existing, rating, Date.now());
     const saved = await saveFlashcardProgress(updated, languagePair);
     if (!saved) {
@@ -182,7 +185,13 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
   }
 
   if (state.phase === "loading") {
-    return <List navigationTitle={`${languagePair.source.name} → ${languagePair.target.name}`} isLoading searchBarPlaceholder="" />;
+    return (
+      <List
+        navigationTitle={`${languagePair.source.name} → ${languagePair.target.name}`}
+        isLoading
+        searchBarPlaceholder=""
+      />
+    );
   }
 
   if (state.phase === "done") {
@@ -207,16 +216,20 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
   }
 
   const card = state.sessionCards[state.currentIndex];
-  const progress = state.progressMap.get(card.word);
+  const progress = state.progressMap.get(card.id);
   const isNew = !progress || progress.repetitions === 0;
   const position = `${state.currentIndex + 1} / ${state.sessionCards.length}`;
 
   const detailMarkdown = buildFlashcardDetailMarkdown(card);
 
   return (
-    <List navigationTitle={`${languagePair.source.name} → ${languagePair.target.name}`} isShowingDetail={state.revealed} searchBarPlaceholder="">
+    <List
+      navigationTitle={`${languagePair.source.name} → ${languagePair.target.name}`}
+      isShowingDetail={state.revealed}
+      searchBarPlaceholder=""
+    >
       <List.Item
-        key={card.word}
+        key={card.id}
         title={card.word}
         subtitle={state.revealed ? undefined : "···"}
         accessories={[isNew ? { tag: { value: "New", color: Color.Green } } : {}, { text: position }]}
@@ -258,7 +271,17 @@ if (import.meta.vitest) {
     it("resets to initial state", () => {
       const cards = [makeCard("hello"), makeCard("world")];
       const progressMap = new Map([
-        ["hello", { word: "hello", easeFactor: 2.5, interval: 6, repetitions: 1, nextReviewDate: 0 }],
+        [
+          "hello-1",
+          {
+            word: "hello",
+            translationId: "hello-1",
+            easeFactor: 2.5,
+            interval: 6,
+            repetitions: 1,
+            nextReviewDate: 0,
+          },
+        ],
       ]);
 
       const active = reducer(initialState, { type: "loaded", cards, progressMap });
