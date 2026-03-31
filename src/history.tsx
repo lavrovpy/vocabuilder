@@ -47,6 +47,7 @@ export default function History(props: { languagePair?: LanguagePair }) {
   if (!languagePair) return <LanguageConfigError message={langResult.error ?? "Invalid language configuration."} />;
 
   function handleToggleLanguages() {
+    setSearchText("");
     setLanguagePair((prev) => {
       if (!prev) return prev;
       const swapped = swapLanguagePair(prev);
