@@ -68,6 +68,17 @@ function truncate(text: string, maxLen: number): string {
   return text.slice(0, maxLen - 1) + "…";
 }
 
+function relativeTime(timestamp: number): string {
+  const diff = Date.now() - timestamp;
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 export default function Translate() {
   const { geminiApiKey, readClipboardOnOpen } = getPreferenceValues<Preferences.Translate>();
   const langResult = useLanguagePair();
@@ -87,6 +98,7 @@ export default function Translate() {
   }
 
   const [clipboardSuggestion, setClipboardSuggestion] = useState("");
+  const [recentShowingDetail, setRecentShowingDetail] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -96,6 +108,7 @@ export default function Translate() {
   useEffect(() => {
     if (!languagePair) return;
     setRecentHistory([]);
+    setRecentShowingDetail(false);
     let stale = false;
 
     getHistory(languagePair).then((h) => {
@@ -141,6 +154,7 @@ export default function Translate() {
     setSearchText("");
     setPendingWord(null);
     setClipboardSuggestion("");
+    setRecentShowingDetail(false);
 
     setLanguagePair((prev) => {
       if (!prev) return prev;
@@ -232,6 +246,7 @@ export default function Translate() {
       return;
     }
 
+    setRecentShowingDetail(false);
     setError(null);
     setResult(null);
     setPendingWord(null);
@@ -388,7 +403,9 @@ export default function Translate() {
     <List
       navigationTitle={`${languagePair.source.name} → ${languagePair.target.name}`}
       isLoading={isLoading}
-      isShowingDetail={(showResult && isTextResult) || showSensePicker}
+      isShowingDetail={
+        (showResult && isTextResult) || showSensePicker || (showEmpty && showRecent && recentShowingDetail)
+      }
       searchBarPlaceholder={`Type a ${source.name} word or text...`}
       searchText={searchText}
       onSearchTextChange={handleSearchChange}
@@ -541,14 +558,35 @@ export default function Translate() {
                 <List.Item
                   key={item.id}
                   title={item.type === "text" ? truncate(item.word, 60) : item.word}
-                  subtitle={item.type === "text" ? truncate(item.translation, 40) : item.translation}
+                  subtitle={
+                    recentShowingDetail
+                      ? undefined
+                      : item.type === "text"
+                        ? truncate(item.translation, 60)
+                        : item.translation
+                  }
                   accessories={[
                     item.type === "text"
                       ? { tag: { value: "text", color: Color.Purple } }
                       : { tag: { value: item.partOfSpeech, color: posColor(item.partOfSpeech) } },
+                    { text: relativeTime(item.timestamp) },
                   ]}
+                  detail={
+                    <List.Item.Detail
+                      markdown={
+                        item.type === "text"
+                          ? buildTextTranslationDetailMarkdown(item.word, item.translation)
+                          : buildTranslationDetailMarkdown(item)
+                      }
+                    />
+                  }
                   actions={
                     <ActionPanel>
+                      <Action
+                        title={recentShowingDetail ? "Hide Detail" : "Show Detail"}
+                        icon={Icon.Sidebar}
+                        onAction={() => setRecentShowingDetail((v) => !v)}
+                      />
                       <Action.CopyToClipboard
                         title="Copy Translation"
                         content={item.translation}
