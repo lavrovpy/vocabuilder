@@ -28,6 +28,12 @@ export default function History(props: { languagePair?: LanguagePair }) {
   const langResult = useLanguagePair();
   const initialPair = props.languagePair ?? langResult.pair;
   const [languagePair, setLanguagePair] = useState<LanguagePair | null>(initialPair);
+
+  // Re-sync when preferences become valid after LanguageConfigError
+  if (!languagePair && langResult.pair) {
+    setLanguagePair(langResult.pair);
+  }
+
   const [history, setHistory] = useState<Translation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isShowingDetail, setIsShowingDetail] = useState(false);

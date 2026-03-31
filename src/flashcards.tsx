@@ -120,6 +120,12 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
   const langResult = useLanguagePair();
   const initialPair = props.languagePair ?? langResult.pair;
   const [languagePair, setLanguagePair] = useState<LanguagePair | null>(initialPair);
+
+  // Re-sync when preferences become valid after LanguageConfigError
+  if (!languagePair && langResult.pair) {
+    setLanguagePair(langResult.pair);
+  }
+
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const pairKey = languagePair ? storageKeyPrefix(languagePair) : null;

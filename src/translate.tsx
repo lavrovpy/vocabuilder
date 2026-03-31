@@ -68,6 +68,11 @@ export default function Translate() {
   const [originalInput, setOriginalInput] = useState<string | undefined>(undefined);
   const [languagePair, setLanguagePair] = useState<LanguagePair | null>(langResult.pair);
 
+  // Re-sync when preferences become valid after LanguageConfigError
+  if (!languagePair && langResult.pair) {
+    setLanguagePair(langResult.pair);
+  }
+
   const [clipboardSuggestion, setClipboardSuggestion] = useState("");
 
   const abortRef = useRef<AbortController | null>(null);
@@ -77,20 +82,26 @@ export default function Translate() {
 
   useEffect(() => {
     if (!languagePair) return;
+    setRecentHistory([]);
+    let stale = false;
 
-    getHistory(languagePair).then((h) => setRecentHistory(h.slice(0, 5)));
+    getHistory(languagePair).then((h) => {
+      if (!stale) setRecentHistory(h.slice(0, 5));
+    });
 
-    if (!readClipboardOnOpen) return;
+    if (readClipboardOnOpen) {
+      readClipboardSuggestion()
+        .then((suggestion) => {
+          if (!stale && suggestion) {
+            setClipboardSuggestion(suggestion);
+          }
+        })
+        .catch(() => {
+          /* ignore */
+        });
+    }
 
-    readClipboardSuggestion()
-      .then((suggestion) => {
-        if (suggestion) {
-          setClipboardSuggestion(suggestion);
-        }
-      })
-      .catch(() => {
-        /* ignore */
-      });
+    return () => { stale = true; };
   }, [readClipboardOnOpen, pairKey]);
 
   if (!languagePair) return <LanguageConfigError message={langResult.error ?? "Invalid language configuration."} />;
