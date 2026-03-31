@@ -92,6 +92,7 @@ export default function History(props: { languagePair?: LanguagePair }) {
     : history;
 
   async function handleDelete(id: string) {
+    if (!languagePair) return;
     const confirmed = await confirmAlert({
       title: "Delete Translation",
       message: "Remove this entry from your history?",
@@ -114,6 +115,7 @@ export default function History(props: { languagePair?: LanguagePair }) {
   }
 
   async function handleClearAll() {
+    if (!languagePair) return;
     const confirmed = await confirmAlert({
       title: "Clear All History",
       message: "This will permanently delete all saved translations.",

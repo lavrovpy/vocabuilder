@@ -169,6 +169,7 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
   }
 
   async function handleRate(rating: Rating) {
+    if (!languagePair) return;
     const card = state.sessionCards[state.currentIndex];
     const existing = state.progressMap.get(card.id) ?? freshProgress(card.word, card.id);
     const updated = updateProgress(existing, rating, Date.now());

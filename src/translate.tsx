@@ -262,6 +262,7 @@ export default function Translate() {
   }
 
   async function commitWordSense(pw: PendingWordTranslation, sense: WordSense) {
+    if (!languagePair) return;
     const now = Date.now();
     const translation: Translation = {
       id: `${pw.effectiveWord}-${now}`,
@@ -295,6 +296,7 @@ export default function Translate() {
 
   async function fetchWordTranslation(word: string) {
     if (abortRef.current) abortRef.current.abort();
+    if (!languagePair) return;
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -337,6 +339,7 @@ export default function Translate() {
 
   async function fetchTextTranslation(text: string) {
     if (abortRef.current) abortRef.current.abort();
+    if (!languagePair) return;
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -533,11 +536,7 @@ export default function Translate() {
               title={clipboardSuggestion || "Read Clipboard"}
               subtitle={clipboardSuggestion ? "Use the suggested clipboard word" : "Read clipboard and validate safely"}
               icon={Icon.Clipboard}
-              detail={
-                <List.Item.Detail
-                  markdown={clipboardSuggestion ? `**${clipboardSuggestion}**` : ""}
-                />
-              }
+              detail={<List.Item.Detail markdown={clipboardSuggestion ? `**${clipboardSuggestion}**` : ""} />}
               actions={
                 <ActionPanel>
                   {clipboardSuggestion ? (
