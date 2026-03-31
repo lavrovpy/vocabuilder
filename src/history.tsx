@@ -3,6 +3,7 @@ import { posColor } from "./lib/colors";
 import { useEffect, useState } from "react";
 import LanguageConfigError from "./components/LanguageConfigError";
 import { useLanguagePair } from "./hooks/useLanguagePair";
+import { LanguagePair, storageKeyPrefix, swapLanguagePair } from "./lib/languages";
 import { buildTranslationDetailMarkdown, buildTextTranslationDetailMarkdown } from "./lib/markdown";
 import { clearHistory, deleteTranslation, getHistory } from "./lib/storage";
 import { Translation } from "./lib/types";
@@ -23,23 +24,62 @@ function relativeTime(timestamp: number): string {
   return `${days}d ago`;
 }
 
-export default function History() {
+export default function History(props: { languagePair?: LanguagePair }) {
   const langResult = useLanguagePair();
+  const initialPair = props.languagePair ?? langResult.pair;
+  const [languagePair, setLanguagePair] = useState<LanguagePair | null>(initialPair);
+
+  // Re-sync when preferences become valid after LanguageConfigError
+  if (!languagePair && langResult.pair) {
+    setLanguagePair(langResult.pair);
+  }
+
   const [history, setHistory] = useState<Translation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isShowingDetail, setIsShowingDetail] = useState(false);
   const [searchText, setSearchText] = useState("");
 
-  useEffect(() => {
-    if (!langResult.pair) return;
-    getHistory(langResult.pair).then((h) => {
-      setHistory(h);
-      setIsLoading(false);
-    });
-  }, []);
+  const pairKey = languagePair ? storageKeyPrefix(languagePair) : null;
 
-  if (langResult.error) return <LanguageConfigError message={langResult.error} />;
-  const languagePair = langResult.pair;
+  useEffect(() => {
+    if (!languagePair) return;
+    setHistory([]);
+    setIsLoading(true);
+    let stale = false;
+    getHistory(languagePair).then((h) => {
+      if (!stale) {
+        setHistory(h);
+        setIsLoading(false);
+      }
+    });
+    return () => { stale = true; };
+  }, [pairKey]);
+
+  if (!languagePair) return <LanguageConfigError message={langResult.error ?? "Invalid language configuration."} />;
+
+  function handleToggleLanguages() {
+    setSearchText("");
+    setLanguagePair((prev) => {
+      if (!prev) return prev;
+      const swapped = swapLanguagePair(prev);
+      showToast({
+        style: Toast.Style.Success,
+        title: `${swapped.source.name} → ${swapped.target.name}`,
+      });
+      return swapped;
+    });
+  }
+
+  function ToggleLanguagesAction() {
+    return (
+      <Action
+        title="Toggle Languages"
+        icon={Icon.Switch}
+        shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
+        onAction={handleToggleLanguages}
+      />
+    );
+  }
 
   const filtered = searchText
     ? history.filter(
@@ -89,13 +129,23 @@ export default function History() {
 
   return (
     <List
+      navigationTitle={`${languagePair.source.name} → ${languagePair.target.name}`}
       isLoading={isLoading}
       isShowingDetail={isShowingDetail}
       searchBarPlaceholder="Search translations..."
+      searchText={searchText}
       onSearchTextChange={setSearchText}
     >
       {filtered.length === 0 && !isLoading ? (
-        <List.EmptyView title="No translations yet" description="Use Translate to get started" />
+        <List.EmptyView
+          title="No translations yet"
+          description="Use Translate to get started"
+          actions={
+            <ActionPanel>
+              <ToggleLanguagesAction />
+            </ActionPanel>
+          }
+        />
       ) : (
         filtered.map((item) => (
           <List.Item
@@ -138,6 +188,7 @@ export default function History() {
                   shortcut={{ modifiers: ["cmd"], key: "d" }}
                   onAction={() => handleDelete(item.id)}
                 />
+                <ToggleLanguagesAction />
                 <Action
                   title="Clear All History"
                   icon={Icon.XMarkCircle}

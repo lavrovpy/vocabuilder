@@ -17,6 +17,7 @@ import { useLanguagePair } from "./hooks/useLanguagePair";
 import History from "./history";
 import { translateWord, translateText } from "./lib/gemini";
 import { MAX_WORD_LENGTH, normalizeWordInput, normalizeTextInput } from "./lib/input";
+import { LanguagePair, storageKeyPrefix, swapLanguagePair } from "./lib/languages";
 import { posColor } from "./lib/colors";
 import { buildTranslationDetailMarkdown, buildTextTranslationDetailMarkdown } from "./lib/markdown";
 import { getHistory, saveTranslation } from "./lib/storage";
@@ -65,32 +66,45 @@ export default function Translate() {
   const [error, setError] = useState<string | null>(null);
   const [recentHistory, setRecentHistory] = useState<Translation[]>([]);
   const [originalInput, setOriginalInput] = useState<string | undefined>(undefined);
+  const [languagePair, setLanguagePair] = useState<LanguagePair | null>(langResult.pair);
+
+  // Re-sync when preferences become valid after LanguageConfigError
+  if (!languagePair && langResult.pair) {
+    setLanguagePair(langResult.pair);
+  }
 
   const [clipboardSuggestion, setClipboardSuggestion] = useState("");
 
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const pairKey = languagePair ? storageKeyPrefix(languagePair) : null;
+
   useEffect(() => {
-    if (!langResult.pair) return;
+    if (!languagePair) return;
+    setRecentHistory([]);
+    let stale = false;
 
-    getHistory(langResult.pair).then((h) => setRecentHistory(h.slice(0, 5)));
+    getHistory(languagePair).then((h) => {
+      if (!stale) setRecentHistory(h.slice(0, 5));
+    });
 
-    if (!readClipboardOnOpen) return;
+    if (readClipboardOnOpen) {
+      readClipboardSuggestion()
+        .then((suggestion) => {
+          if (!stale && suggestion) {
+            setClipboardSuggestion(suggestion);
+          }
+        })
+        .catch(() => {
+          /* ignore */
+        });
+    }
 
-    readClipboardSuggestion()
-      .then((suggestion) => {
-        if (suggestion) {
-          setClipboardSuggestion(suggestion);
-        }
-      })
-      .catch(() => {
-        /* ignore */
-      });
-  }, [readClipboardOnOpen]);
+    return () => { stale = true; };
+  }, [readClipboardOnOpen, pairKey]);
 
-  if (langResult.error) return <LanguageConfigError message={langResult.error} />;
-  const languagePair = langResult.pair;
+  if (!languagePair) return <LanguageConfigError message={langResult.error ?? "Invalid language configuration."} />;
   const { source } = languagePair;
 
   function clearDebounce() {
@@ -98,6 +112,41 @@ export default function Translate() {
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
     }
+  }
+
+  function handleToggleLanguages() {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    clearDebounce();
+    setResult(null);
+    setError(null);
+    setIsLoading(false);
+    setSearchText("");
+    setOriginalInput(undefined);
+    setClipboardSuggestion("");
+
+    setLanguagePair((prev) => {
+      if (!prev) return prev;
+      const swapped = swapLanguagePair(prev);
+      showToast({
+        style: Toast.Style.Success,
+        title: `${swapped.source.name} → ${swapped.target.name}`,
+      });
+      return swapped;
+    });
+  }
+
+  function ToggleLanguagesAction() {
+    return (
+      <Action
+        title="Toggle Languages"
+        icon={Icon.Switch}
+        shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
+        onAction={handleToggleLanguages}
+      />
+    );
   }
 
   function submitTranslation(rawText: string, clearPending = true) {
@@ -305,6 +354,7 @@ export default function Translate() {
 
   return (
     <List
+      navigationTitle={`${languagePair.source.name} → ${languagePair.target.name}`}
       isLoading={isLoading}
       isShowingDetail={showResult && isTextResult}
       searchBarPlaceholder={`Type a ${source.name} word or text...`}
@@ -321,6 +371,7 @@ export default function Translate() {
               {error.includes("API key") && (
                 <Action title="Open Preferences" onAction={openExtensionPreferences} icon={Icon.Gear} />
               )}
+              <ToggleLanguagesAction />
             </ActionPanel>
           }
         />
@@ -345,8 +396,9 @@ export default function Translate() {
                     title="Open History"
                     icon={Icon.Clock}
                     shortcut={{ modifiers: ["cmd", "shift"], key: "h" }}
-                    onAction={() => push(<History />)}
+                    onAction={() => push(<History languagePair={languagePair} />)}
                   />
+                  <ToggleLanguagesAction />
                 </ActionPanel>
               }
             />
@@ -372,8 +424,9 @@ export default function Translate() {
                     title="Open History"
                     icon={Icon.Clock}
                     shortcut={{ modifiers: ["cmd", "shift"], key: "h" }}
-                    onAction={() => push(<History />)}
+                    onAction={() => push(<History languagePair={languagePair} />)}
                   />
+                  <ToggleLanguagesAction />
                 </ActionPanel>
               }
             />
@@ -390,6 +443,7 @@ export default function Translate() {
             actions={
               <ActionPanel>
                 <Action title="Translate Now" icon={Icon.Book} onAction={() => submitTranslation(searchText)} />
+                <ToggleLanguagesAction />
               </ActionPanel>
             }
           />
@@ -416,6 +470,7 @@ export default function Translate() {
                     <Action title="Read Clipboard" icon={Icon.Clipboard} onAction={handleReadClipboard} />
                   )}
                   <Action title="Refresh Clipboard" icon={Icon.ArrowClockwise} onAction={handleReadClipboard} />
+                  <ToggleLanguagesAction />
                 </ActionPanel>
               }
             />
@@ -443,8 +498,9 @@ export default function Translate() {
                         title="Open History"
                         icon={Icon.Clock}
                         shortcut={{ modifiers: ["cmd", "shift"], key: "h" }}
-                        onAction={() => push(<History />)}
+                        onAction={() => push(<History languagePair={languagePair} />)}
                       />
+                      <ToggleLanguagesAction />
                     </ActionPanel>
                   }
                 />
