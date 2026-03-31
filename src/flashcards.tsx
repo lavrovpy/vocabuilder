@@ -229,7 +229,7 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
       searchBarPlaceholder=""
     >
       <List.Item
-        key={card.word}
+        key={card.id}
         title={card.word}
         subtitle={state.revealed ? undefined : "···"}
         accessories={[isNew ? { tag: { value: "New", color: Color.Green } } : {}, { text: position }]}

@@ -30,9 +30,9 @@ interface PendingWordTranslation {
   senses: WordSense[];
 }
 
-function pickSenseShortcut(index: number): { modifiers: "cmd"[]; key: "1" | "2" | "3" } | undefined {
-  if (index < 0 || index > 2) return undefined;
-  const keys: ("1" | "2" | "3")[] = ["1", "2", "3"];
+function pickSenseShortcut(index: number): { modifiers: "cmd"[]; key: "1" | "2" | "3" | "4" | "5" } | undefined {
+  if (index < 0 || index > 4) return undefined;
+  const keys: ("1" | "2" | "3" | "4" | "5")[] = ["1", "2", "3", "4", "5"];
   return { modifiers: ["cmd"], key: keys[index] };
 }
 
@@ -262,14 +262,15 @@ export default function Translate() {
   }
 
   async function commitWordSense(pw: PendingWordTranslation, sense: WordSense) {
+    const now = Date.now();
     const translation: Translation = {
-      id: `${pw.effectiveWord}-${Date.now()}`,
+      id: `${pw.effectiveWord}-${now}`,
       word: pw.effectiveWord,
       translation: sense.translation,
       partOfSpeech: sense.partOfSpeech,
       example: sense.example,
       exampleTranslation: sense.exampleTranslation,
-      timestamp: Date.now(),
+      timestamp: now,
       type: "word",
     };
 

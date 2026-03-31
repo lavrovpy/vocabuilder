@@ -62,7 +62,7 @@ function dedupeSenses(senses: WordSense[]): WordSense[] {
     seen.add(key);
     out.push(sense);
   }
-  return out.length > 0 ? out : senses;
+  return out;
 }
 
 export async function translateWord(
