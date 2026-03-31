@@ -44,6 +44,7 @@ export type Translation = z.infer<typeof TranslationSchema>;
 
 export const FlashcardProgressSchema = z.object({
   word: z.string(),
+  translationId: z.string(),
   easeFactor: z.number(),
   interval: z.number(),
   repetitions: z.number(),

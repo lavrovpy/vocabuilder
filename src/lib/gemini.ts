@@ -48,11 +48,21 @@ async function callGemini(prompt: string, apiKey: string, signal?: AbortSignal):
     .trim();
 }
 
+/** Same gloss can appear for different parts of speech; dedupe only fully identical senses. */
+function senseIdentityKey(s: WordSense): string {
+  return [
+    s.translation.trim().toLowerCase(),
+    s.partOfSpeech.trim().toLowerCase(),
+    s.example.trim().toLowerCase(),
+    s.exampleTranslation.trim().toLowerCase(),
+  ].join("\u0001");
+}
+
 function dedupeSenses(senses: WordSense[]): WordSense[] {
   const seen = new Set<string>();
   const out: WordSense[] = [];
   for (const sense of senses) {
-    const key = sense.translation.trim().toLowerCase();
+    const key = senseIdentityKey(sense);
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(sense);

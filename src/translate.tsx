@@ -283,12 +283,12 @@ export default function Translate() {
       return;
     }
 
-    await Clipboard.copy(sense.translation);
+    await Clipboard.copy(saved.translation);
     setPendingWord(null);
     setResult(null);
     setSearchText("");
     clearDebounce();
-    setRecentHistory((prev) => [translation, ...prev.filter((h) => h.word !== translation.word)].slice(0, 5));
+    setRecentHistory((prev) => [saved, ...prev.filter((h) => h.id !== saved.id)].slice(0, 5));
     await closeMainWindow({ clearRootSearch: true });
   }
 
@@ -361,10 +361,10 @@ export default function Translate() {
       };
 
       setResult(translation);
-
       const saved = await saveTranslation(translation, languagePair);
       if (saved) {
-        setRecentHistory((prev) => [translation, ...prev.filter((h) => h.word !== translation.word)].slice(0, 5));
+        setResult(saved);
+        setRecentHistory((prev) => [saved, ...prev.filter((h) => h.id !== saved.id)].slice(0, 5));
       } else {
         await showToast({
           style: Toast.Style.Failure,

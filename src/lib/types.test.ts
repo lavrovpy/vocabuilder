@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { GeminiWordResponseSchema, TranslationSchema, WordSenseSchema } from "./types";
+import { FlashcardProgressSchema, GeminiWordResponseSchema, TranslationSchema, WordSenseSchema } from "./types";
 
 describe("WordSenseSchema", () => {
   const valid = {
@@ -87,5 +87,26 @@ describe("TranslationSchema", () => {
     const noTimestamp: Record<string, unknown> = { ...validTranslation };
     delete noTimestamp.timestamp;
     expect(() => TranslationSchema.parse(noTimestamp)).toThrow();
+  });
+});
+
+describe("FlashcardProgressSchema", () => {
+  const valid = {
+    word: "hello",
+    translationId: "hello-1",
+    easeFactor: 2.5,
+    interval: 1,
+    repetitions: 0,
+    nextReviewDate: 0,
+  };
+
+  it("requires translationId", () => {
+    const incomplete: Record<string, unknown> = { ...valid };
+    delete incomplete.translationId;
+    expect(() => FlashcardProgressSchema.parse(incomplete)).toThrow();
+  });
+
+  it("accepts valid progress", () => {
+    expect(() => FlashcardProgressSchema.parse(valid)).not.toThrow();
   });
 });

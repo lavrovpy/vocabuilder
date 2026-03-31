@@ -55,7 +55,7 @@ describe("translateWord", () => {
     expect(result.senses[0].partOfSpeech).toBe("interjection");
   });
 
-  it("dedupes duplicate sense translations", async () => {
+  it("dedupes only when POS, examples, and gloss all match", async () => {
     const dup = {
       translation: "привіт",
       partOfSpeech: "interjection",
@@ -73,7 +73,50 @@ describe("translateWord", () => {
     );
 
     const result = await translateWord("hello", API_KEY, pair);
+    expect(result.senses).toHaveLength(2);
+  });
+
+  it("removes byte-for-byte duplicate senses from the model", async () => {
+    const s = {
+      translation: "привіт",
+      partOfSpeech: "interjection",
+      example: "A",
+      exampleTranslation: "B",
+    };
+    const payload = { senses: [s, s] };
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(geminiJsonBody(payload)), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const result = await translateWord("hello", API_KEY, pair);
     expect(result.senses).toHaveLength(1);
+  });
+
+  it("keeps same target gloss when part of speech differs", async () => {
+    const base = {
+      translation: "процент",
+      example: "E1",
+      exampleTranslation: "E1en",
+    };
+    const payload = {
+      senses: [
+        { ...base, partOfSpeech: "noun" },
+        { ...base, partOfSpeech: "verb", example: "E2", exampleTranslation: "E2en" },
+      ],
+    };
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(geminiJsonBody(payload)), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const result = await translateWord("hello", API_KEY, pair);
+    expect(result.senses).toHaveLength(2);
+    expect(result.senses.map((x) => x.partOfSpeech).sort()).toEqual(["noun", "verb"]);
   });
 
   it("throws INVALID_API_KEY on 401", async () => {
