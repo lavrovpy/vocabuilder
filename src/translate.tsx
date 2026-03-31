@@ -426,7 +426,7 @@ export default function Translate() {
         />
       ) : showSensePicker && pendingWord ? (
         <List.Section
-          title="Choose translation"
+          title="Choose Translation"
           subtitle="Primary action saves to history, flashcards, and copies — Enter"
         >
           {pendingWord.senses.map((sense, index) => {
@@ -532,6 +532,11 @@ export default function Translate() {
               title={clipboardSuggestion || "Read Clipboard"}
               subtitle={clipboardSuggestion ? "Use the suggested clipboard word" : "Read clipboard and validate safely"}
               icon={Icon.Clipboard}
+              detail={
+                <List.Item.Detail
+                  markdown={clipboardSuggestion ? `**${clipboardSuggestion}**` : ""}
+                />
+              }
               actions={
                 <ActionPanel>
                   {clipboardSuggestion ? (

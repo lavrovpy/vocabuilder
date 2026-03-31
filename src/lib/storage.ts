@@ -47,7 +47,7 @@ async function parseStoredArray<T>(
 }
 
 /** True when b describes the same saved sense as a (lemma + gloss + POS for words). */
-export function senseMatchesStoredTranslation(a: Translation, b: Translation): boolean {
+function senseMatchesStoredTranslation(a: Translation, b: Translation): boolean {
   if (a.type !== b.type) return false;
   if (a.type === "text") {
     return a.word === b.word;
@@ -60,7 +60,7 @@ export function senseMatchesStoredTranslation(a: Translation, b: Translation): b
 }
 
 /** LocalStorage map key for a flashcard progress row — matches `Translation.id`. */
-export function flashcardProgressStorageKey(p: FlashcardProgress): string {
+function flashcardProgressStorageKey(p: FlashcardProgress): string {
   return p.translationId;
 }
 
