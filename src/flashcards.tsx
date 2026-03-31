@@ -126,9 +126,11 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
 
   useEffect(() => {
     if (!languagePair) return;
+    let stale = false;
     getSessionCards(languagePair).then(({ sessionCards, progressMap }) => {
-      dispatch({ type: "loaded", cards: sessionCards, progressMap });
+      if (!stale) dispatch({ type: "loaded", cards: sessionCards, progressMap });
     });
+    return () => { stale = true; };
   }, [pairKey]);
 
   if (!languagePair) return <LanguageConfigError message={langResult.error ?? "Invalid language configuration."} />;

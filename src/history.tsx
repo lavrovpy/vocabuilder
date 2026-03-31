@@ -37,11 +37,16 @@ export default function History(props: { languagePair?: LanguagePair }) {
 
   useEffect(() => {
     if (!languagePair) return;
+    setHistory([]);
     setIsLoading(true);
+    let stale = false;
     getHistory(languagePair).then((h) => {
-      setHistory(h);
-      setIsLoading(false);
+      if (!stale) {
+        setHistory(h);
+        setIsLoading(false);
+      }
     });
+    return () => { stale = true; };
   }, [pairKey]);
 
   if (!languagePair) return <LanguageConfigError message={langResult.error ?? "Invalid language configuration."} />;
