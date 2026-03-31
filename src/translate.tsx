@@ -114,6 +114,7 @@ export default function Translate() {
     setIsLoading(false);
     setSearchText("");
     setOriginalInput(undefined);
+    setClipboardSuggestion("");
 
     setLanguagePair((prev) => {
       if (!prev) return prev;

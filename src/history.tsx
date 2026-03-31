@@ -124,7 +124,15 @@ export default function History(props: { languagePair?: LanguagePair }) {
       onSearchTextChange={setSearchText}
     >
       {filtered.length === 0 && !isLoading ? (
-        <List.EmptyView title="No translations yet" description="Use Translate to get started" />
+        <List.EmptyView
+          title="No translations yet"
+          description="Use Translate to get started"
+          actions={
+            <ActionPanel>
+              <ToggleLanguagesAction />
+            </ActionPanel>
+          }
+        />
       ) : (
         filtered.map((item) => (
           <List.Item
