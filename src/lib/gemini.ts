@@ -1,9 +1,10 @@
 import {
   GeminiApiResponseSchema,
-  GeminiResponse,
-  GeminiResponseSchema,
+  GeminiWordResponse,
+  GeminiWordResponseSchema,
   GeminiTextResponse,
   GeminiTextResponseSchema,
+  WordSense,
 } from "./types";
 import { asJsonStringLiteral, normalizeWordInput, normalizeTextInput } from "./input";
 import { LanguagePair } from "./languages";
@@ -47,12 +48,24 @@ async function callGemini(prompt: string, apiKey: string, signal?: AbortSignal):
     .trim();
 }
 
+function dedupeSenses(senses: WordSense[]): WordSense[] {
+  const seen = new Set<string>();
+  const out: WordSense[] = [];
+  for (const sense of senses) {
+    const key = sense.translation.trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(sense);
+  }
+  return out.length > 0 ? out : senses;
+}
+
 export async function translateWord(
   word: string,
   apiKey: string,
   languagePair: LanguagePair,
   signal?: AbortSignal,
-): Promise<GeminiResponse> {
+): Promise<GeminiWordResponse> {
   const normalizedWord = normalizeWordInput(word);
   if (!normalizedWord) {
     throw new Error("INVALID_WORD_INPUT");
@@ -62,19 +75,26 @@ export async function translateWord(
 
   const prompt = `Translate the ${source.name} word ${asJsonStringLiteral(normalizedWord)} to ${target.name}.
 If the input is a misspelling or typo, correct it and translate the corrected word.
+Provide 2 to 5 distinct likely meanings (senses), ordered from most common or likely first.
+Each sense must have its own example sentence in ${target.name} and the example's translation in ${source.name}.
 Respond ONLY with valid JSON:
 {
-  "translation": "${target.name} translation",
-  "partOfSpeech": "noun/verb/adjective/etc",
-  "example": "${target.name} example sentence",
-  "exampleTranslation": "${source.name} translation of the example",
+  "senses": [
+    {
+      "translation": "${target.name} gloss for this sense",
+      "partOfSpeech": "noun/verb/adjective/etc",
+      "example": "${target.name} example using this sense",
+      "exampleTranslation": "${source.name} translation of the example"
+    }
+  ],
   "correctedWord": "include ONLY if the input was misspelled; omit if correct"
 }`;
 
   const cleaned = await callGemini(prompt, apiKey, signal);
 
   try {
-    return GeminiResponseSchema.parse(JSON.parse(cleaned));
+    const parsed = GeminiWordResponseSchema.parse(JSON.parse(cleaned));
+    return { ...parsed, senses: dedupeSenses(parsed.senses) };
   } catch {
     throw new Error("GEMINI_INVALID_RESPONSE");
   }

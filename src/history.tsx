@@ -52,7 +52,9 @@ export default function History(props: { languagePair?: LanguagePair }) {
         setIsLoading(false);
       }
     });
-    return () => { stale = true; };
+    return () => {
+      stale = true;
+    };
   }, [pairKey]);
 
   if (!languagePair) return <LanguageConfigError message={langResult.error ?? "Invalid language configuration."} />;

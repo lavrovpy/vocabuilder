@@ -136,7 +136,9 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
     getSessionCards(languagePair).then(({ sessionCards, progressMap }) => {
       if (!stale) dispatch({ type: "loaded", cards: sessionCards, progressMap });
     });
-    return () => { stale = true; };
+    return () => {
+      stale = true;
+    };
   }, [pairKey]);
 
   if (!languagePair) return <LanguageConfigError message={langResult.error ?? "Invalid language configuration."} />;
@@ -182,7 +184,13 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
   }
 
   if (state.phase === "loading") {
-    return <List navigationTitle={`${languagePair.source.name} → ${languagePair.target.name}`} isLoading searchBarPlaceholder="" />;
+    return (
+      <List
+        navigationTitle={`${languagePair.source.name} → ${languagePair.target.name}`}
+        isLoading
+        searchBarPlaceholder=""
+      />
+    );
   }
 
   if (state.phase === "done") {
@@ -214,7 +222,11 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
   const detailMarkdown = buildFlashcardDetailMarkdown(card);
 
   return (
-    <List navigationTitle={`${languagePair.source.name} → ${languagePair.target.name}`} isShowingDetail={state.revealed} searchBarPlaceholder="">
+    <List
+      navigationTitle={`${languagePair.source.name} → ${languagePair.target.name}`}
+      isShowingDetail={state.revealed}
+      searchBarPlaceholder=""
+    >
       <List.Item
         key={card.word}
         title={card.word}
