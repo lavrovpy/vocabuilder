@@ -55,7 +55,7 @@ describe("translateWord", () => {
     expect(result.senses[0].partOfSpeech).toBe("interjection");
   });
 
-  it("dedupes only when POS, examples, and gloss all match", async () => {
+  it("dedupes senses with same translation+POS even if examples differ", async () => {
     const dup = {
       translation: "привіт",
       partOfSpeech: "interjection",
@@ -73,7 +73,7 @@ describe("translateWord", () => {
     );
 
     const result = await translateWord("hello", API_KEY, pair);
-    expect(result.senses).toHaveLength(2);
+    expect(result.senses).toHaveLength(1);
   });
 
   it("removes byte-for-byte duplicate senses from the model", async () => {
