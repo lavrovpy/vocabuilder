@@ -105,6 +105,19 @@ describe("saveTranslation", () => {
     expect(new Set(parsed.map((p: Translation) => p.translation))).toEqual(new Set(["гра", "грати"]));
   });
 
+  it("dedupes text translations by source text only, ignoring translation wording", async () => {
+    const first = makeTranslation({ id: "t1", word: "hello world", translation: "привіт світ", type: "text" });
+    const second = makeTranslation({ id: "t2", word: "hello world", translation: "привіт, світ!", type: "text" });
+    await saveTranslation(first, pair);
+    await saveTranslation(second, pair);
+
+    const stored = (LocalStorage as unknown as { _store: Map<string, string> })._store.get(HISTORY_KEY);
+    const parsed = JSON.parse(stored!);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].id).toBe("t1");
+    expect(parsed[0].translation).toBe("привіт, світ!");
+  });
+
   it("returns null when storage is corrupted", async () => {
     (LocalStorage as unknown as { _store: Map<string, string> })._store.set(HISTORY_KEY, "corrupted");
     const result = await saveTranslation(makeTranslation(), pair);

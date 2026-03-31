@@ -50,7 +50,7 @@ async function parseStoredArray<T>(
 export function senseMatchesStoredTranslation(a: Translation, b: Translation): boolean {
   if (a.type !== b.type) return false;
   if (a.type === "text") {
-    return a.word === b.word && a.translation === b.translation;
+    return a.word === b.word;
   }
   return (
     a.word === b.word &&
