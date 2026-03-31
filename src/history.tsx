@@ -1,7 +1,19 @@
-import { Action, ActionPanel, Alert, Color, confirmAlert, Icon, List, showToast, Toast } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Alert,
+  Color,
+  confirmAlert,
+  Icon,
+  List,
+  showInFinder,
+  showToast,
+  Toast,
+} from "@raycast/api";
 import { posColor } from "./lib/colors";
 import { useEffect, useState } from "react";
 import LanguageConfigError from "./components/LanguageConfigError";
+import { exportToFile, formatAnki, formatJson, formatQuizlet } from "./lib/export";
 import { useLanguagePair } from "./hooks/useLanguagePair";
 import { LanguagePair, storageKeyPrefix, swapLanguagePair } from "./lib/languages";
 import { buildTranslationDetailMarkdown, buildTextTranslationDetailMarkdown } from "./lib/markdown";
@@ -193,6 +205,57 @@ export default function History(props: { languagePair?: LanguagePair }) {
                   onAction={() => handleDelete(item.id)}
                 />
                 <ToggleLanguagesAction />
+                <ActionPanel.Section title="Export">
+                  <Action
+                    title="Export as JSON"
+                    icon={Icon.Document}
+                    shortcut={{ modifiers: ["cmd"], key: "e" }}
+                    onAction={async () => {
+                      const content = formatJson(history);
+                      const filePath = exportToFile(content, "json");
+                      await showInFinder(filePath);
+                      await showToast({ style: Toast.Style.Success, title: "Exported", message: filePath });
+                    }}
+                  />
+                  <Action
+                    title="Export to Anki"
+                    icon={Icon.Download}
+                    shortcut={{ modifiers: ["cmd", "shift"], key: "a" }}
+                    onAction={async () => {
+                      const content = formatAnki(history);
+                      if (!content) {
+                        await showToast({
+                          style: Toast.Style.Failure,
+                          title: "Nothing to export",
+                          message: "No word translations found",
+                        });
+                        return;
+                      }
+                      const filePath = exportToFile(content, "anki");
+                      await showInFinder(filePath);
+                      await showToast({ style: Toast.Style.Success, title: "Exported for Anki", message: filePath });
+                    }}
+                  />
+                  <Action
+                    title="Export to Quizlet"
+                    icon={Icon.Download}
+                    shortcut={{ modifiers: ["cmd", "shift"], key: "q" }}
+                    onAction={async () => {
+                      const content = formatQuizlet(history);
+                      if (!content) {
+                        await showToast({
+                          style: Toast.Style.Failure,
+                          title: "Nothing to export",
+                          message: "No word translations found",
+                        });
+                        return;
+                      }
+                      const filePath = exportToFile(content, "quizlet");
+                      await showInFinder(filePath);
+                      await showToast({ style: Toast.Style.Success, title: "Exported for Quizlet", message: filePath });
+                    }}
+                  />
+                </ActionPanel.Section>
                 <Action
                   title="Clear All History"
                   icon={Icon.XMarkCircle}
