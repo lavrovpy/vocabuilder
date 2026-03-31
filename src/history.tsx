@@ -122,6 +122,7 @@ export default function History(props: { languagePair?: LanguagePair }) {
       isLoading={isLoading}
       isShowingDetail={isShowingDetail}
       searchBarPlaceholder="Search translations..."
+      searchText={searchText}
       onSearchTextChange={setSearchText}
     >
       {filtered.length === 0 && !isLoading ? (
