@@ -295,8 +295,8 @@ export default function Translate() {
   }
 
   async function fetchWordTranslation(word: string) {
-    if (!languagePair) return;
     if (abortRef.current) abortRef.current.abort();
+    if (!languagePair) return;
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -338,8 +338,8 @@ export default function Translate() {
   }
 
   async function fetchTextTranslation(text: string) {
-    if (!languagePair) return;
     if (abortRef.current) abortRef.current.abort();
+    if (!languagePair) return;
     const controller = new AbortController();
     abortRef.current = controller;
 
