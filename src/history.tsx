@@ -211,10 +211,14 @@ export default function History(props: { languagePair?: LanguagePair }) {
                     icon={Icon.Document}
                     shortcut={{ modifiers: ["cmd"], key: "e" }}
                     onAction={async () => {
-                      const content = formatJson(history);
-                      const filePath = exportToFile(content, "json");
-                      await showInFinder(filePath);
-                      await showToast({ style: Toast.Style.Success, title: "Exported", message: filePath });
+                      try {
+                        const content = formatJson(history);
+                        const filePath = exportToFile(content, "json");
+                        await showInFinder(filePath);
+                        await showToast({ style: Toast.Style.Success, title: "Exported", message: filePath });
+                      } catch (err) {
+                        await showToast({ style: Toast.Style.Failure, title: "Export failed", message: String(err) });
+                      }
                     }}
                   />
                   <Action
@@ -231,9 +235,13 @@ export default function History(props: { languagePair?: LanguagePair }) {
                         });
                         return;
                       }
-                      const filePath = exportToFile(content, "anki");
-                      await showInFinder(filePath);
-                      await showToast({ style: Toast.Style.Success, title: "Exported for Anki", message: filePath });
+                      try {
+                        const filePath = exportToFile(content, "anki");
+                        await showInFinder(filePath);
+                        await showToast({ style: Toast.Style.Success, title: "Exported for Anki", message: filePath });
+                      } catch (err) {
+                        await showToast({ style: Toast.Style.Failure, title: "Export failed", message: String(err) });
+                      }
                     }}
                   />
                   <Action
@@ -250,9 +258,17 @@ export default function History(props: { languagePair?: LanguagePair }) {
                         });
                         return;
                       }
-                      const filePath = exportToFile(content, "quizlet");
-                      await showInFinder(filePath);
-                      await showToast({ style: Toast.Style.Success, title: "Exported for Quizlet", message: filePath });
+                      try {
+                        const filePath = exportToFile(content, "quizlet");
+                        await showInFinder(filePath);
+                        await showToast({
+                          style: Toast.Style.Success,
+                          title: "Exported for Quizlet",
+                          message: filePath,
+                        });
+                      } catch (err) {
+                        await showToast({ style: Toast.Style.Failure, title: "Export failed", message: String(err) });
+                      }
                     }}
                   />
                 </ActionPanel.Section>

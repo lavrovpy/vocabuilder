@@ -71,6 +71,20 @@ describe("formatAnki", () => {
     expect(formatAnki([text1])).toBe("");
     expect(formatAnki([])).toBe("");
   });
+
+  it("sanitizes tabs and newlines in fields", () => {
+    const dirty: Translation = {
+      ...word1,
+      word: "line\tone",
+      example: "has\nnewline",
+      exampleTranslation: "has\r\nCRLF",
+    };
+    const result = formatAnki([dirty]);
+    const dataLines = result.split("\n").filter((l) => !l.startsWith("#") && l.length > 0);
+    expect(dataLines).toHaveLength(1);
+    expect(dataLines[0].split("\t")).toHaveLength(5);
+    expect(dataLines[0]).not.toMatch(/[\n\r]/);
+  });
 });
 
 describe("formatQuizlet", () => {
@@ -93,5 +107,17 @@ describe("formatQuizlet", () => {
   it("returns empty string when no words", () => {
     expect(formatQuizlet([text1])).toBe("");
     expect(formatQuizlet([])).toBe("");
+  });
+
+  it("sanitizes tabs and newlines in fields", () => {
+    const dirty: Translation = {
+      ...word1,
+      word: "tab\there",
+      translation: "new\nline",
+    };
+    const result = formatQuizlet([dirty]);
+    const lines = result.split("\n").filter((l) => l.length > 0);
+    expect(lines).toHaveLength(1);
+    expect(lines[0].split("\t")).toHaveLength(2);
   });
 });
