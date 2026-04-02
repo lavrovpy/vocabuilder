@@ -443,9 +443,7 @@ export default function Translate() {
           }
         />
       ) : showSensePicker && pendingWord ? (
-        <List.Section
-          title="Choose Translation"
-        >
+        <List.Section title="Choose Translation">
           {pendingWord.senses.map((sense, index) => {
             const detailTranslation: Translation = {
               id: `pick-${index}`,
