@@ -431,7 +431,6 @@ export default function Translate() {
       ) : showSensePicker && pendingWord ? (
         <List.Section
           title="Choose Translation"
-          subtitle="Primary action saves to history, flashcards, and copies — Enter"
         >
           {pendingWord.senses.map((sense, index) => {
             const detailTranslation: Translation = {
