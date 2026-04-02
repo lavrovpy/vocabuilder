@@ -448,14 +448,12 @@ export default function Translate() {
             return (
               <List.Item
                 key={`${sense.translation}-${index}`}
-                title={sense.translation}
-                subtitle={sense.partOfSpeech}
+                title={`${index + 1}. ${sense.translation}`}
                 accessories={[
                   ...(index === 0 && pendingWord.effectiveWord !== pendingWord.originalInput
-                    ? [{ tag: { value: `corrected from "${pendingWord.originalInput}"`, color: Color.Orange } }]
+                    ? [{ tag: { value: `corrected → "${pendingWord.effectiveWord}"`, color: Color.Orange } }]
                     : []),
                   { tag: { value: sense.partOfSpeech, color: posColor(sense.partOfSpeech) } },
-                  { text: `#${index + 1}` },
                 ]}
                 detail={
                   <List.Item.Detail
