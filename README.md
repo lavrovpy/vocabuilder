@@ -38,7 +38,7 @@ A [Raycast](https://raycast.com) extension that translates words and short text 
 
 ## Supported Languages
 
-English, Ukrainian, Russian, Belarusian, Polish, German, French, Spanish, Italian, Portuguese, Dutch, Czech, Swedish, Japanese, Korean, Chinese, Turkish
+English, Ukrainian, Polish, German, French, Spanish, Italian, Portuguese, Dutch, Czech, Swedish, Japanese, Korean, Chinese, Turkish, Russian, Belarusian
 
 ## Keyboard Shortcuts
 
