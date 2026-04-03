@@ -9,7 +9,7 @@ A [Raycast](https://raycast.com) extension that translates words and short text 
 - **Typo correction** — misspelled word input is auto-corrected before translating, with a visual indicator showing the original input
 - **Translation History** — browse, search, and manage all your saved translations
 - **Flashcards** — review saved word translations with spaced repetition
-- **Configurable language pair** — pick source and target from 15 supported languages (defaults to English → Ukrainian)
+- **Configurable language pair** — pick source and target from 17 supported languages (defaults to English → Ukrainian)
 - **Separate history per language pair** — switching languages gives you an independent history and flashcard deck
 - **Clipboard suggestion** — optionally prefill a safe single word from the clipboard when the command opens
 - **History export** — export saved history as JSON, Anki-ready TSV, or Quizlet-ready TSV
@@ -31,19 +31,19 @@ A [Raycast](https://raycast.com) extension that translates words and short text 
 ## Commands
 
 | Command | Description |
-|---|---|
+| --- | --- |
 | Translate | Translate a word or text to your target language |
 | Translation History | Browse saved translations |
 | View Flashcards | Review saved words with spaced repetition |
 
 ## Supported Languages
 
-English, Ukrainian, Polish, German, French, Spanish, Italian, Portuguese, Dutch, Czech, Swedish, Japanese, Korean, Chinese, Turkish
+English, Ukrainian, Russian, Belarusian, Polish, German, French, Spanish, Italian, Portuguese, Dutch, Czech, Swedish, Japanese, Korean, Chinese, Turkish
 
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
-|---|---|
+| --- | --- |
 | `⌘ C` | Copy translation |
 | `⌘ 1` → `⌘ 5` | Pick a word sense and save it to history |
 | `⌘ ⇧ H` | Open History (from Translate) |
