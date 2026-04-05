@@ -23,7 +23,13 @@ function updateProgress(progress: FlashcardProgress, rating: Rating, now: number
     easeFactor = Math.max(1.3, prevEaseFactor - 0.2);
   } else {
     repetitions = prevRepetitions + 1;
-    interval = repetitions < 2 ? (repetitions === 1 ? 6 : 1) : Math.round(prevInterval * prevEaseFactor);
+    if (repetitions === 1) {
+      interval = 1;
+    } else if (repetitions === 2) {
+      interval = 6;
+    } else {
+      interval = Math.round(prevInterval * prevEaseFactor);
+    }
 
     if (rating === "easy") {
       interval = Math.round(interval * 1.3);
