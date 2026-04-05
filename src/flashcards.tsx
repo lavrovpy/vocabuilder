@@ -279,6 +279,37 @@ if (import.meta.vitest) {
     type: "word",
   });
 
+  describe("updateProgress", () => {
+    const base: FlashcardProgress = {
+      word: "hi",
+      translationId: "hi-1",
+      easeFactor: 2.5,
+      interval: 1,
+      repetitions: 0,
+      nextReviewDate: 0,
+    };
+
+    it("first correct answer gives interval 1", () => {
+      const result = updateProgress(base, "good", 0);
+      expect(result.interval).toBe(1);
+      expect(result.repetitions).toBe(1);
+    });
+
+    it("second correct answer gives interval 6", () => {
+      const after1 = updateProgress(base, "good", 0);
+      const after2 = updateProgress(after1, "good", 0);
+      expect(after2.interval).toBe(6);
+      expect(after2.repetitions).toBe(2);
+    });
+
+    it("again resets interval and repetitions", () => {
+      const after1 = updateProgress(base, "good", 0);
+      const reset = updateProgress(after1, "again", 0);
+      expect(reset.interval).toBe(1);
+      expect(reset.repetitions).toBe(0);
+    });
+  });
+
   describe("flashcards reducer", () => {
     it("resets to initial state", () => {
       const cards = [makeCard("hello"), makeCard("world")];
