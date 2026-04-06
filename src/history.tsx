@@ -13,6 +13,7 @@ import {
 import { posColor } from "./lib/colors";
 import { useEffect, useState } from "react";
 import LanguageConfigError from "./components/LanguageConfigError";
+import PronounceAction from "./components/PronounceAction";
 import { exportToFile, formatAnki, formatJson, formatQuizlet } from "./lib/export";
 import { useLanguagePair } from "./hooks/useLanguagePair";
 import { LanguagePair, storageKeyPrefix, swapLanguagePair } from "./lib/languages";
@@ -196,6 +197,18 @@ export default function History(props: { languagePair?: LanguagePair }) {
                   title="Copy Translation"
                   content={item.translation}
                   shortcut={{ modifiers: ["cmd"], key: "c" }}
+                />
+                <PronounceAction
+                  word={item.word}
+                  languageCode={languagePair.source.code}
+                  title="Pronounce Word"
+                  shortcut={{ modifiers: ["cmd"], key: "o" }}
+                />
+                <PronounceAction
+                  word={item.translation}
+                  languageCode={languagePair.target.code}
+                  title="Pronounce Translation"
+                  shortcut={{ modifiers: ["cmd", "shift"], key: "o" }}
                 />
                 <Action
                   title="Delete"

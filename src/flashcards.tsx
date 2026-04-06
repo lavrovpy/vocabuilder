@@ -1,4 +1,5 @@
 import { Action, ActionPanel, closeMainWindow, Color, Icon, List, showToast, Toast } from "@raycast/api";
+import PronounceAction from "./components/PronounceAction";
 import { useEffect, useReducer, useState } from "react";
 import LanguageConfigError from "./components/LanguageConfigError";
 import { useLanguagePair } from "./hooks/useLanguagePair";
@@ -249,12 +250,26 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
         actions={
           <ActionPanel>
             {!state.revealed ? (
-              <Action title="Reveal Answer" onAction={() => dispatch({ type: "reveal" })} />
+              <>
+                <Action title="Reveal Answer" onAction={() => dispatch({ type: "reveal" })} />
+                <PronounceAction
+                  word={card.word}
+                  languageCode={languagePair.source.code}
+                  title="Pronounce Word"
+                  shortcut={{ modifiers: ["cmd"], key: "o" }}
+                />
+              </>
             ) : (
               <>
                 <Action title="Good" onAction={() => handleRate("good")} />
                 <Action title="Again" shortcut={{ modifiers: [], key: "1" }} onAction={() => handleRate("again")} />
                 <Action title="Easy" shortcut={{ modifiers: [], key: "2" }} onAction={() => handleRate("easy")} />
+                <PronounceAction
+                  word={card.word}
+                  languageCode={languagePair.source.code}
+                  title="Pronounce Word"
+                  shortcut={{ modifiers: ["cmd"], key: "o" }}
+                />
               </>
             )}
             <ToggleLanguagesAction />

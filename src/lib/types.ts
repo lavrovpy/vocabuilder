@@ -53,3 +53,20 @@ export const FlashcardProgressSchema = z.object({
 
 export type FlashcardProgress = z.infer<typeof FlashcardProgressSchema>;
 export type Rating = "again" | "good" | "easy";
+
+export const GeminiTtsResponseSchema = z.object({
+  candidates: z.array(
+    z.object({
+      content: z.object({
+        parts: z.array(
+          z.object({
+            inlineData: z.object({
+              mimeType: z.string(),
+              data: z.string(),
+            }),
+          }),
+        ),
+      }),
+    }),
+  ),
+});
