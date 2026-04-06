@@ -270,6 +270,12 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
                   title="Pronounce Word"
                   shortcut={{ modifiers: ["cmd"], key: "o" }}
                 />
+                <PronounceAction
+                  word={card.translation}
+                  languageCode={languagePair.target.code}
+                  title="Pronounce Translation"
+                  shortcut={{ modifiers: ["cmd", "shift"], key: "o" }}
+                />
               </>
             )}
             <ToggleLanguagesAction />
