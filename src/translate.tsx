@@ -432,11 +432,11 @@ export default function Translate() {
           icon={errorCode === "NETWORK_OFFLINE" ? Icon.WifiDisabled : Icon.ExclamationMark}
           actions={
             <ActionPanel>
-              {errorCode === "NETWORK_OFFLINE" && searchText.trim() && (
-                <Action title="Retry" icon={Icon.ArrowClockwise} onAction={() => submitTranslation(searchText)} />
-              )}
-              {error.includes("API key") && (
+              {errorCode === "INVALID_API_KEY" && (
                 <Action title="Open Preferences" onAction={openExtensionPreferences} icon={Icon.Gear} />
+              )}
+              {errorCode !== "INVALID_API_KEY" && searchText.trim() && (
+                <Action title="Retry" icon={Icon.ArrowClockwise} onAction={() => submitTranslation(searchText)} />
               )}
               <ToggleLanguagesAction />
             </ActionPanel>
