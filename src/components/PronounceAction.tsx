@@ -25,10 +25,11 @@ export default function PronounceAction({ word, languageCode, title, shortcut }:
     const controller = new AbortController();
     abortRef.current = controller;
 
-    const toast = await showToast({ style: Toast.Style.Animated, title: "Generating pronunciation…" });
+    const toast = await showToast({ style: Toast.Style.Animated, title: "Playing pronunciation…" });
     try {
       const { geminiApiKey } = getPreferenceValues<Preferences.Translate>();
-      await pronounce(word, geminiApiKey, languageCode, controller.signal);
+      const { cached } = await pronounce(word, geminiApiKey, languageCode, controller.signal);
+      if (!cached) toast.title = "Generated pronunciation";
       toast.hide();
     } catch (err) {
       if (controller.signal.aborted) return;

@@ -180,18 +180,28 @@ async function generateSpeechGemini(text: string, apiKey: string, signal?: Abort
   return prependWavHeader(pcm, SAMPLE_RATE, NUM_CHANNELS, BITS_PER_SAMPLE);
 }
 
-export async function pronounce(word: string, apiKey: string, langCode: string, signal?: AbortSignal): Promise<void> {
+export async function pronounce(
+  word: string,
+  apiKey: string,
+  langCode: string,
+  signal?: AbortSignal,
+): Promise<{ cached: boolean }> {
   const dir = getCacheDir();
   const fileName = cacheKey(word, langCode);
   const filePath = path.join(dir, fileName);
 
+  signal?.throwIfAborted();
+
+  let cached = true;
   if (!existsSync(filePath)) {
+    cached = false;
     const wavBuffer = await generateSpeechGemini(word, apiKey, signal);
     writeFileSync(filePath, wavBuffer);
     evictOldestCacheFiles(dir, MAX_CACHE_FILES);
   }
 
   await playAudio(filePath);
+  return { cached };
 }
 
 export async function pronounceFallback(word: string, langCode: string): Promise<void> {

@@ -653,6 +653,7 @@ export default function Translate() {
                         title="Pronounce Word"
                         shortcut={{ modifiers: ["cmd"], key: "o" }}
                       />
+                      {/* Recent items only show source pronunciation — full history has both */}
                       <Action
                         title="Open History"
                         icon={Icon.Clock}

@@ -61,7 +61,7 @@ export const GeminiTtsResponseSchema = z.object({
         parts: z.array(
           z.object({
             inlineData: z.object({
-              mimeType: z.string(),
+              mimeType: z.literal("audio/L16;rate=24000"),
               data: z.string(),
             }),
           }),

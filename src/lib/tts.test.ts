@@ -19,7 +19,7 @@ vi.mock("fs", async (importOriginal) => {
   };
 });
 
-import { existsSync } from "fs";
+import { existsSync, readdirSync, statSync, unlinkSync } from "fs";
 import { pronounce, pronounceFallback } from "./tts";
 
 const API_KEY = "test-key";
@@ -32,7 +32,7 @@ function ttsResponseBody(base64Audio: string): object {
           parts: [
             {
               inlineData: {
-                mimeType: "audio/L16;rate=24000",
+                mimeType: "audio/L16;rate=24000" as const,
                 data: base64Audio,
               },
             },
@@ -62,8 +62,9 @@ describe("pronounce", () => {
       }),
     );
 
-    await pronounce("hello", API_KEY, "en");
+    const result = await pronounce("hello", API_KEY, "en");
 
+    expect(result.cached).toBe(false);
     expect(fetch).toHaveBeenCalledOnce();
     const fetchCall = vi.mocked(fetch).mock.calls[0];
     expect(fetchCall[0]).toContain("gemini-2.5-flash-preview-tts");
@@ -80,8 +81,9 @@ describe("pronounce", () => {
       return String(p).endsWith(".wav");
     });
 
-    await pronounce("hello", API_KEY, "en");
+    const result = await pronounce("hello", API_KEY, "en");
 
+    expect(result.cached).toBe(true);
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -107,7 +109,7 @@ describe("pronounce", () => {
 
   it("throws TTS_EMPTY_RESPONSE when no audio data", async () => {
     const emptyResponse = {
-      candidates: [{ content: { parts: [{ inlineData: { mimeType: "audio/L16", data: "" } }] } }],
+      candidates: [{ content: { parts: [{ inlineData: { mimeType: "audio/L16;rate=24000", data: "" } }] } }],
     };
     vi.mocked(fetch).mockResolvedValue(
       new Response(JSON.stringify(emptyResponse), {
@@ -116,6 +118,37 @@ describe("pronounce", () => {
       }),
     );
     await expect(pronounce("hello", API_KEY, "en")).rejects.toThrow("TTS_EMPTY_RESPONSE");
+  });
+
+  it("evicts oldest files when cache exceeds MAX_CACHE_FILES", async () => {
+    const fakePcm = Buffer.alloc(48).toString("base64");
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(ttsResponseBody(fakePcm)), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    // Simulate 51 cached .wav files (exceeds MAX_CACHE_FILES=50)
+    const fileNames = Array.from({ length: 51 }, (_, i) => `en-${String(i).padStart(3, "0")}.wav`);
+    vi.mocked(readdirSync).mockReturnValue(fileNames as unknown as ReturnType<typeof readdirSync>);
+    vi.mocked(statSync).mockImplementation(
+      (p) =>
+        ({
+          mtimeMs: parseInt(String(p).match(/(\d{3})\.wav/)?.[1] ?? "0"),
+        }) as ReturnType<typeof statSync>,
+    );
+
+    await pronounce("hello", API_KEY, "en");
+
+    // Oldest file (000) should be evicted
+    expect(unlinkSync).toHaveBeenCalledWith(expect.stringContaining("en-000.wav"));
+  });
+
+  it("does not call fetch when signal is already aborted", async () => {
+    const signal = AbortSignal.abort();
+    await expect(pronounce("hello", API_KEY, "en", signal)).rejects.toThrow();
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
 
