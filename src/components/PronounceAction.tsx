@@ -1,4 +1,5 @@
 import { Action, Icon, Keyboard, Toast, getPreferenceValues, showToast } from "@raycast/api";
+import { useEffect, useRef } from "react";
 import { hasMacOsFallback, isTtsSupported, pronounce, pronounceFallback } from "../lib/tts";
 
 interface PronounceActionProps {
@@ -9,15 +10,28 @@ interface PronounceActionProps {
 }
 
 export default function PronounceAction({ word, languageCode, title, shortcut }: PronounceActionProps) {
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
+
   if (!isTtsSupported(languageCode)) return null;
 
   async function handlePronounce() {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     const toast = await showToast({ style: Toast.Style.Animated, title: "Generating pronunciation…" });
     try {
       const { geminiApiKey } = getPreferenceValues<Preferences.Translate>();
-      await pronounce(word, geminiApiKey, languageCode);
+      await pronounce(word, geminiApiKey, languageCode, controller.signal);
       toast.hide();
     } catch (err) {
+      if (controller.signal.aborted) return;
       const reason = err instanceof Error ? err.message : String(err);
       if (!hasMacOsFallback(languageCode)) {
         toast.style = Toast.Style.Failure;

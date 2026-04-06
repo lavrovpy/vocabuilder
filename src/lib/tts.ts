@@ -13,25 +13,25 @@ const NUM_CHANNELS = 1;
 const BITS_PER_SAMPLE = 16;
 const MAX_CACHE_FILES = 50;
 
-const LANGUAGE_VOICE_MAP: Record<string, string> = {
-  en: "Kore",
-  uk: "Kore",
-  de: "Kore",
-  fr: "Kore",
-  es: "Kore",
-  it: "Kore",
-  pt: "Kore",
-  nl: "Kore",
-  pl: "Kore",
-  cs: "Kore",
-  sv: "Kore",
-  ja: "Kore",
-  ko: "Kore",
-  zh: "Kore",
-  tr: "Kore",
-  ru: "Kore",
-  be: "Kore",
-};
+const GEMINI_SUPPORTED_LANGS = new Set([
+  "en",
+  "uk",
+  "de",
+  "fr",
+  "es",
+  "it",
+  "pt",
+  "nl",
+  "pl",
+  "cs",
+  "sv",
+  "ja",
+  "ko",
+  "zh",
+  "tr",
+  "ru",
+  "be",
+]);
 
 const MACOS_VOICE_MAP: Record<string, string> = {
   en: "Samantha",
@@ -52,12 +52,8 @@ const MACOS_VOICE_MAP: Record<string, string> = {
   ru: "Milena",
 };
 
-function voiceForLanguage(langCode: string): string {
-  return LANGUAGE_VOICE_MAP[langCode] ?? DEFAULT_VOICE;
-}
-
 export function isTtsSupported(langCode: string): boolean {
-  return langCode in LANGUAGE_VOICE_MAP;
+  return GEMINI_SUPPORTED_LANGS.has(langCode);
 }
 
 export function hasMacOsFallback(langCode: string): boolean {
@@ -107,6 +103,7 @@ function cacheKey(word: string, langCode: string): string {
 
 function evictOldestCacheFiles(dir: string, maxFiles: number): void {
   const files = readdirSync(dir)
+    .filter((name) => name.endsWith(".wav"))
     .map((name) => {
       const filePath = path.join(dir, name);
       const stat = statSync(filePath);
@@ -133,14 +130,8 @@ function playAudio(filePath: string): Promise<void> {
   });
 }
 
-async function generateSpeechGemini(
-  text: string,
-  apiKey: string,
-  langCode: string,
-  signal?: AbortSignal,
-): Promise<Buffer> {
+async function generateSpeechGemini(text: string, apiKey: string, signal?: AbortSignal): Promise<Buffer> {
   const url = `${BASE_URL}/${TTS_MODEL}:generateContent`;
-  const voice = voiceForLanguage(langCode);
 
   let response: Response;
   try {
@@ -156,7 +147,7 @@ async function generateSpeechGemini(
           responseModalities: ["AUDIO"],
           speechConfig: {
             voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: voice },
+              prebuiltVoiceConfig: { voiceName: DEFAULT_VOICE },
             },
           },
         },
@@ -195,7 +186,7 @@ export async function pronounce(word: string, apiKey: string, langCode: string, 
   const filePath = path.join(dir, fileName);
 
   if (!existsSync(filePath)) {
-    const wavBuffer = await generateSpeechGemini(word, apiKey, langCode, signal);
+    const wavBuffer = await generateSpeechGemini(word, apiKey, signal);
     writeFileSync(filePath, wavBuffer);
     evictOldestCacheFiles(dir, MAX_CACHE_FILES);
   }
@@ -216,17 +207,6 @@ export async function pronounceFallback(word: string, langCode: string): Promise
 // --- In-source tests for private functions ---
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
-
-  describe("voiceForLanguage", () => {
-    it("returns Kore for known languages", () => {
-      expect(voiceForLanguage("en")).toBe("Kore");
-      expect(voiceForLanguage("uk")).toBe("Kore");
-    });
-
-    it("returns default for unknown language", () => {
-      expect(voiceForLanguage("xx")).toBe(DEFAULT_VOICE);
-    });
-  });
 
   describe("macosVoiceForLanguage", () => {
     it("returns Samantha for English", () => {

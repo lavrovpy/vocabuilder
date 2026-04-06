@@ -253,7 +253,7 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
               <List.Item.Detail.Metadata>
                 <List.Item.Detail.Metadata.Label
                   title=""
-                  text="⌘O to pronounce · ⌘⇧O for translation"
+                  text={state.revealed ? "⌘O to pronounce · ⌘⇧O for translation" : "⌘O to pronounce"}
                   icon={Icon.SpeakerHigh}
                 />
               </List.Item.Detail.Metadata>
