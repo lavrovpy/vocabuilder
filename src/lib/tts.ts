@@ -165,35 +165,23 @@ async function generateSpeechGemini(
     });
   } catch (err) {
     if (err instanceof TypeError) {
-      console.error("[tts] Gemini TTS network error:", err.message);
       throw new Error("NETWORK_OFFLINE");
     }
-    console.error("[tts] Gemini TTS unexpected fetch error:", err);
     throw err;
   }
 
   if (response.status === 401 || response.status === 403) {
-    console.error(`[tts] Gemini TTS auth error: HTTP ${response.status}`);
     throw new Error("INVALID_API_KEY");
   }
 
   if (!response.ok) {
-    const body = await response.text().catch(() => "(unreadable)");
-    console.error(`[tts] Gemini TTS request failed: HTTP ${response.status}`, body);
     throw new Error("TTS_REQUEST_FAILED");
   }
 
-  let apiData;
-  try {
-    apiData = GeminiTtsResponseSchema.parse(await response.json());
-  } catch (err) {
-    console.error("[tts] Gemini TTS response did not match expected schema:", err);
-    throw new Error("TTS_REQUEST_FAILED");
-  }
+  const apiData = GeminiTtsResponseSchema.parse(await response.json());
   const base64Audio = apiData.candidates[0]?.content.parts[0]?.inlineData.data;
 
   if (!base64Audio) {
-    console.error("[tts] Gemini TTS returned empty audio data");
     throw new Error("TTS_EMPTY_RESPONSE");
   }
 
@@ -206,13 +194,9 @@ export async function pronounce(word: string, apiKey: string, langCode: string, 
   const fileName = cacheKey(word, langCode);
   const filePath = path.join(dir, fileName);
 
-  if (existsSync(filePath)) {
-    console.log(`[tts] Cache hit for "${word}" (${langCode}), playing from cache`);
-  } else {
-    console.log(`[tts] Cache miss for "${word}" (${langCode}), calling Gemini TTS...`);
+  if (!existsSync(filePath)) {
     const wavBuffer = await generateSpeechGemini(word, apiKey, langCode, signal);
     writeFileSync(filePath, wavBuffer);
-    console.log(`[tts] Gemini TTS success for "${word}", cached to ${fileName}`);
     evictOldestCacheFiles(dir, MAX_CACHE_FILES);
   }
 

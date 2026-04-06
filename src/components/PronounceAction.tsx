@@ -20,24 +20,16 @@ export default function PronounceAction({ word, languageCode, title, shortcut }:
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
       if (!hasMacOsFallback(languageCode)) {
-        console.error(`[tts] Gemini TTS failed for "${word}" (${languageCode}), no system fallback. Reason: ${reason}`);
         toast.style = Toast.Style.Failure;
         toast.title = "Pronunciation failed";
         toast.message = reason === "NETWORK_OFFLINE" ? "No internet connection" : "Could not generate audio";
         return;
       }
-      console.warn(
-        `[tts] Gemini TTS failed for "${word}" (${languageCode}), falling back to system voice. Reason: ${reason}`,
-      );
       toast.title = "Using system voice…";
       try {
         await pronounceFallback(word, languageCode);
         toast.hide();
-      } catch (fallbackErr) {
-        const fallbackReason = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
-        console.error(
-          `[tts] System voice fallback also failed for "${word}" (${languageCode}). Reason: ${fallbackReason}`,
-        );
+      } catch {
         toast.style = Toast.Style.Failure;
         toast.title = "Pronunciation failed";
         toast.message = "Could not play audio";
