@@ -184,6 +184,15 @@ export default function History(props: { languagePair?: LanguagePair }) {
                     ? buildTextTranslationDetailMarkdown(item.word, item.translation)
                     : buildTranslationDetailMarkdown(item)
                 }
+                metadata={
+                  <List.Item.Detail.Metadata>
+                    <List.Item.Detail.Metadata.Label
+                      title=""
+                      text="⌘O to pronounce · ⌘⇧O for translation"
+                      icon={Icon.SpeakerHigh}
+                    />
+                  </List.Item.Detail.Metadata>
+                }
               />
             }
             actions={

@@ -477,6 +477,15 @@ export default function Translate() {
                 detail={
                   <List.Item.Detail
                     markdown={buildTranslationDetailMarkdown(detailTranslation, pendingWord.originalInput)}
+                    metadata={
+                      <List.Item.Detail.Metadata>
+                        <List.Item.Detail.Metadata.Label
+                          title=""
+                          text="⌘O to pronounce · ⌘⇧O for translation"
+                          icon={Icon.SpeakerHigh}
+                        />
+                      </List.Item.Detail.Metadata>
+                    }
                   />
                 }
                 actions={
