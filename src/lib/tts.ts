@@ -1,5 +1,6 @@
 import { environment } from "@raycast/api";
 import { execFile } from "child_process";
+import { createHash } from "crypto";
 import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from "fs";
 import path from "path";
 import { GeminiTtsResponseSchema } from "./types";
@@ -92,7 +93,8 @@ function getCacheDir(): string {
 }
 
 function cacheKey(word: string, langCode: string): string {
-  return `${langCode}-${Buffer.from(word.toLowerCase()).toString("hex")}.wav`;
+  const hash = createHash("sha256").update(word.toLowerCase()).digest("hex").slice(0, 32);
+  return `${langCode}-${hash}.wav`;
 }
 
 function evictOldestCacheFiles(dir: string, maxFiles: number): void {
@@ -249,9 +251,11 @@ if (import.meta.vitest) {
   });
 
   describe("cacheKey", () => {
-    it("produces deterministic filesystem-safe names", () => {
+    it("produces deterministic filesystem-safe names with fixed length", () => {
       const key = cacheKey("hello", "en");
-      expect(key).toBe("en-68656c6c6f.wav");
+      // lang(2) + dash(1) + sha256-prefix(32) + .wav(4) = 39 chars
+      expect(key).toMatch(/^en-[0-9a-f]{32}\.wav$/);
+      expect(key.length).toBe(39);
     });
 
     it("is case-insensitive", () => {
@@ -260,7 +264,13 @@ if (import.meta.vitest) {
 
     it("handles unicode words", () => {
       const key = cacheKey("привіт", "uk");
-      expect(key).toMatch(/^uk-[0-9a-f]+\.wav$/);
+      expect(key).toMatch(/^uk-[0-9a-f]{32}\.wav$/);
+    });
+
+    it("keeps filenames short even for long text", () => {
+      const longText = "a".repeat(1000);
+      const key = cacheKey(longText, "en");
+      expect(key.length).toBe(39);
     });
   });
 
