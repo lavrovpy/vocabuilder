@@ -1,5 +1,5 @@
 import { Action, Icon, Keyboard, Toast, getPreferenceValues, showToast } from "@raycast/api";
-import { isTtsSupported, pronounce, pronounceFallback } from "../lib/tts";
+import { hasMacOsFallback, isTtsSupported, pronounce, pronounceFallback } from "../lib/tts";
 
 interface PronounceActionProps {
   word: string;
@@ -19,6 +19,13 @@ export default function PronounceAction({ word, languageCode, title, shortcut }:
       toast.hide();
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
+      if (!hasMacOsFallback(languageCode)) {
+        console.error(`[tts] Gemini TTS failed for "${word}" (${languageCode}), no system fallback. Reason: ${reason}`);
+        toast.style = Toast.Style.Failure;
+        toast.title = "Pronunciation failed";
+        toast.message = reason === "NETWORK_OFFLINE" ? "No internet connection" : "Could not generate audio";
+        return;
+      }
       console.warn(
         `[tts] Gemini TTS failed for "${word}" (${languageCode}), falling back to system voice. Reason: ${reason}`,
       );

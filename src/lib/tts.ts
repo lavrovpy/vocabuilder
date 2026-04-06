@@ -57,6 +57,10 @@ function voiceForLanguage(langCode: string): string {
 }
 
 export function isTtsSupported(langCode: string): boolean {
+  return langCode in LANGUAGE_VOICE_MAP;
+}
+
+export function hasMacOsFallback(langCode: string): boolean {
   return langCode in MACOS_VOICE_MAP;
 }
 
@@ -255,18 +259,25 @@ if (import.meta.vitest) {
   });
 
   describe("isTtsSupported", () => {
-    it("returns true for languages with macOS voices", () => {
+    it("returns true for languages with Gemini TTS voices", () => {
       expect(isTtsSupported("en")).toBe(true);
       expect(isTtsSupported("uk")).toBe(true);
-      expect(isTtsSupported("de")).toBe(true);
-    });
-
-    it("returns false for Belarusian (no macOS voice)", () => {
-      expect(isTtsSupported("be")).toBe(false);
+      expect(isTtsSupported("be")).toBe(true);
     });
 
     it("returns false for unknown languages", () => {
       expect(isTtsSupported("xx")).toBe(false);
+    });
+  });
+
+  describe("hasMacOsFallback", () => {
+    it("returns true for languages with macOS voices", () => {
+      expect(hasMacOsFallback("en")).toBe(true);
+      expect(hasMacOsFallback("uk")).toBe(true);
+    });
+
+    it("returns false for Belarusian (no macOS voice)", () => {
+      expect(hasMacOsFallback("be")).toBe(false);
     });
   });
 
