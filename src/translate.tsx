@@ -36,6 +36,13 @@ function pickSenseShortcut(index: number): { modifiers: "cmd"[]; key: "1" | "2" 
   return { modifiers: ["cmd"], key: keys[index] };
 }
 
+const RETRYABLE_ERRORS = [
+  "NETWORK_OFFLINE",
+  "GEMINI_REQUEST_FAILED",
+  "GEMINI_EMPTY_RESPONSE",
+  "GEMINI_INVALID_RESPONSE",
+];
+
 const SECRET_PREFIX_RE = /^(sk-|ghp_|github_pat_|xox[baprs]-|AKIA|ASIA|AIza)/i;
 
 function isSafeClipboardSuggestion(raw: string): boolean {
@@ -432,11 +439,11 @@ export default function Translate() {
           icon={errorCode === "NETWORK_OFFLINE" ? Icon.WifiDisabled : Icon.ExclamationMark}
           actions={
             <ActionPanel>
-              {errorCode === "NETWORK_OFFLINE" && searchText.trim() && (
-                <Action title="Retry" icon={Icon.ArrowClockwise} onAction={() => submitTranslation(searchText)} />
-              )}
-              {error.includes("API key") && (
+              {errorCode === "INVALID_API_KEY" && (
                 <Action title="Open Preferences" onAction={openExtensionPreferences} icon={Icon.Gear} />
+              )}
+              {RETRYABLE_ERRORS.includes(errorCode ?? "") && searchText.trim() && (
+                <Action title="Retry" icon={Icon.ArrowClockwise} onAction={() => submitTranslation(searchText)} />
               )}
               <ToggleLanguagesAction />
             </ActionPanel>
