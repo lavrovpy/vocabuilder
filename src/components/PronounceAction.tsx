@@ -1,5 +1,5 @@
 import { Action, Icon, Keyboard, Toast, getPreferenceValues, showToast } from "@raycast/api";
-import { pronounce, pronounceFallback } from "../lib/tts";
+import { isTtsSupported, pronounce, pronounceFallback } from "../lib/tts";
 
 interface PronounceActionProps {
   word: string;
@@ -9,6 +9,8 @@ interface PronounceActionProps {
 }
 
 export default function PronounceAction({ word, languageCode, title, shortcut }: PronounceActionProps) {
+  if (!isTtsSupported(languageCode)) return null;
+
   async function handlePronounce() {
     const toast = await showToast({ style: Toast.Style.Animated, title: "Generating pronunciation…" });
     try {

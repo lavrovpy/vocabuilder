@@ -56,6 +56,10 @@ function voiceForLanguage(langCode: string): string {
   return LANGUAGE_VOICE_MAP[langCode] ?? DEFAULT_VOICE;
 }
 
+export function isTtsSupported(langCode: string): boolean {
+  return langCode in MACOS_VOICE_MAP;
+}
+
 function macosVoiceForLanguage(langCode: string): string {
   return MACOS_VOICE_MAP[langCode] ?? "Samantha";
 }
@@ -247,6 +251,22 @@ if (import.meta.vitest) {
 
     it("returns Samantha for unknown language", () => {
       expect(macosVoiceForLanguage("xx")).toBe("Samantha");
+    });
+  });
+
+  describe("isTtsSupported", () => {
+    it("returns true for languages with macOS voices", () => {
+      expect(isTtsSupported("en")).toBe(true);
+      expect(isTtsSupported("uk")).toBe(true);
+      expect(isTtsSupported("de")).toBe(true);
+    });
+
+    it("returns false for Belarusian (no macOS voice)", () => {
+      expect(isTtsSupported("be")).toBe(false);
+    });
+
+    it("returns false for unknown languages", () => {
+      expect(isTtsSupported("xx")).toBe(false);
     });
   });
 
