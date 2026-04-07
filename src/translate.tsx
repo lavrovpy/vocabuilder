@@ -13,6 +13,7 @@ import {
   useNavigation,
 } from "@raycast/api";
 import { useEffect, useRef, useState } from "react";
+import PronounceAction from "./components/PronounceAction";
 import LanguageConfigError from "./components/LanguageConfigError";
 import { useLanguagePair } from "./hooks/useLanguagePair";
 import History from "./history";
@@ -476,6 +477,15 @@ export default function Translate() {
                 detail={
                   <List.Item.Detail
                     markdown={buildTranslationDetailMarkdown(detailTranslation, pendingWord.originalInput)}
+                    metadata={
+                      <List.Item.Detail.Metadata>
+                        <List.Item.Detail.Metadata.Label
+                          title=""
+                          text="⌘O to pronounce · ⌘⇧O for translation"
+                          icon={Icon.SpeakerHigh}
+                        />
+                      </List.Item.Detail.Metadata>
+                    }
                   />
                 }
                 actions={
@@ -490,6 +500,18 @@ export default function Translate() {
                       title="Copy Only"
                       content={sense.translation}
                       shortcut={{ modifiers: ["cmd"], key: "c" }}
+                    />
+                    <PronounceAction
+                      word={pendingWord.effectiveWord}
+                      languageCode={languagePair.source.code}
+                      title="Pronounce Word"
+                      shortcut={{ modifiers: ["cmd"], key: "o" }}
+                    />
+                    <PronounceAction
+                      word={sense.translation}
+                      languageCode={languagePair.target.code}
+                      title="Pronounce Translation"
+                      shortcut={{ modifiers: ["cmd", "shift"], key: "o" }}
                     />
                     <Action
                       title="Open History"
@@ -517,6 +539,18 @@ export default function Translate() {
                   title="Copy Translation"
                   content={result.translation}
                   shortcut={{ modifiers: ["cmd"], key: "c" }}
+                />
+                <PronounceAction
+                  word={result.word}
+                  languageCode={languagePair.source.code}
+                  title="Pronounce Original"
+                  shortcut={{ modifiers: ["cmd"], key: "o" }}
+                />
+                <PronounceAction
+                  word={result.translation}
+                  languageCode={languagePair.target.code}
+                  title="Pronounce Translation"
+                  shortcut={{ modifiers: ["cmd", "shift"], key: "o" }}
                 />
                 <Action
                   title="Open History"
@@ -613,6 +647,13 @@ export default function Translate() {
                         content={item.translation}
                         shortcut={{ modifiers: ["cmd"], key: "c" }}
                       />
+                      <PronounceAction
+                        word={item.word}
+                        languageCode={languagePair.source.code}
+                        title="Pronounce Word"
+                        shortcut={{ modifiers: ["cmd"], key: "o" }}
+                      />
+                      {/* Recent items only show source pronunciation — full history has both */}
                       <Action
                         title="Open History"
                         icon={Icon.Clock}
