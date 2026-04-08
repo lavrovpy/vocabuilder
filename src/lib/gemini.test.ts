@@ -130,7 +130,7 @@ describe("translateWord", () => {
     await expect(translateWord("xqzptl", API_KEY, pair)).rejects.toThrow("WORD_NOT_FOUND");
   });
 
-  it("throws WORD_NOT_FOUND when senses array is empty", async () => {
+  it("throws GEMINI_INVALID_RESPONSE when senses array is empty without notAWord", async () => {
     const payload = { senses: [] };
     vi.mocked(fetch).mockResolvedValue(
       new Response(JSON.stringify(geminiJsonBody(payload)), {
@@ -138,7 +138,7 @@ describe("translateWord", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
-    await expect(translateWord("zzzqqq", API_KEY, pair)).rejects.toThrow("WORD_NOT_FOUND");
+    await expect(translateWord("zzzqqq", API_KEY, pair)).rejects.toThrow("GEMINI_INVALID_RESPONSE");
   });
 
   it("filters out senses whose exampleTranslation does not contain the word", async () => {
@@ -188,6 +188,57 @@ describe("translateWord", () => {
       }),
     );
     await expect(translateWord("omnibus", API_KEY, pair)).rejects.toThrow("GEMINI_INVALID_RESPONSE");
+  });
+
+  it("validates exampleTranslation against correctedWord, not the original typo", async () => {
+    const payload = {
+      senses: [
+        {
+          translation: "бігти",
+          partOfSpeech: "verb",
+          example: "Він біжить швидко!",
+          exampleTranslation: "She is running fast.",
+        },
+      ],
+      correctedWord: "running",
+    };
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(geminiJsonBody(payload)), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const result = await translateWord("runing", API_KEY, pair);
+    expect(result.senses).toHaveLength(1);
+    expect(result.correctedWord).toBe("running");
+  });
+
+  it("matches Cyrillic words in exampleTranslation with Unicode-aware boundaries", async () => {
+    const reversePair: LanguagePair = {
+      source: { code: "uk", name: "Ukrainian" },
+      target: { code: "en", name: "English" },
+    };
+    const payload = {
+      senses: [
+        {
+          translation: "hello",
+          partOfSpeech: "interjection",
+          example: "Hello there!",
+          exampleTranslation: "Привіт!",
+        },
+      ],
+    };
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(geminiJsonBody(payload)), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const result = await translateWord("привіт", API_KEY, reversePair);
+    expect(result.senses).toHaveLength(1);
+    expect(result.senses[0].translation).toBe("hello");
   });
 
   it("throws INVALID_API_KEY on 401", async () => {

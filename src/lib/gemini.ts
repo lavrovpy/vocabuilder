@@ -59,7 +59,7 @@ async function callGemini(prompt: string, apiKey: string, signal?: AbortSignal):
 /** Check that the source-language example sentence actually uses the word being translated. */
 function exampleContainsWord(exampleTranslation: string, word: string): boolean {
   const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`\\b${escaped}\\b`, "i");
+  const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, "iu");
   return pattern.test(exampleTranslation);
 }
 
@@ -123,8 +123,11 @@ Respond ONLY with valid JSON:
   try {
     const parsed = GeminiWordResponseSchema.parse(JSON.parse(cleaned));
 
-    if (parsed.notAWord || parsed.senses.length === 0) {
+    if (parsed.notAWord) {
       throw new Error("WORD_NOT_FOUND");
+    }
+    if (parsed.senses.length === 0) {
+      throw new Error("GEMINI_INVALID_RESPONSE");
     }
 
     const effectiveWord = parsed.correctedWord ?? normalizedWord;

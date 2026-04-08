@@ -75,6 +75,10 @@ When assigning `shortcut` props to `<Action>` components, avoid these reserved s
 
 **Safe for custom actions:** `opt+key`, `ctrl+key`, `cmd+shift+key` combinations not listed above.
 
+## Non-Latin Language Support
+
+This is a translator and vocabulary builder app that supports non-Latin scripts (Cyrillic, CJK, etc.) as both source and target languages. All string matching, regex patterns, and text processing must be Unicode-aware — never assume ASCII or Latin-only input. Use `\p{L}` / `\p{N}` with the `u` flag instead of `\b` or `[a-zA-Z]` for word boundaries and character classes.
+
 ## Learned Workspace Facts
 
 - Word translation uses multiple Gemini-returned senses with user selection before persistence; phrase or text translation stays a single saved result without a sense picker.
