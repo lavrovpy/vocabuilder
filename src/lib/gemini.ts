@@ -56,6 +56,13 @@ async function callGemini(prompt: string, apiKey: string, signal?: AbortSignal):
     .trim();
 }
 
+/** Check that the source-language example sentence actually uses the word being translated. */
+function exampleContainsWord(exampleTranslation: string, word: string): boolean {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`\\b${escaped}\\b`, "i");
+  return pattern.test(exampleTranslation);
+}
+
 /** Same translation + part of speech = same sense, regardless of example wording. */
 function senseIdentityKey(s: WordSense): string {
   return [s.translation.trim().toLowerCase(), s.partOfSpeech.trim().toLowerCase()].join("\u0001");
@@ -87,30 +94,53 @@ export async function translateWord(
   const { source, target } = languagePair;
 
   const prompt = `Translate the ${source.name} word ${asJsonStringLiteral(normalizedWord)} to ${target.name}.
-If the input is a misspelling or typo, correct it and translate the corrected word.
+
+CRITICAL RULES:
+1. If the input is NOT a real ${source.name} word (gibberish, random letters, or not found in any dictionary), respond with: { "senses": [], "notAWord": true }
+2. If the input is a misspelling or typo of a REAL word, correct it and translate the corrected word.
+3. The "exampleTranslation" (${source.name} sentence) MUST contain the exact word ${asJsonStringLiteral(normalizedWord)} (or the corrected word if misspelled). NEVER substitute it with a synonym or paraphrase. For example, if the word is "omnibus", write "This omnibus includes..." NOT "This collection includes...".
+4. The "example" (${target.name} sentence) must be a natural translation of the exampleTranslation.
+
 Provide up to 5 distinct meanings (senses), ordered from most common first.
 Each sense MUST have a different translation or a different part of speech — do NOT repeat the same translation+partOfSpeech pair.
 If the word has only one meaning, return exactly one sense.
-Each sense must have its own example sentence in ${target.name} and the example's translation in ${source.name}.
 Respond ONLY with valid JSON:
 {
   "senses": [
     {
       "translation": "${target.name} gloss for this sense",
       "partOfSpeech": "noun/verb/adjective/etc",
-      "example": "${target.name} example using this sense",
-      "exampleTranslation": "${source.name} translation of the example"
+      "example": "${target.name} example sentence",
+      "exampleTranslation": "${source.name} sentence that MUST use the word ${asJsonStringLiteral(normalizedWord)}"
     }
   ],
-  "correctedWord": "include ONLY if the input was misspelled; omit if correct"
+  "correctedWord": "include ONLY if the input was misspelled; omit if correct",
+  "notAWord": false
 }`;
 
   const cleaned = await callGemini(prompt, apiKey, signal);
 
   try {
     const parsed = GeminiWordResponseSchema.parse(JSON.parse(cleaned));
-    return { ...parsed, senses: dedupeSenses(parsed.senses) };
-  } catch {
+
+    if (parsed.notAWord || parsed.senses.length === 0) {
+      throw new Error("WORD_NOT_FOUND");
+    }
+
+    const effectiveWord = parsed.correctedWord ?? normalizedWord;
+    const validSenses = dedupeSenses(parsed.senses).filter((s) =>
+      exampleContainsWord(s.exampleTranslation, effectiveWord),
+    );
+
+    if (validSenses.length === 0) {
+      throw new Error("GEMINI_INVALID_RESPONSE");
+    }
+
+    return { ...parsed, senses: validSenses };
+  } catch (err) {
+    if (err instanceof Error && (err.message === "WORD_NOT_FOUND" || err.message === "GEMINI_INVALID_RESPONSE")) {
+      throw err;
+    }
     throw new Error("GEMINI_INVALID_RESPONSE");
   }
 }
