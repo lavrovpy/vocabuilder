@@ -1,5 +1,15 @@
 VocaBuilder Changelog
 
+## [Harden word translation quality] - {PR_MERGE_DATE}
+
+- Reject non-existing/gibberish words instead of hallucinating translations.
+- Require example sentences to contain the original word, not a synonym.
+- Add post-validation that filters out senses with missing words in examples.
+
+## [Add word pronunciation] - {PR_MERGE_DATE}
+
+- Added word pronunciation via Gemini TTS (⌘O for source word, ⌘⇧O for translation).
+
 ## [Initial Release] - {PR_MERGE_DATE}
 
 - Added `Translate` command to translate words and short texts between languages using Gemini.
