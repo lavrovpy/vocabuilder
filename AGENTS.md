@@ -33,6 +33,7 @@ After the PR is opened, the Raycast team reviews it and may request changes. Onc
 
 # Testing
 
+- Every code change must include corresponding tests. When adding new behavior, add tests that cover it. When modifying existing behavior, update existing tests and add new ones for the changed logic. Do not defer test writing to a separate step — tests are part of the implementation.
 - Use Vitest's in-source testing (`if (import.meta.vitest)`) to test private code without exporting it. Tests live inside the source file, sharing the same closure. They are tree-shaken out of production builds.
 - Do not export functions, constants, or types solely for testing purposes.
 
