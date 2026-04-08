@@ -59,11 +59,11 @@ describe("translateWord", () => {
     const dup = {
       translation: "привіт",
       partOfSpeech: "interjection",
-      example: "A",
-      exampleTranslation: "B",
+      example: "Привіт!",
+      exampleTranslation: "Hello there!",
     };
     const payload = {
-      senses: [dup, { ...dup, example: "C", exampleTranslation: "D" }],
+      senses: [dup, { ...dup, example: "Привіт, друже!", exampleTranslation: "Hello, friend!" }],
     };
     vi.mocked(fetch).mockResolvedValue(
       new Response(JSON.stringify(geminiJsonBody(payload)), {
@@ -80,8 +80,8 @@ describe("translateWord", () => {
     const s = {
       translation: "привіт",
       partOfSpeech: "interjection",
-      example: "A",
-      exampleTranslation: "B",
+      example: "Привіт!",
+      exampleTranslation: "Hello!",
     };
     const payload = { senses: [s, s] };
     vi.mocked(fetch).mockResolvedValue(
@@ -98,13 +98,13 @@ describe("translateWord", () => {
   it("keeps same target gloss when part of speech differs", async () => {
     const base = {
       translation: "процент",
-      example: "E1",
-      exampleTranslation: "E1en",
+      example: "Привіт!",
+      exampleTranslation: "Say hello to everyone.",
     };
     const payload = {
       senses: [
         { ...base, partOfSpeech: "noun" },
-        { ...base, partOfSpeech: "verb", example: "E2", exampleTranslation: "E2en" },
+        { ...base, partOfSpeech: "verb", example: "Привіт, друже!", exampleTranslation: "Hello again!" },
       ],
     };
     vi.mocked(fetch).mockResolvedValue(
