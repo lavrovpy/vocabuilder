@@ -8,8 +8,9 @@ export const WordSenseSchema = z.object({
 });
 
 export const GeminiWordResponseSchema = z.object({
-  senses: z.array(WordSenseSchema).min(1).max(5),
+  senses: z.array(WordSenseSchema).max(5),
   correctedWord: z.string().optional(),
+  notAWord: z.boolean().optional(),
 });
 
 export const GeminiApiResponseSchema = z.object({

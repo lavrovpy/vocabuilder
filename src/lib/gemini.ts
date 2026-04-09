@@ -56,6 +56,13 @@ async function callGemini(prompt: string, apiKey: string, signal?: AbortSignal):
     .trim();
 }
 
+/** Check that the source-language example sentence actually uses the word being translated. */
+function exampleContainsWord(exampleTranslation: string, word: string): boolean {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`(?<![\\p{L}\\p{N}\\-])${escaped}(?![\\p{L}\\p{N}\\-])`, "iu");
+  return pattern.test(exampleTranslation);
+}
+
 /** Same translation + part of speech = same sense, regardless of example wording. */
 function senseIdentityKey(s: WordSense): string {
   return [s.translation.trim().toLowerCase(), s.partOfSpeech.trim().toLowerCase()].join("\u0001");
@@ -87,19 +94,24 @@ export async function translateWord(
   const { source, target } = languagePair;
 
   const prompt = `Translate the ${source.name} word ${asJsonStringLiteral(normalizedWord)} to ${target.name}.
-If the input is a misspelling or typo, correct it and translate the corrected word.
+
+CRITICAL RULES:
+1. If the input is NOT a real ${source.name} word (gibberish, random letters, or not found in any dictionary), respond with: { "senses": [], "notAWord": true }
+2. If the input is a misspelling or typo of a REAL word, correct it and translate the corrected word.
+3. The "exampleTranslation" (${source.name} sentence) MUST contain the exact word ${asJsonStringLiteral(normalizedWord)} (or the corrected word if misspelled). NEVER substitute it with a synonym or paraphrase. For example, if the word is "omnibus", write "This omnibus includes..." NOT "This collection includes...".
+4. The "example" (${target.name} sentence) must be a natural translation of the exampleTranslation.
+
 Provide up to 5 distinct meanings (senses), ordered from most common first.
 Each sense MUST have a different translation or a different part of speech — do NOT repeat the same translation+partOfSpeech pair.
 If the word has only one meaning, return exactly one sense.
-Each sense must have its own example sentence in ${target.name} and the example's translation in ${source.name}.
 Respond ONLY with valid JSON:
 {
   "senses": [
     {
       "translation": "${target.name} gloss for this sense",
       "partOfSpeech": "noun/verb/adjective/etc",
-      "example": "${target.name} example using this sense",
-      "exampleTranslation": "${source.name} translation of the example"
+      "example": "${target.name} example sentence",
+      "exampleTranslation": "${source.name} sentence that MUST use the word ${asJsonStringLiteral(normalizedWord)}"
     }
   ],
   "correctedWord": "include ONLY if the input was misspelled; omit if correct"
@@ -109,10 +121,85 @@ Respond ONLY with valid JSON:
 
   try {
     const parsed = GeminiWordResponseSchema.parse(JSON.parse(cleaned));
-    return { ...parsed, senses: dedupeSenses(parsed.senses) };
-  } catch {
+
+    if (parsed.notAWord) {
+      throw new Error("WORD_NOT_FOUND");
+    }
+    if (parsed.senses.length === 0) {
+      throw new Error("GEMINI_INVALID_RESPONSE");
+    }
+
+    const effectiveWord = parsed.correctedWord ?? normalizedWord;
+    const validSenses = dedupeSenses(parsed.senses).filter((s) =>
+      exampleContainsWord(s.exampleTranslation, effectiveWord),
+    );
+
+    if (validSenses.length === 0) {
+      throw new Error("GEMINI_INVALID_RESPONSE");
+    }
+
+    return { ...parsed, senses: validSenses };
+  } catch (err) {
+    if (err instanceof Error && (err.message === "WORD_NOT_FOUND" || err.message === "GEMINI_INVALID_RESPONSE")) {
+      throw err;
+    }
     throw new Error("GEMINI_INVALID_RESPONSE");
   }
+}
+
+// --- In-source tests for private functions ---
+if (import.meta.vitest) {
+  const { describe, it, expect } = import.meta.vitest;
+
+  describe("exampleContainsWord", () => {
+    it("matches a standalone word in a sentence", () => {
+      expect(exampleContainsWord("I saw the cat today", "cat")).toBe(true);
+    });
+
+    it("returns false when the word is absent", () => {
+      expect(exampleContainsWord("I saw the dog today", "cat")).toBe(false);
+    });
+
+    it("rejects prefix false-positive (helloworld vs hello)", () => {
+      expect(exampleContainsWord("This is helloworld", "hello")).toBe(false);
+    });
+
+    it("rejects suffix false-positive (worldhello vs hello)", () => {
+      expect(exampleContainsWord("This is worldhello", "hello")).toBe(false);
+    });
+
+    it("matches when adjacent to punctuation", () => {
+      expect(exampleContainsWord("hello, world!", "hello")).toBe(true);
+      expect(exampleContainsWord("(hello) world", "hello")).toBe(true);
+      expect(exampleContainsWord('She said "hello"', "hello")).toBe(true);
+    });
+
+    it("matches case-insensitively", () => {
+      expect(exampleContainsWord("Hello there", "hello")).toBe(true);
+      expect(exampleContainsWord("hello there", "Hello")).toBe(true);
+    });
+
+    it("matches apostrophe words", () => {
+      expect(exampleContainsWord("I don't know", "don't")).toBe(true);
+      expect(exampleContainsWord("I do not know", "don't")).toBe(false);
+    });
+
+    it("treats hyphen as word-joining — parts don't match individually", () => {
+      expect(exampleContainsWord("This is well-known", "well")).toBe(false);
+      expect(exampleContainsWord("This is well-known", "known")).toBe(false);
+      expect(exampleContainsWord("This is well-known", "well-known")).toBe(true);
+    });
+
+    it("matches Cyrillic words", () => {
+      expect(exampleContainsWord("Він сказав привіт другу", "привіт")).toBe(true);
+      expect(exampleContainsWord("Він сказав привітання другу", "привіт")).toBe(false);
+    });
+
+    it("matches word at start and end of string", () => {
+      expect(exampleContainsWord("hello world", "hello")).toBe(true);
+      expect(exampleContainsWord("say hello", "hello")).toBe(true);
+    });
+  });
 }
 
 export async function translateText(

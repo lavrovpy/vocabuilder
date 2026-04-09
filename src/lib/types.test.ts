@@ -43,8 +43,10 @@ describe("GeminiWordResponseSchema", () => {
     expect(result.correctedWord).toBe("hello");
   });
 
-  it("rejects empty senses array", () => {
-    expect(() => GeminiWordResponseSchema.parse({ senses: [] })).toThrow();
+  it("accepts empty senses array (notAWord case)", () => {
+    const result = GeminiWordResponseSchema.parse({ senses: [], notAWord: true });
+    expect(result.senses).toHaveLength(0);
+    expect(result.notAWord).toBe(true);
   });
 
   it("rejects more than five senses", () => {

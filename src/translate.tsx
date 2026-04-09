@@ -64,6 +64,8 @@ function getUserFacingErrorMessage(errorCode: string): string {
       return "Gemini returned an unexpected response. Please try again.";
     case "NETWORK_OFFLINE":
       return "You appear to be offline. Check your connection and try again.";
+    case "WORD_NOT_FOUND":
+      return "This word was not recognized. Check the spelling or try a different word.";
     case "INVALID_WORD_INPUT":
       return `Enter one word (letters, apostrophe, hyphen, max ${MAX_WORD_LENGTH} chars).`;
     case "INVALID_TEXT_INPUT":

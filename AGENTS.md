@@ -33,6 +33,7 @@ After the PR is opened, the Raycast team reviews it and may request changes. Onc
 
 # Testing
 
+- Every code change must include corresponding tests. When adding new behavior, add tests that cover it. When modifying existing behavior, update existing tests and add new ones for the changed logic. Do not defer test writing to a separate step — tests are part of the implementation.
 - Use Vitest's in-source testing (`if (import.meta.vitest)`) to test private code without exporting it. Tests live inside the source file, sharing the same closure. They are tree-shaken out of production builds.
 - Do not export functions, constants, or types solely for testing purposes.
 
@@ -73,6 +74,10 @@ When assigning `shortcut` props to `<Action>` components, avoid these reserved s
 - `Ctrl+X` → Remove, `Ctrl+Shift+X` → Remove All
 
 **Safe for custom actions:** `opt+key`, `ctrl+key`, `cmd+shift+key` combinations not listed above.
+
+## Non-Latin Language Support
+
+This is a translator and vocabulary builder app that supports non-Latin scripts (Cyrillic, CJK, etc.) as both source and target languages. All string matching, regex patterns, and text processing must be Unicode-aware — never assume ASCII or Latin-only input. Use `\p{L}` / `\p{N}` with the `u` flag instead of `\b` or `[a-zA-Z]` for word boundaries and character classes.
 
 ## Learned Workspace Facts
 
