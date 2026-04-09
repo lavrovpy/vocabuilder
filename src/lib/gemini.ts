@@ -59,7 +59,7 @@ async function callGemini(prompt: string, apiKey: string, signal?: AbortSignal):
 /** Check that the source-language example sentence actually uses the word being translated. */
 function exampleContainsWord(exampleTranslation: string, word: string): boolean {
   const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, "iu");
+  const pattern = new RegExp(`(?<![\\p{L}\\p{N}\\-])${escaped}(?![\\p{L}\\p{N}\\-])`, "iu");
   return pattern.test(exampleTranslation);
 }
 
@@ -114,8 +114,7 @@ Respond ONLY with valid JSON:
       "exampleTranslation": "${source.name} sentence that MUST use the word ${asJsonStringLiteral(normalizedWord)}"
     }
   ],
-  "correctedWord": "include ONLY if the input was misspelled; omit if correct",
-  "notAWord": false
+  "correctedWord": "include ONLY if the input was misspelled; omit if correct"
 }`;
 
   const cleaned = await callGemini(prompt, apiKey, signal);
@@ -146,6 +145,61 @@ Respond ONLY with valid JSON:
     }
     throw new Error("GEMINI_INVALID_RESPONSE");
   }
+}
+
+// --- In-source tests for private functions ---
+if (import.meta.vitest) {
+  const { describe, it, expect } = import.meta.vitest;
+
+  describe("exampleContainsWord", () => {
+    it("matches a standalone word in a sentence", () => {
+      expect(exampleContainsWord("I saw the cat today", "cat")).toBe(true);
+    });
+
+    it("returns false when the word is absent", () => {
+      expect(exampleContainsWord("I saw the dog today", "cat")).toBe(false);
+    });
+
+    it("rejects prefix false-positive (helloworld vs hello)", () => {
+      expect(exampleContainsWord("This is helloworld", "hello")).toBe(false);
+    });
+
+    it("rejects suffix false-positive (worldhello vs hello)", () => {
+      expect(exampleContainsWord("This is worldhello", "hello")).toBe(false);
+    });
+
+    it("matches when adjacent to punctuation", () => {
+      expect(exampleContainsWord("hello, world!", "hello")).toBe(true);
+      expect(exampleContainsWord("(hello) world", "hello")).toBe(true);
+      expect(exampleContainsWord('She said "hello"', "hello")).toBe(true);
+    });
+
+    it("matches case-insensitively", () => {
+      expect(exampleContainsWord("Hello there", "hello")).toBe(true);
+      expect(exampleContainsWord("hello there", "Hello")).toBe(true);
+    });
+
+    it("matches apostrophe words", () => {
+      expect(exampleContainsWord("I don't know", "don't")).toBe(true);
+      expect(exampleContainsWord("I do not know", "don't")).toBe(false);
+    });
+
+    it("treats hyphen as word-joining — parts don't match individually", () => {
+      expect(exampleContainsWord("This is well-known", "well")).toBe(false);
+      expect(exampleContainsWord("This is well-known", "known")).toBe(false);
+      expect(exampleContainsWord("This is well-known", "well-known")).toBe(true);
+    });
+
+    it("matches Cyrillic words", () => {
+      expect(exampleContainsWord("Він сказав привіт другу", "привіт")).toBe(true);
+      expect(exampleContainsWord("Він сказав привітання другу", "привіт")).toBe(false);
+    });
+
+    it("matches word at start and end of string", () => {
+      expect(exampleContainsWord("hello world", "hello")).toBe(true);
+      expect(exampleContainsWord("say hello", "hello")).toBe(true);
+    });
+  });
 }
 
 export async function translateText(
