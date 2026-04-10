@@ -104,6 +104,40 @@ export async function clearHistory(pair: LanguagePair): Promise<void> {
   await LocalStorage.removeItem(historyKey(pair));
 }
 
+export interface ImportResult {
+  imported: number;
+  skipped: number;
+}
+
+export async function importTranslations(
+  translations: Translation[],
+  pair: LanguagePair,
+): Promise<ImportResult | null> {
+  const key = historyKey(pair);
+  const raw = await LocalStorage.getItem<string>(key);
+  const history = raw
+    ? await parseStoredArray(key, historyCorruptBackupKey(pair), raw, z.array(TranslationSchema))
+    : [];
+  if (!history) return null;
+
+  let imported = 0;
+  let skipped = 0;
+  const updated = [...history];
+
+  for (const t of translations) {
+    const existing = updated.find((h) => senseMatchesStoredTranslation(h, t));
+    if (existing) {
+      skipped++;
+    } else {
+      updated.unshift(t);
+      imported++;
+    }
+  }
+
+  await LocalStorage.setItem(key, JSON.stringify(updated));
+  return { imported, skipped };
+}
+
 async function getFlashcardProgress(pair: LanguagePair): Promise<Map<string, FlashcardProgress>> {
   const key = flashcardKey(pair);
   const raw = await LocalStorage.getItem<string>(key);

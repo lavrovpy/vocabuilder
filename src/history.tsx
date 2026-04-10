@@ -9,6 +9,7 @@ import {
   showInFinder,
   showToast,
   Toast,
+  useNavigation,
 } from "@raycast/api";
 import { posColor } from "./lib/colors";
 import { useEffect, useState } from "react";
@@ -20,6 +21,7 @@ import { LanguagePair, storageKeyPrefix, swapLanguagePair } from "./lib/language
 import { buildTranslationDetailMarkdown, buildTextTranslationDetailMarkdown } from "./lib/markdown";
 import { clearHistory, deleteTranslation, getHistory } from "./lib/storage";
 import { Translation } from "./lib/types";
+import ImportFlashcards from "./import-flashcards";
 
 function truncate(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text;
@@ -39,6 +41,7 @@ function relativeTime(timestamp: number): string {
 
 export default function History(props: { languagePair?: LanguagePair }) {
   const langResult = useLanguagePair();
+  const { push } = useNavigation();
   const initialPair = props.languagePair ?? langResult.pair;
   const [languagePair, setLanguagePair] = useState<LanguagePair | null>(initialPair);
 
@@ -292,6 +295,12 @@ export default function History(props: { languagePair?: LanguagePair }) {
                         await showToast({ style: Toast.Style.Failure, title: "Export failed", message: String(err) });
                       }
                     }}
+                  />
+                  <Action
+                    title="Import Flashcards"
+                    icon={Icon.Upload}
+                    shortcut={{ modifiers: ["cmd", "shift"], key: "i" }}
+                    onAction={() => push(<ImportFlashcards />)}
                   />
                 </ActionPanel.Section>
                 <Action
