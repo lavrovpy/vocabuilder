@@ -230,7 +230,7 @@ export default function History(props: { languagePair?: LanguagePair }) {
                   onAction={() => handleDelete(item.id)}
                 />
                 <ToggleLanguagesAction />
-                <ActionPanel.Section title="Export">
+                <ActionPanel.Section title="Import / Export">
                   <Action
                     title="Export as JSON"
                     icon={Icon.Document}
@@ -300,7 +300,16 @@ export default function History(props: { languagePair?: LanguagePair }) {
                     title="Import Flashcards"
                     icon={Icon.Upload}
                     shortcut={{ modifiers: ["cmd", "shift"], key: "i" }}
-                    onAction={() => push(<ImportFlashcards />)}
+                    onAction={() =>
+                      push(
+                        <ImportFlashcards
+                          onImportComplete={() => {
+                            if (!languagePair) return;
+                            getHistory(languagePair).then((h) => setHistory(h));
+                          }}
+                        />,
+                      )
+                    }
                   />
                 </ActionPanel.Section>
                 <Action

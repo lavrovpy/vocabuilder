@@ -1,12 +1,13 @@
-import { Action, ActionPanel, Form, showToast, Toast, popToRoot } from "@raycast/api";
+import { Action, ActionPanel, Form, showToast, Toast, popToRoot, useNavigation } from "@raycast/api";
 import { useState } from "react";
 import { useLanguagePair } from "./hooks/useLanguagePair";
 import LanguageConfigError from "./components/LanguageConfigError";
 import { readAndParseImportFile, ImportFormat } from "./lib/import";
 import { importTranslations } from "./lib/storage";
 
-export default function ImportFlashcards() {
+export default function ImportFlashcards(props: { onImportComplete?: () => void }) {
   const langResult = useLanguagePair();
+  const { pop } = useNavigation();
   const [isLoading, setIsLoading] = useState(false);
 
   if (!langResult.pair) {
@@ -27,14 +28,13 @@ export default function ImportFlashcards() {
 
     setIsLoading(true);
     try {
-      const translations = readAndParseImportFile(filePath, format);
+      const translations = await readAndParseImportFile(filePath, format);
       if (translations.length === 0) {
         await showToast({
           style: Toast.Style.Failure,
           title: "No cards found",
           message: "The file contains no valid flashcard entries.",
         });
-        setIsLoading(false);
         return;
       }
 
@@ -45,7 +45,6 @@ export default function ImportFlashcards() {
           title: "Storage is corrupted",
           message: "Import skipped to avoid overwriting existing data.",
         });
-        setIsLoading(false);
         return;
       }
 
@@ -55,7 +54,12 @@ export default function ImportFlashcards() {
           : `${result.imported} cards imported`;
 
       await showToast({ style: Toast.Style.Success, title: "Import complete", message });
-      await popToRoot();
+      if (props.onImportComplete) {
+        props.onImportComplete();
+        pop();
+      } else {
+        await popToRoot();
+      }
     } catch (err) {
       await showToast({
         style: Toast.Style.Failure,

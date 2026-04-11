@@ -1,4 +1,4 @@
-import { readFileSync } from "fs";
+import { readFile } from "fs/promises";
 import { Translation } from "./types";
 
 /**
@@ -92,7 +92,7 @@ export function parseVocabuilderJson(content: string): Translation[] {
       partOfSpeech: typeof item.partOfSpeech === "string" ? item.partOfSpeech.trim() : "",
       example: typeof item.example === "string" ? item.example.trim() : "",
       exampleTranslation: typeof item.exampleTranslation === "string" ? item.exampleTranslation.trim() : "",
-      timestamp: now,
+      timestamp: typeof item.timestamp === "number" ? item.timestamp : now,
       type: (item.type === "text" ? "text" : "word") as "word" | "text",
     }));
 }
@@ -103,7 +103,7 @@ export type ImportFormat = "anki" | "json" | "auto";
 export function detectFormat(content: string, filename?: string): "anki" | "json" {
   if (filename) {
     if (filename.endsWith(".json")) return "json";
-    if (filename.endsWith(".txt") || filename.endsWith(".tsv") || filename.endsWith(".csv")) return "anki";
+    if (filename.endsWith(".txt") || filename.endsWith(".tsv")) return "anki";
   }
   const trimmed = content.trimStart();
   if (trimmed.startsWith("[") || trimmed.startsWith("{")) return "json";
@@ -120,8 +120,8 @@ export function parseImportContent(content: string, format: ImportFormat = "auto
 }
 
 /** Read a file from disk and parse it. */
-export function readAndParseImportFile(filePath: string, format: ImportFormat = "auto"): Translation[] {
-  const content = readFileSync(filePath, "utf-8");
+export async function readAndParseImportFile(filePath: string, format: ImportFormat = "auto"): Promise<Translation[]> {
+  const content = await readFile(filePath, "utf-8");
   const filename = filePath.split("/").pop();
   return parseImportContent(content, format, filename);
 }

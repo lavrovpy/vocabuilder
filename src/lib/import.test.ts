@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { parseAnkiTsv, parseVocabuilderJson, detectFormat, parseImportContent } from "./import";
+import { describe, it, expect, vi } from "vitest";
+import { parseAnkiTsv, parseVocabuilderJson, detectFormat, parseImportContent, readAndParseImportFile } from "./import";
 import { Translation } from "./types";
 
 const VOCABUILDER_ANKI_TSV = [
@@ -156,6 +156,20 @@ describe("parseVocabuilderJson", () => {
     expect(result[0].exampleTranslation).toBe("");
     expect(result[0].type).toBe("word");
   });
+
+  it("preserves original timestamps when present", () => {
+    const content = JSON.stringify(VOCABUILDER_JSON);
+    const result = parseVocabuilderJson(content);
+    expect(result[0].timestamp).toBe(1000);
+    expect(result[1].timestamp).toBe(2000);
+  });
+
+  it("uses current time when timestamp is missing", () => {
+    const data = [{ word: "apple", translation: "яблуко" }];
+    const before = Date.now();
+    const result = parseVocabuilderJson(JSON.stringify(data));
+    expect(result[0].timestamp).toBeGreaterThanOrEqual(before);
+  });
 });
 
 describe("detectFormat", () => {
@@ -212,5 +226,80 @@ describe("parseImportContent", () => {
     const content = JSON.stringify([{ word: "apple", translation: "яблуко" }]);
     const result = parseImportContent(content, "auto");
     expect(result).toHaveLength(1);
+  });
+});
+
+describe("parseAnkiTsv - column order independence", () => {
+  it("maps columns correctly when header order differs from default", () => {
+    const content = [
+      "#separator:Tab",
+      "#columns:Translation\tWord\tExample\tPart of Speech\tExample Translation",
+      "яблуко\tapple\tI ate an apple.\tnoun\tЯ з'їв яблуко.",
+      "",
+    ].join("\n");
+    const result = parseAnkiTsv(content);
+    expect(result).toHaveLength(1);
+    expect(result[0].word).toBe("apple");
+    expect(result[0].translation).toBe("яблуко");
+    expect(result[0].partOfSpeech).toBe("noun");
+    expect(result[0].example).toBe("I ate an apple.");
+    expect(result[0].exampleTranslation).toBe("Я з'їв яблуко.");
+  });
+});
+
+describe("readAndParseImportFile", () => {
+  it("reads and parses a TSV file from disk", async () => {
+    const fs = await import("fs/promises");
+    const path = await import("path");
+    const os = await import("os");
+
+    const tmpDir = os.tmpdir();
+    const filePath = path.join(tmpDir, "vocabuilder-test-import.txt");
+    await fs.writeFile(filePath, "apple\tяблуко\nrun\tбігти\n", "utf-8");
+
+    try {
+      const result = await readAndParseImportFile(filePath);
+      expect(result).toHaveLength(2);
+      expect(result[0].word).toBe("apple");
+      expect(result[1].word).toBe("run");
+    } finally {
+      await fs.unlink(filePath).catch(() => {});
+    }
+  });
+
+  it("reads and parses a JSON file from disk", async () => {
+    const fs = await import("fs/promises");
+    const path = await import("path");
+    const os = await import("os");
+
+    const tmpDir = os.tmpdir();
+    const filePath = path.join(tmpDir, "vocabuilder-test-import.json");
+    const data = [{ word: "apple", translation: "яблуко", timestamp: 5000 }];
+    await fs.writeFile(filePath, JSON.stringify(data), "utf-8");
+
+    try {
+      const result = await readAndParseImportFile(filePath);
+      expect(result).toHaveLength(1);
+      expect(result[0].word).toBe("apple");
+      expect(result[0].timestamp).toBe(5000);
+    } finally {
+      await fs.unlink(filePath).catch(() => {});
+    }
+  });
+
+  it("throws for non-existent file", async () => {
+    await expect(readAndParseImportFile("/tmp/does-not-exist-vocabuilder.txt")).rejects.toThrow();
+  });
+});
+
+describe("intra-batch duplicates in parseAnkiTsv", () => {
+  it("parses duplicate entries from same file (dedup is storage concern)", () => {
+    const content = "apple\tяблуко\napple\tяблуко\n";
+    const result = parseAnkiTsv(content);
+    expect(result).toHaveLength(2);
+    expect(result[0].word).toBe("apple");
+    expect(result[1].word).toBe("apple");
+    // Parser returns all entries; storage.importTranslations handles dedup
+    expect(result[0].id).not.toBe(result[1].id);
   });
 });

@@ -52,10 +52,12 @@ function senseMatchesStoredTranslation(a: Translation, b: Translation): boolean 
   if (a.type === "text") {
     return a.word === b.word;
   }
+  const posA = a.partOfSpeech.trim().toLowerCase();
+  const posB = b.partOfSpeech.trim().toLowerCase();
   return (
     a.word === b.word &&
     a.translation.trim().toLowerCase() === b.translation.trim().toLowerCase() &&
-    a.partOfSpeech.trim().toLowerCase() === b.partOfSpeech.trim().toLowerCase()
+    (posA === "" || posB === "" || posA === posB)
   );
 }
 
@@ -134,7 +136,9 @@ export async function importTranslations(
     }
   }
 
-  await LocalStorage.setItem(key, JSON.stringify(updated));
+  if (imported > 0) {
+    await LocalStorage.setItem(key, JSON.stringify(updated));
+  }
   return { imported, skipped };
 }
 
