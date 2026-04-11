@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { parseAnkiTsv, parseVocabuilderJson, detectFormat, parseImportContent, readAndParseImportFile } from "./import";
 import { Translation } from "./types";
 
