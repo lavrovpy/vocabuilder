@@ -40,7 +40,9 @@ export function parseAnkiTsv(content: string): Translation[] {
     let exampleTranslation = "";
 
     if (columnMap) {
-      // Map columns by header name (VocaBuilder format)
+      // Map columns by header name (VocaBuilder format).
+      // When the header is missing a column, colIndex() returns -1 and cols[-1] is
+      // undefined in JS, so the ?? fallback transparently defers to positional lookup.
       const colIndex = (name: string) => columnMap!.findIndex((c) => c.toLowerCase() === name.toLowerCase());
       word = cols[colIndex("Word")] ?? cols[0] ?? "";
       translation = cols[colIndex("Translation")] ?? cols[1] ?? "";

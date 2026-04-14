@@ -305,7 +305,15 @@ export default function History(props: { languagePair?: LanguagePair }) {
                         <ImportFlashcards
                           onImportComplete={() => {
                             if (!languagePair) return;
-                            getHistory(languagePair).then((h) => setHistory(h));
+                            getHistory(languagePair)
+                              .then((h) => setHistory(h))
+                              .catch((err) =>
+                                showToast({
+                                  style: Toast.Style.Failure,
+                                  title: "Failed to refresh history",
+                                  message: err instanceof Error ? err.message : String(err),
+                                }),
+                              );
                           }}
                         />,
                       )
