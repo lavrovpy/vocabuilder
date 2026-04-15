@@ -1,11 +1,14 @@
-export const MAX_WORD_LENGTH = 32;
-const WORD_INPUT_RE = /^[\p{L}]+(?:['-][\p{L}]+)?$/u;
+export const MAX_VOCAB_LENGTH = 50;
+export const MAX_PHRASE_TOKENS = 5;
+
+const TOKEN = String.raw`[\p{L}]+(?:['-][\p{L}]+)?`;
+const VOCAB_INPUT_RE = new RegExp(`^${TOKEN}(?:\\s+${TOKEN}){0,${MAX_PHRASE_TOKENS - 1}}$`, "u");
 
 export function normalizeWordInput(raw: string): string | null {
-  const word = raw.trim();
-  if (!word || word.length > MAX_WORD_LENGTH) return null;
-  if (!WORD_INPUT_RE.test(word)) return null;
-  return word;
+  const collapsed = raw.trim().replace(/\s+/g, " ");
+  if (!collapsed || collapsed.length > MAX_VOCAB_LENGTH) return null;
+  if (!VOCAB_INPUT_RE.test(collapsed)) return null;
+  return collapsed;
 }
 
 export const MAX_TEXT_LENGTH = 2000;

@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { normalizeWordInput, normalizeTextInput, asJsonStringLiteral, MAX_WORD_LENGTH, MAX_TEXT_LENGTH } from "./input";
+import {
+  normalizeWordInput,
+  normalizeTextInput,
+  asJsonStringLiteral,
+  MAX_VOCAB_LENGTH,
+  MAX_TEXT_LENGTH,
+} from "./input";
 
 describe("normalizeWordInput", () => {
   it("accepts basic Latin words", () => {
@@ -48,22 +54,58 @@ describe("normalizeWordInput", () => {
     expect(normalizeWordInput("   ")).toBeNull();
   });
 
-  it("accepts word at exactly MAX_WORD_LENGTH", () => {
-    const word = "a".repeat(MAX_WORD_LENGTH);
+  it("accepts input at exactly MAX_VOCAB_LENGTH", () => {
+    const word = "a".repeat(MAX_VOCAB_LENGTH);
     expect(normalizeWordInput(word)).toBe(word);
   });
 
-  it("rejects word at MAX_WORD_LENGTH + 1", () => {
-    const word = "a".repeat(MAX_WORD_LENGTH + 1);
+  it("rejects input at MAX_VOCAB_LENGTH + 1", () => {
+    const word = "a".repeat(MAX_VOCAB_LENGTH + 1);
     expect(normalizeWordInput(word)).toBeNull();
-  });
-
-  it("rejects words with spaces", () => {
-    expect(normalizeWordInput("two words")).toBeNull();
   });
 
   it("rejects words with numbers", () => {
     expect(normalizeWordInput("abc123")).toBeNull();
+  });
+
+  it("accepts a two-word phrase (idiom)", () => {
+    expect(normalizeWordInput("red herring")).toBe("red herring");
+  });
+
+  it("accepts a phrasal verb", () => {
+    expect(normalizeWordInput("give up")).toBe("give up");
+  });
+
+  it("accepts a five-word idiom", () => {
+    expect(normalizeWordInput("the best of both worlds")).toBe("the best of both worlds");
+  });
+
+  it("rejects a six-word phrase", () => {
+    expect(normalizeWordInput("this is too many words here")).toBeNull();
+  });
+
+  it("collapses multiple internal spaces", () => {
+    expect(normalizeWordInput("red    herring")).toBe("red herring");
+    expect(normalizeWordInput("red\therring")).toBe("red herring");
+  });
+
+  it("accepts multi-word Cyrillic phrase", () => {
+    expect(normalizeWordInput("синій птах")).toBe("синій птах");
+  });
+
+  it("accepts phrase with apostrophes and hyphens inside tokens", () => {
+    expect(normalizeWordInput("don't give up")).toBe("don't give up");
+    expect(normalizeWordInput("well-known fact")).toBe("well-known fact");
+  });
+
+  it("rejects phrase containing punctuation between tokens", () => {
+    expect(normalizeWordInput("red, herring")).toBeNull();
+    expect(normalizeWordInput("red. herring")).toBeNull();
+    expect(normalizeWordInput("red? herring")).toBeNull();
+  });
+
+  it("rejects phrase containing digits in a token", () => {
+    expect(normalizeWordInput("room 101")).toBeNull();
   });
 });
 

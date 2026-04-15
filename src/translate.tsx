@@ -18,7 +18,7 @@ import LanguageConfigError from "./components/LanguageConfigError";
 import { useLanguagePair } from "./hooks/useLanguagePair";
 import History from "./history";
 import { translateWord, translateText } from "./lib/gemini";
-import { MAX_WORD_LENGTH, normalizeWordInput, normalizeTextInput } from "./lib/input";
+import { MAX_VOCAB_LENGTH, normalizeWordInput, normalizeTextInput } from "./lib/input";
 import { LanguagePair, storageKeyPrefix, swapLanguagePair } from "./lib/languages";
 import { posColor } from "./lib/colors";
 import { buildTranslationDetailMarkdown, buildTextTranslationDetailMarkdown } from "./lib/markdown";
@@ -67,7 +67,7 @@ function getUserFacingErrorMessage(errorCode: string): string {
     case "WORD_NOT_FOUND":
       return "This word was not recognized. Check the spelling or try a different word.";
     case "INVALID_WORD_INPUT":
-      return `Enter one word (letters, apostrophe, hyphen, max ${MAX_WORD_LENGTH} chars).`;
+      return `Enter a word or short phrase (letters, apostrophe, hyphen, spaces, up to ${MAX_VOCAB_LENGTH} chars).`;
     case "INVALID_TEXT_INPUT":
       return "Text is empty or too long.";
     default:
