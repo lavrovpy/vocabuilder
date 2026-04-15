@@ -5,6 +5,7 @@ import {
   asJsonStringLiteral,
   looksLikeWordAttempt,
   MAX_VOCAB_LENGTH,
+  MAX_PHRASE_TOKENS,
   MAX_TEXT_LENGTH,
   WORD_ATTEMPT_MAX_LENGTH,
 } from "./input";
@@ -78,12 +79,14 @@ describe("normalizeWordInput", () => {
     expect(normalizeWordInput("give up")).toBe("give up");
   });
 
-  it("accepts a five-word idiom", () => {
-    expect(normalizeWordInput("the best of both worlds")).toBe("the best of both worlds");
+  it("accepts a phrase at exactly MAX_PHRASE_TOKENS words", () => {
+    const phrase = Array.from({ length: MAX_PHRASE_TOKENS }, () => "word").join(" ");
+    expect(normalizeWordInput(phrase)).toBe(phrase);
   });
 
-  it("rejects a six-word phrase", () => {
-    expect(normalizeWordInput("this is too many words here")).toBeNull();
+  it("rejects a phrase exceeding MAX_PHRASE_TOKENS", () => {
+    const tooMany = Array.from({ length: MAX_PHRASE_TOKENS + 1 }, () => "word").join(" ");
+    expect(normalizeWordInput(tooMany)).toBeNull();
   });
 
   it("collapses multiple internal spaces", () => {
@@ -98,6 +101,17 @@ describe("normalizeWordInput", () => {
   it("accepts phrase with apostrophes and hyphens inside tokens", () => {
     expect(normalizeWordInput("don't give up")).toBe("don't give up");
     expect(normalizeWordInput("well-known fact")).toBe("well-known fact");
+  });
+
+  it("accepts multi-hyphen compound tokens", () => {
+    expect(normalizeWordInput("mother-in-law")).toBe("mother-in-law");
+    expect(normalizeWordInput("well-to-do")).toBe("well-to-do");
+    expect(normalizeWordInput("state-of-the-art")).toBe("state-of-the-art");
+  });
+
+  it("still rejects adjacent joiner characters", () => {
+    expect(normalizeWordInput("a--b")).toBeNull();
+    expect(normalizeWordInput("a-'b")).toBeNull();
   });
 
   it("rejects phrase containing punctuation between tokens", () => {

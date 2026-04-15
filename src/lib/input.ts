@@ -1,7 +1,7 @@
 export const MAX_VOCAB_LENGTH = 50;
 export const MAX_PHRASE_TOKENS = 5;
 
-const TOKEN = String.raw`[\p{L}]+(?:['-][\p{L}]+)?`;
+const TOKEN = String.raw`[\p{L}]+(?:['-][\p{L}]+)*`;
 const VOCAB_INPUT_RE = new RegExp(`^${TOKEN}(?:\\s+${TOKEN}){0,${MAX_PHRASE_TOKENS - 1}}$`, "u");
 
 export function normalizeWordInput(raw: string): string | null {

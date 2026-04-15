@@ -18,7 +18,13 @@ import LanguageConfigError from "./components/LanguageConfigError";
 import { useLanguagePair } from "./hooks/useLanguagePair";
 import History from "./history";
 import { translateWord, translateText } from "./lib/gemini";
-import { MAX_VOCAB_LENGTH, looksLikeWordAttempt, normalizeWordInput, normalizeTextInput } from "./lib/input";
+import {
+  MAX_PHRASE_TOKENS,
+  MAX_VOCAB_LENGTH,
+  looksLikeWordAttempt,
+  normalizeWordInput,
+  normalizeTextInput,
+} from "./lib/input";
 import { LanguagePair, storageKeyPrefix, swapLanguagePair } from "./lib/languages";
 import { posColor } from "./lib/colors";
 import { buildTranslationDetailMarkdown, buildTextTranslationDetailMarkdown } from "./lib/markdown";
@@ -67,7 +73,7 @@ function getUserFacingErrorMessage(errorCode: string): string {
     case "WORD_NOT_FOUND":
       return "This word or phrase was not recognized. Check the spelling or try something else.";
     case "INVALID_WORD_INPUT":
-      return `Enter a word or short phrase (letters, apostrophe, hyphen, spaces, up to ${MAX_VOCAB_LENGTH} chars).`;
+      return `Enter a word or short phrase (letters, apostrophe, hyphen; up to ${MAX_PHRASE_TOKENS} words, ${MAX_VOCAB_LENGTH} chars).`;
     case "INVALID_TEXT_INPUT":
       return "Text is empty or too long.";
     default:
@@ -240,7 +246,7 @@ export default function Translate() {
         await showToast({
           style: Toast.Style.Failure,
           title: "Clipboard not used",
-          message: "Clipboard does not look like a single word.",
+          message: "Clipboard does not look like a word or short phrase.",
         });
         return;
       }

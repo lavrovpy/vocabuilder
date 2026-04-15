@@ -9,9 +9,9 @@ const POS_COLORS: Record<string, Color> = {
   pronoun: Color.Purple,
   conjunction: Color.Orange,
   interjection: Color.SecondaryText,
-  "phrasal verb": Color.Red,
-  idiom: Color.Orange,
-  expression: Color.Orange,
+  "phrasal verb": Color.Orange,
+  idiom: Color.Yellow,
+  expression: Color.Yellow,
 };
 
 export function posColor(partOfSpeech: string): Color {

@@ -229,8 +229,17 @@ if (import.meta.vitest) {
       expect(exampleContainsWord("Don't give up on your dreams.", "give up")).toBe(true);
     });
 
-    it("rejects false-positive substring of a phrase", () => {
-      expect(exampleContainsWord("She gave uplifting advice.", "give up")).toBe(false);
+    it("rejects phrase when the second token is only a prefix of a longer word", () => {
+      // "give up" as regex is `give\s+up`; in "give uptown" the engine matches
+      // "give up" as a prefix of "uptown", and the negative lookahead must
+      // reject the trailing letter to avoid a false positive.
+      expect(exampleContainsWord("She decided to give uptown tours.", "give up")).toBe(false);
+    });
+
+    it("rejects phrase when the first token is only a suffix of a longer word", () => {
+      // Negative lookbehind on the first token's left boundary: "forgive up"
+      // contains "give up" but "give" is glued to "for".
+      expect(exampleContainsWord("I cannot forgive up to this point.", "give up")).toBe(false);
     });
 
     it("matches multi-word Cyrillic phrase", () => {
