@@ -56,9 +56,13 @@ async function callGemini(prompt: string, apiKey: string, signal?: AbortSignal):
     .trim();
 }
 
-/** Check that the source-language example sentence actually uses the word being translated. */
+/** Check that the source-language example sentence actually uses the word or phrase being translated. */
 function exampleContainsWord(exampleTranslation: string, word: string): boolean {
-  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escaped = word
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    .replace(/ /g, "\\s+");
   const pattern = new RegExp(`(?<![\\p{L}\\p{N}\\-])${escaped}(?![\\p{L}\\p{N}\\-])`, "iu");
   return pattern.test(exampleTranslation);
 }
@@ -93,25 +97,28 @@ export async function translateWord(
 
   const { source, target } = languagePair;
 
-  const prompt = `Translate the ${source.name} word ${asJsonStringLiteral(normalizedWord)} to ${target.name}.
+  const prompt = `Translate the ${source.name} vocabulary item ${asJsonStringLiteral(normalizedWord)} to ${target.name}.
+The vocabulary item may be a single word, a phrasal verb (e.g. "give up", "break down"), or an idiom / fixed expression (e.g. "red herring", "kick the bucket").
 
 CRITICAL RULES:
-1. If the input is NOT a real ${source.name} word (gibberish, random letters, or not found in any dictionary), respond with: { "senses": [], "notAWord": true }
-2. If the input is a misspelling or typo of a REAL word, correct it and translate the corrected word.
-3. The "exampleTranslation" (${source.name} sentence) MUST contain the exact word ${asJsonStringLiteral(normalizedWord)} (or the corrected word if misspelled). NEVER substitute it with a synonym or paraphrase. For example, if the word is "omnibus", write "This omnibus includes..." NOT "This collection includes...".
-4. The "example" (${target.name} sentence) must be a natural translation of the exampleTranslation.
+1. If the input is a misspelling or typo of a REAL word or expression, correct it and translate the corrected form. Put the corrected form in "correctedWord". This applies to phrases too — e.g. "red hering" → "red herring", "kik the bucket" → "kick the bucket", "runing" → "running". Prefer correction over rejection whenever a plausible correction exists.
+2. Only if NO plausible correction exists and the input is truly gibberish / random letters / not in any dictionary or idiom reference, respond with: { "senses": [], "notAWord": true }
+3. For phrasal verbs and idioms, translate the IDIOMATIC meaning, NOT the literal word-by-word meaning. For example, "red herring" means a misleading clue (Ukrainian: "оманлива підказка"), NOT "червоний оселедець". "Kick the bucket" means to die, NOT to literally kick a bucket.
+4. Use an appropriate "partOfSpeech" label: use standard labels ("noun", "verb", "adjective", "adverb", etc.) for single words, and use "phrasal verb", "idiom", or "expression" for multi-word vocabulary items as appropriate.
+5. The "exampleTranslation" (${source.name} sentence) MUST contain the EXACT phrase ${asJsonStringLiteral(normalizedWord)} (or the corrected form if misspelled) as a contiguous substring. NEVER substitute it with a synonym or paraphrase. For example, if the input is "red herring", write "That clue turned out to be a red herring." — NOT "That clue turned out to be misleading."
+6. The "example" (${target.name} sentence) must be a natural idiomatic translation of the exampleTranslation.
 
 Provide up to 5 distinct meanings (senses), ordered from most common first.
 Each sense MUST have a different translation or a different part of speech — do NOT repeat the same translation+partOfSpeech pair.
-If the word has only one meaning, return exactly one sense.
+If there is only one meaning, return exactly one sense.
 Respond ONLY with valid JSON:
 {
   "senses": [
     {
       "translation": "${target.name} gloss for this sense",
-      "partOfSpeech": "noun/verb/adjective/etc",
+      "partOfSpeech": "noun / verb / adjective / phrasal verb / idiom / expression / etc",
       "example": "${target.name} example sentence",
-      "exampleTranslation": "${source.name} sentence that MUST use the word ${asJsonStringLiteral(normalizedWord)}"
+      "exampleTranslation": "${source.name} sentence that MUST contain ${asJsonStringLiteral(normalizedWord)} verbatim"
     }
   ],
   "correctedWord": "include ONLY if the input was misspelled; omit if correct"
@@ -198,6 +205,46 @@ if (import.meta.vitest) {
     it("matches word at start and end of string", () => {
       expect(exampleContainsWord("hello world", "hello")).toBe(true);
       expect(exampleContainsWord("say hello", "hello")).toBe(true);
+    });
+
+    it("matches a multi-word idiom as a contiguous phrase", () => {
+      expect(exampleContainsWord("That clue was a red herring in the plot.", "red herring")).toBe(true);
+    });
+
+    it("rejects phrase when only one token appears", () => {
+      expect(exampleContainsWord("The red fish swam past the herring.", "red herring")).toBe(false);
+    });
+
+    it("rejects phrase when tokens are not contiguous", () => {
+      expect(exampleContainsWord("Red and pickled herring on the plate.", "red herring")).toBe(false);
+    });
+
+    it("tolerates multiple spaces inside the example", () => {
+      expect(exampleContainsWord("A classic red  herring appears here.", "red herring")).toBe(true);
+      expect(exampleContainsWord("A classic red\therring appears here.", "red herring")).toBe(true);
+      expect(exampleContainsWord("A classic red\nherring appears here.", "red herring")).toBe(true);
+    });
+
+    it("matches a phrasal verb inside a sentence", () => {
+      expect(exampleContainsWord("Don't give up on your dreams.", "give up")).toBe(true);
+    });
+
+    it("rejects phrase when the second token is only a prefix of a longer word", () => {
+      // "give up" as regex is `give\s+up`; in "give uptown" the engine matches
+      // "give up" as a prefix of "uptown", and the negative lookahead must
+      // reject the trailing letter to avoid a false positive.
+      expect(exampleContainsWord("She decided to give uptown tours.", "give up")).toBe(false);
+    });
+
+    it("rejects phrase when the first token is only a suffix of a longer word", () => {
+      // Negative lookbehind on the first token's left boundary: "forgive up"
+      // contains "give up" but "give" is glued to "for".
+      expect(exampleContainsWord("I cannot forgive up to this point.", "give up")).toBe(false);
+    });
+
+    it("matches multi-word Cyrillic phrase", () => {
+      expect(exampleContainsWord("Легенда про синій птах досі жива.", "синій птах")).toBe(true);
+      expect(exampleContainsWord("У саду сидів птах, а небо було синє.", "синій птах")).toBe(false);
     });
   });
 }
