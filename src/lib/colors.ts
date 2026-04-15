@@ -9,7 +9,7 @@ const POS_COLORS: Record<string, Color> = {
   pronoun: Color.Purple,
   conjunction: Color.Orange,
   interjection: Color.SecondaryText,
-  "phrasal verb": Color.Orange,
+  "phrasal verb": Color.Magenta,
   idiom: Color.Yellow,
   expression: Color.Yellow,
 };
