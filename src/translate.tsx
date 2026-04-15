@@ -65,7 +65,7 @@ function getUserFacingErrorMessage(errorCode: string): string {
     case "NETWORK_OFFLINE":
       return "You appear to be offline. Check your connection and try again.";
     case "WORD_NOT_FOUND":
-      return "This word was not recognized. Check the spelling or try a different word.";
+      return "This word or phrase was not recognized. Check the spelling or try something else.";
     case "INVALID_WORD_INPUT":
       return `Enter a word or short phrase (letters, apostrophe, hyphen, spaces, up to ${MAX_VOCAB_LENGTH} chars).`;
     case "INVALID_TEXT_INPUT":

@@ -190,6 +190,31 @@ describe("translateWord", () => {
     await expect(translateWord("omnibus", API_KEY, pair)).rejects.toThrow("GEMINI_INVALID_RESPONSE");
   });
 
+  it("corrects a misspelled phrase and validates example against the corrected form", async () => {
+    const payload = {
+      senses: [
+        {
+          translation: "оманлива підказка",
+          partOfSpeech: "idiom",
+          example: "Ця підказка виявилася оманливою.",
+          exampleTranslation: "That clue turned out to be a red herring.",
+        },
+      ],
+      correctedWord: "red herring",
+    };
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(geminiJsonBody(payload)), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const result = await translateWord("red hering", API_KEY, pair);
+    expect(result.senses).toHaveLength(1);
+    expect(result.correctedWord).toBe("red herring");
+    expect(result.senses[0].partOfSpeech).toBe("idiom");
+  });
+
   it("validates exampleTranslation against correctedWord, not the original typo", async () => {
     const payload = {
       senses: [
