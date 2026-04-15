@@ -18,7 +18,7 @@ import LanguageConfigError from "./components/LanguageConfigError";
 import { useLanguagePair } from "./hooks/useLanguagePair";
 import History from "./history";
 import { translateWord, translateText } from "./lib/gemini";
-import { MAX_VOCAB_LENGTH, normalizeWordInput, normalizeTextInput } from "./lib/input";
+import { MAX_VOCAB_LENGTH, looksLikeWordAttempt, normalizeWordInput, normalizeTextInput } from "./lib/input";
 import { LanguagePair, storageKeyPrefix, swapLanguagePair } from "./lib/languages";
 import { posColor } from "./lib/colors";
 import { buildTranslationDetailMarkdown, buildTextTranslationDetailMarkdown } from "./lib/markdown";
@@ -198,6 +198,18 @@ export default function Translate() {
     const normalizedWord = normalizeWordInput(rawText);
     if (normalizedWord) {
       fetchWordTranslation(normalizedWord);
+      return;
+    }
+
+    // Short, no-space inputs that failed the word/phrase regex (e.g. "fahj89sdf")
+    // are almost certainly junk, not sentences — reject with a word-level error
+    // instead of sending them down the lenient text-translation path.
+    if (looksLikeWordAttempt(rawText)) {
+      setResult(null);
+      setPendingWord(null);
+      setIsLoading(false);
+      setErrorCode("INVALID_WORD_INPUT");
+      setError(getUserFacingErrorMessage("INVALID_WORD_INPUT"));
       return;
     }
 

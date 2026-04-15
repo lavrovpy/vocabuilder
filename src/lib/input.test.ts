@@ -3,8 +3,10 @@ import {
   normalizeWordInput,
   normalizeTextInput,
   asJsonStringLiteral,
+  looksLikeWordAttempt,
   MAX_VOCAB_LENGTH,
   MAX_TEXT_LENGTH,
+  WORD_ATTEMPT_MAX_LENGTH,
 } from "./input";
 
 describe("normalizeWordInput", () => {
@@ -130,6 +132,43 @@ describe("normalizeTextInput", () => {
   it("rejects text at MAX_TEXT_LENGTH + 1", () => {
     const text = "a".repeat(MAX_TEXT_LENGTH + 1);
     expect(normalizeTextInput(text)).toBeNull();
+  });
+});
+
+describe("looksLikeWordAttempt", () => {
+  it("flags short alphanumeric junk (letters + digits, no space)", () => {
+    expect(looksLikeWordAttempt("fahj89sdf")).toBe(true);
+  });
+
+  it("flags short digit-only inputs", () => {
+    expect(looksLikeWordAttempt("12345")).toBe(true);
+  });
+
+  it("flags short punctuation-bearing inputs without spaces", () => {
+    expect(looksLikeWordAttempt("COVID-19")).toBe(true);
+    expect(looksLikeWordAttempt("e.g.")).toBe(true);
+  });
+
+  it("does not flag inputs that contain whitespace (those go to text path)", () => {
+    expect(looksLikeWordAttempt("hello world")).toBe(false);
+    expect(looksLikeWordAttempt("fahj 89sdf")).toBe(false);
+  });
+
+  it("does not flag inputs longer than WORD_ATTEMPT_MAX_LENGTH", () => {
+    expect(looksLikeWordAttempt("a".repeat(WORD_ATTEMPT_MAX_LENGTH + 1))).toBe(false);
+  });
+
+  it("accepts at exactly WORD_ATTEMPT_MAX_LENGTH", () => {
+    expect(looksLikeWordAttempt("a".repeat(WORD_ATTEMPT_MAX_LENGTH))).toBe(true);
+  });
+
+  it("does not flag empty or whitespace-only input", () => {
+    expect(looksLikeWordAttempt("")).toBe(false);
+    expect(looksLikeWordAttempt("   ")).toBe(false);
+  });
+
+  it("trims before measuring", () => {
+    expect(looksLikeWordAttempt("  fahj89sdf  ")).toBe(true);
   });
 });
 

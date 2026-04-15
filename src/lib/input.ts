@@ -19,6 +19,18 @@ export function normalizeTextInput(raw: string): string | null {
   return text;
 }
 
+/**
+ * True for short, single-token inputs that look like a failed word/phrase attempt
+ * (e.g. "fahj89sdf", "12345") rather than free-form text. Used to surface a
+ * "word or phrase" validation error instead of sending junk to text translation.
+ */
+export const WORD_ATTEMPT_MAX_LENGTH = 20;
+export function looksLikeWordAttempt(raw: string): boolean {
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed.length > WORD_ATTEMPT_MAX_LENGTH) return false;
+  return !/\s/.test(trimmed);
+}
+
 export function asJsonStringLiteral(value: string): string {
   return JSON.stringify(value);
 }
