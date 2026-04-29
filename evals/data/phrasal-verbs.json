@@ -1,0 +1,56 @@
+{
+  "name": "phrasal-verbs",
+  "cases": [
+    {
+      "input": "give up",
+      "category": "golden",
+      "target": {
+        "preferredTranslation": [
+          { "source": "здатися" },
+          { "source": "здаватися" },
+          { "source": "припинити" },
+          { "source": "відмовитися" }
+        ],
+        "preferredPOS": [
+          { "source": "phrasal verb", "flags": "i" },
+          { "source": "verb", "flags": "i" }
+        ]
+      }
+    },
+    {
+      "input": "break down",
+      "category": "golden",
+      "target": {
+        "preferredTranslation": [
+          { "source": "зламатися" },
+          { "source": "вийти з ладу" },
+          { "source": "зіпсуватися" },
+          { "source": "розпастися" }
+        ]
+      }
+    },
+    {
+      "input": "don't give up",
+      "category": "golden",
+      "notes": "Apostrophe handling is a structural concern; the example must contain the contracted form.",
+      "target": {
+        "preferredTranslation": [
+          { "source": "не здавайся" },
+          { "source": "не здавайтеся" }
+        ]
+      }
+    },
+    {
+      "input": "well-known fact",
+      "category": "golden",
+      "notes": "Hyphen handling is a structural concern; example must contain the hyphenated phrase.",
+      "target": {
+        "preferredTranslation": [
+          { "source": "загальновідомий факт" },
+          { "source": "відомий факт" },
+          { "source": "широковідом" }
+        ]
+      }
+    }
+  ]
+}

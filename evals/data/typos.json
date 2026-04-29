@@ -1,0 +1,40 @@
+{
+  "name": "typos",
+  "cases": [
+    {
+      "input": "red hering",
+      "category": "golden",
+      "notes": "Misspelled idiom — must be corrected and translated idiomatically, not literally.",
+      "target": {
+        "correctedWord": "red herring",
+        "forbiddenTranslation": [
+          { "source": "червоний оселедець" }
+        ],
+        "preferredTranslation": [
+          { "source": "оманлив" },
+          { "source": "обманн" },
+          { "source": "відволікаюч" },
+          { "source": "хибн" },
+          { "source": "приманк" }
+        ]
+      }
+    },
+    {
+      "input": "kik the bucket",
+      "category": "golden",
+      "target": {
+        "correctedWord": "kick the bucket",
+        "forbiddenTranslation": [
+          { "source": "кинути відро" }
+        ],
+        "preferredTranslation": [
+          { "source": "померти" },
+          { "source": "вмерти" },
+          { "source": "врізати дуба" },
+          { "source": "відкинути копита" },
+          { "source": "віддати богу душу" }
+        ]
+      }
+    }
+  ]
+}

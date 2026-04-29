@@ -7,13 +7,32 @@ import {
   WordSense,
 } from "./types";
 import { asJsonStringLiteral, normalizeWordInput, normalizeTextInput } from "./input";
-import { LanguagePair } from "./languages";
+import type { LanguagePair } from "./languages";
 
 const MODEL = "gemini-2.5-flash-lite";
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
-async function callGemini(prompt: string, apiKey: string, signal?: AbortSignal): Promise<string> {
+export type GenerationOptions = {
+  temperature?: number;
+  seed?: number;
+};
+
+async function callGemini(
+  prompt: string,
+  apiKey: string,
+  signal?: AbortSignal,
+  options?: GenerationOptions,
+): Promise<string> {
   const url = `${BASE_URL}/${MODEL}:generateContent`;
+
+  const generationConfig: Record<string, unknown> = {};
+  if (options?.temperature !== undefined) generationConfig.temperature = options.temperature;
+  if (options?.seed !== undefined) generationConfig.seed = options.seed;
+
+  const body: Record<string, unknown> = {
+    contents: [{ parts: [{ text: prompt }] }],
+  };
+  if (Object.keys(generationConfig).length > 0) body.generationConfig = generationConfig;
 
   let response: Response;
   try {
@@ -23,9 +42,7 @@ async function callGemini(prompt: string, apiKey: string, signal?: AbortSignal):
         "Content-Type": "application/json",
         "x-goog-api-key": apiKey,
       },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-      }),
+      body: JSON.stringify(body),
       signal,
     });
   } catch (err) {
@@ -57,7 +74,7 @@ async function callGemini(prompt: string, apiKey: string, signal?: AbortSignal):
 }
 
 /** Check that the source-language example sentence actually uses the word or phrase being translated. */
-function exampleContainsWord(exampleTranslation: string, word: string): boolean {
+export function exampleContainsWord(exampleTranslation: string, word: string): boolean {
   const escaped = word
     .trim()
     .replace(/\s+/g, " ")
@@ -84,11 +101,18 @@ function dedupeSenses(senses: WordSense[]): WordSense[] {
   return out;
 }
 
-export async function translateWord(
+/**
+ * Raw translate-word path used by the eval harness. Returns Gemini's parsed
+ * response unchanged — does not enforce notAWord routing, sense de-duplication,
+ * or example-uses-word filtering. Throws on transport, auth, and schema-level
+ * failures only.
+ */
+export async function translateWordRaw(
   word: string,
   apiKey: string,
   languagePair: LanguagePair,
   signal?: AbortSignal,
+  options?: GenerationOptions,
 ): Promise<GeminiWordResponse> {
   const normalizedWord = normalizeWordInput(word);
   if (!normalizedWord) {
@@ -124,39 +148,87 @@ Respond ONLY with valid JSON:
   "correctedWord": "include ONLY if the input was misspelled; omit if correct"
 }`;
 
-  const cleaned = await callGemini(prompt, apiKey, signal);
+  const cleaned = await callGemini(prompt, apiKey, signal, options);
 
   try {
-    const parsed = GeminiWordResponseSchema.parse(JSON.parse(cleaned));
-
-    if (parsed.notAWord) {
-      throw new Error("WORD_NOT_FOUND");
-    }
-    if (parsed.senses.length === 0) {
-      throw new Error("GEMINI_INVALID_RESPONSE");
-    }
-
-    const effectiveWord = parsed.correctedWord ?? normalizedWord;
-    const validSenses = dedupeSenses(parsed.senses).filter((s) =>
-      exampleContainsWord(s.exampleTranslation, effectiveWord),
-    );
-
-    if (validSenses.length === 0) {
-      throw new Error("GEMINI_INVALID_RESPONSE");
-    }
-
-    return { ...parsed, senses: validSenses };
-  } catch (err) {
-    if (err instanceof Error && (err.message === "WORD_NOT_FOUND" || err.message === "GEMINI_INVALID_RESPONSE")) {
-      throw err;
-    }
+    return GeminiWordResponseSchema.parse(JSON.parse(cleaned));
+  } catch {
     throw new Error("GEMINI_INVALID_RESPONSE");
   }
 }
 
+export async function translateWord(
+  word: string,
+  apiKey: string,
+  languagePair: LanguagePair,
+  signal?: AbortSignal,
+  options?: GenerationOptions,
+): Promise<GeminiWordResponse> {
+  const parsed = await translateWordRaw(word, apiKey, languagePair, signal, options);
+
+  if (parsed.notAWord) {
+    throw new Error("WORD_NOT_FOUND");
+  }
+  if (parsed.senses.length === 0) {
+    throw new Error("GEMINI_INVALID_RESPONSE");
+  }
+
+  const normalizedWord = normalizeWordInput(word);
+  const effectiveWord = parsed.correctedWord ?? normalizedWord ?? word;
+  const validSenses = dedupeSenses(parsed.senses).filter((s) =>
+    exampleContainsWord(s.exampleTranslation, effectiveWord),
+  );
+
+  if (validSenses.length === 0) {
+    throw new Error("GEMINI_INVALID_RESPONSE");
+  }
+
+  return { ...parsed, senses: validSenses };
+}
+
 // --- In-source tests for private functions ---
 if (import.meta.vitest) {
-  const { describe, it, expect } = import.meta.vitest;
+  const { describe, it, expect, vi, beforeEach, afterEach } = import.meta.vitest;
+
+  describe("callGemini generationConfig wiring", () => {
+    let fetchMock: ReturnType<typeof vi.fn>;
+    const fakeApiResponse = {
+      candidates: [{ content: { parts: [{ text: "{}" }] } }],
+    };
+
+    beforeEach(() => {
+      fetchMock = vi.fn(
+        async () =>
+          new Response(JSON.stringify(fakeApiResponse), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("omits generationConfig when no options are passed", async () => {
+      await callGemini("hi", "key");
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+      expect(body.generationConfig).toBeUndefined();
+    });
+
+    it("includes temperature and seed when supplied", async () => {
+      await callGemini("hi", "key", undefined, { temperature: 0, seed: 42 });
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+      expect(body.generationConfig).toEqual({ temperature: 0, seed: 42 });
+    });
+
+    it("includes only the fields that were specified", async () => {
+      await callGemini("hi", "key", undefined, { temperature: 0.7 });
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+      expect(body.generationConfig).toEqual({ temperature: 0.7 });
+    });
+  });
 
   describe("exampleContainsWord", () => {
     it("matches a standalone word in a sentence", () => {
@@ -254,6 +326,7 @@ export async function translateText(
   apiKey: string,
   languagePair: LanguagePair,
   signal?: AbortSignal,
+  options?: GenerationOptions,
 ): Promise<GeminiTextResponse> {
   const normalizedText = normalizeTextInput(text);
   if (!normalizedText) {
@@ -268,7 +341,7 @@ Respond ONLY with valid JSON:
 
 Text: ${asJsonStringLiteral(normalizedText)}`;
 
-  const cleaned = await callGemini(prompt, apiKey, signal);
+  const cleaned = await callGemini(prompt, apiKey, signal, options);
 
   try {
     return GeminiTextResponseSchema.parse(JSON.parse(cleaned));

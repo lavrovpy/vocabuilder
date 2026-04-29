@@ -1,0 +1,21 @@
+{
+  "name": "junk",
+  "cases": [
+    {
+      "input": "xqfjvbn",
+      "category": "negative",
+      "notes": "Letter-only random string. Spec listed 'fahj89sdf' but digits are caught by the pre-filter (normalizeWordInput) before reaching Gemini, so that case can't exercise the prompt's notAWord path.",
+      "target": {
+        "expectNotAWord": true
+      }
+    },
+    {
+      "input": "zzqpplx",
+      "category": "negative",
+      "notes": "Second non-word so a single-case Gemini flake doesn't gate the whole junk suite.",
+      "target": {
+        "expectNotAWord": true
+      }
+    }
+  ]
+}

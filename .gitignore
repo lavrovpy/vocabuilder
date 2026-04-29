@@ -24,3 +24,7 @@ dist/
 
 # Claude Code
 .claude/
+
+# Eval artifacts (generated per run)
+evals/results-*.json
+evals/harvest/

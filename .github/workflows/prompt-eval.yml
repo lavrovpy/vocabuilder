@@ -1,0 +1,52 @@
+name: Prompt Eval
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "src/lib/gemini.ts"
+      - "evals/**"
+      - ".github/workflows/prompt-eval.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/lib/gemini.ts"
+      - "evals/**"
+      - ".github/workflows/prompt-eval.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eval:
+    name: Translate Prompt Eval
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run prompt eval
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          EVAL_SUITE: full
+        run: npm run eval
+
+      - name: Upload eval artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prompt-eval-results
+          path: evals/results-*.json
+          if-no-files-found: warn
+          retention-days: 30
