@@ -10,14 +10,19 @@ export const DEFAULT_LANGUAGE_PAIR: LanguagePair = {
 export const SCORING_RUNS_PER_CASE = 3;
 export const SCORING_TEMPERATURE = 0;
 
-/** FNV-1a 32-bit hash. Stable, dependency-free, fits in a uint32 for the Gemini seed. */
+/**
+ * FNV-1a 32-bit hash, coerced to a *signed* int32 because Gemini's
+ * generationConfig.seed is TYPE_INT32 and rejects values >= 2^31 with
+ * "Invalid value at 'generation_config.seed'". `| 0` reinterprets the
+ * bit pattern as int32 in [-2^31, 2^31-1].
+ */
 export function seedFromInput(input: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < input.length; i++) {
     h ^= input.charCodeAt(i);
     h = Math.imul(h, 0x01000193);
   }
-  return h >>> 0;
+  return h | 0;
 }
 
 export type ExecutorOptions = {
@@ -43,7 +48,7 @@ export async function runCase(
     try {
       const output = await translateWordRaw(c.input, apiKey, languagePair, undefined, {
         temperature,
-        seed: baseSeed + i,
+        seed: (baseSeed + i) | 0,
       });
       result = { kind: "ok", output };
     } catch (err) {
