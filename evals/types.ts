@@ -55,6 +55,57 @@ export type EvalCaseCategory = z.infer<typeof EvalCaseCategorySchema>;
 export type EvalCase = z.infer<typeof EvalCaseSchema> & { languagePair?: LanguagePair };
 export type EvalDataset = z.infer<typeof EvalDatasetSchema>;
 
+const RegexLiteralRawSchema = z
+  .object({
+    source: z.string().min(1),
+    flags: z.string().optional(),
+  })
+  .strict();
+
+export const HarvestDecisionSchema = z.union([z.literal("v"), z.literal("i"), z.literal("f"), z.null()]);
+
+export const HarvestTagSchema = z.union([z.literal("alreadyPreferred"), z.literal("alreadyForbidden"), z.null()]);
+
+export const HarvestReviewObservationSchema = z
+  .object({
+    translation: z.string().min(1),
+    partOfSpeech: z.string().min(1),
+    runs: z.number().int().nonnegative(),
+    tag: HarvestTagSchema,
+    decision: HarvestDecisionSchema,
+  })
+  .strict();
+
+export const HarvestReviewCaseSchema = z
+  .object({
+    input: z.string().min(1),
+    alreadyPreferred: z.array(RegexLiteralRawSchema),
+    alreadyForbidden: z.array(RegexLiteralRawSchema),
+    observations: z.array(HarvestReviewObservationSchema),
+  })
+  .strict();
+
+export const HarvestReviewSchema = z
+  .object({
+    version: z.literal(1),
+    dataset: z.string().min(1),
+    generatedAt: z.string().min(1),
+    config: z
+      .object({
+        runs: z.number().int().positive(),
+        temperature: z.number(),
+      })
+      .strict(),
+    cases: z.array(HarvestReviewCaseSchema),
+  })
+  .strict();
+
+export type HarvestDecision = z.infer<typeof HarvestDecisionSchema>;
+export type HarvestTag = z.infer<typeof HarvestTagSchema>;
+export type HarvestReviewObservation = z.infer<typeof HarvestReviewObservationSchema>;
+export type HarvestReviewCase = z.infer<typeof HarvestReviewCaseSchema>;
+export type HarvestReview = z.infer<typeof HarvestReviewSchema>;
+
 export type CaseRunResult =
   | { kind: "ok"; output: import("../src/lib/types").GeminiWordResponse }
   | { kind: "error"; message: string };

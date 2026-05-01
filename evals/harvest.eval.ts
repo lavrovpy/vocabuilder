@@ -1,9 +1,17 @@
 #!/usr/bin/env tsx
-import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, renameSync, readdirSync, existsSync, mkdirSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runCase } from "./executor";
-import { EvalDatasetSchema, type EvalCase, type EvalDataset } from "./types";
+import {
+  EvalDatasetSchema,
+  HarvestReviewSchema,
+  type EvalCase,
+  type EvalDataset,
+  type HarvestReview,
+  type HarvestReviewCase,
+  type HarvestReviewObservation,
+} from "./types";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = resolve(HERE, "data");
@@ -48,7 +56,7 @@ async function harvestCase(c: EvalCase, apiKey: string): Promise<Pair[]> {
   for (const run of runs) {
     if (run.kind !== "ok") continue;
     for (const sense of run.output.senses) {
-      const key = `${sense.translation}${sense.partOfSpeech}`;
+      const key = `${sense.translation}${sense.partOfSpeech}`;
       const existing = counts.get(key);
       if (existing) existing.runs += 1;
       else counts.set(key, { translation: sense.translation, partOfSpeech: sense.partOfSpeech, runs: 1 });
@@ -69,130 +77,158 @@ function regexLiteralsFromCase(field: unknown): { source: string; flags?: string
   );
 }
 
-function rawCase(filename: string, input: string): { preferredTranslation: { source: string; flags?: string }[]; forbiddenTranslation: { source: string; flags?: string }[] } {
-  const raw = JSON.parse(readFileSync(join(DATA_DIR, filename), "utf8"));
-  const c = (raw.cases as { input: string; target: Record<string, unknown> }[]).find((x) => x.input === input);
+type RawDataset = {
+  name: string;
+  cases: {
+    input: string;
+    target: {
+      preferredTranslation?: { source: string; flags?: string }[];
+      forbiddenTranslation?: { source: string; flags?: string }[];
+    };
+  }[];
+};
+
+function rawCase(
+  raw: RawDataset,
+  input: string,
+): { preferredTranslation: { source: string; flags?: string }[]; forbiddenTranslation: { source: string; flags?: string }[] } {
+  const c = raw.cases.find((x) => x.input === input);
   return {
     preferredTranslation: regexLiteralsFromCase(c?.target.preferredTranslation),
     forbiddenTranslation: regexLiteralsFromCase(c?.target.forbiddenTranslation),
   };
 }
 
-function buildReviewMarkdown(filename: string, dataset: EvalDataset, casePairs: Map<string, Pair[]>): string {
-  const lines: string[] = [];
-  lines.push(`# Harvest review: ${filename}`);
-  lines.push(`Generated: ${new Date().toISOString()} (${HARVEST_RUNS} runs/case, temperature=${HARVEST_TEMPERATURE})`);
-  lines.push("");
-  lines.push(
-    "Mark each line by replacing `[ ]` with `[VALID]` (merge into `preferredTranslation`), `[INVALID]` (skip), or `[FORBID]` (append to `forbiddenTranslation`).",
-  );
-  lines.push("Lines marked `← already preferred` or `← already forbidden` are sanity checks; you can ignore them.");
-  lines.push("");
-
-  for (const c of dataset.cases) {
+export function buildReview(
+  filename: string,
+  dataset: EvalDataset,
+  rawDataset: RawDataset,
+  casePairs: Map<string, Pair[]>,
+  generatedAt: string = new Date().toISOString(),
+): HarvestReview {
+  const cases: HarvestReviewCase[] = dataset.cases.map((c) => {
+    const raw = rawCase(rawDataset, c.input);
     const pairs = casePairs.get(c.input) ?? [];
-    const raw = rawCase(filename, c.input);
-    lines.push(`## ${c.input}`);
-    if (raw.preferredTranslation.length > 0) {
-      lines.push(`Already in preferredTranslation: ${raw.preferredTranslation.map((r) => r.source).join(", ")}`);
-    }
-    if (raw.forbiddenTranslation.length > 0) {
-      lines.push(`Already in forbiddenTranslation: ${raw.forbiddenTranslation.map((r) => r.source).join(", ")}`);
-    }
-    lines.push("");
-    if (pairs.length === 0) {
-      lines.push("_No successful runs — nothing to harvest._");
-      lines.push("");
-      continue;
-    }
-    lines.push("Observed translations (mark each VALID, INVALID, or FORBID):");
-    for (const p of pairs) {
-      const inPreferred = alreadyMatched(p.translation, raw.preferredTranslation);
+    const observations: HarvestReviewObservation[] = pairs.map((p) => {
       const inForbidden = alreadyMatched(p.translation, raw.forbiddenTranslation);
-      const tag = inForbidden ? "  ← already forbidden" : inPreferred ? "  ← already preferred" : "";
-      lines.push(`- [ ] "${p.translation}" (${p.partOfSpeech}) — ${p.runs} runs${tag}`);
-    }
-    lines.push("");
-  }
-
-  return lines.join("\n");
-}
-
-const APPLY_LINE_RE = /^- \[(\w+)\]\s+"([^"]+)"\s+\(([^)]+)\)\s+—\s+(\d+)\s+runs/;
-
-type AppliedRow = { decision: "valid" | "invalid" | "forbid"; translation: string };
-
-function parseDecisionsFromReview(content: string): { caseInput: string; rows: AppliedRow[] }[] {
-  const out: { caseInput: string; rows: AppliedRow[] }[] = [];
-  const lines = content.split("\n");
-  let current: { caseInput: string; rows: AppliedRow[] } | null = null;
-  for (const line of lines) {
-    const heading = /^##\s+(.+)$/.exec(line);
-    if (heading) {
-      if (current) out.push(current);
-      current = { caseInput: heading[1].trim(), rows: [] };
-      continue;
-    }
-    const m = APPLY_LINE_RE.exec(line);
-    if (!m || !current) continue;
-    const tag = m[1].toUpperCase();
-    let decision: AppliedRow["decision"];
-    if (tag === "VALID" || tag === "V") decision = "valid";
-    else if (tag === "INVALID" || tag === "I") decision = "invalid";
-    else if (tag === "FORBID" || tag === "F") decision = "forbid";
-    else continue;
-    current.rows.push({ decision, translation: m[2] });
-  }
-  if (current) out.push(current);
-  return out;
-}
-
-function applyDecisions(reviewPath: string): void {
-  const content = readFileSync(reviewPath, "utf8");
-  const headerMatch = /^# Harvest review: (\S+)/m.exec(content);
-  if (!headerMatch) {
-    throw new Error(`Could not find dataset filename header in ${reviewPath}`);
-  }
-  const filename = headerMatch[1];
-  const datasetPath = join(DATA_DIR, filename);
-  const datasetRaw = JSON.parse(readFileSync(datasetPath, "utf8")) as {
-    name: string;
-    cases: {
-      input: string;
-      target: {
-        preferredTranslation?: { source: string; flags?: string }[];
-        forbiddenTranslation?: { source: string; flags?: string }[];
+      const inPreferred = alreadyMatched(p.translation, raw.preferredTranslation);
+      const tag = inForbidden ? "alreadyForbidden" : inPreferred ? "alreadyPreferred" : null;
+      return {
+        translation: p.translation,
+        partOfSpeech: p.partOfSpeech,
+        runs: p.runs,
+        tag,
+        decision: null,
       };
-    }[];
+    });
+    return {
+      input: c.input,
+      alreadyPreferred: raw.preferredTranslation,
+      alreadyForbidden: raw.forbiddenTranslation,
+      observations,
+    };
+  });
+
+  return {
+    version: 1,
+    dataset: filename,
+    generatedAt,
+    config: { runs: HARVEST_RUNS, temperature: HARVEST_TEMPERATURE },
+    cases,
+  };
+}
+
+export type MergeStats = {
+  validAdded: number;
+  forbidAdded: number;
+  pendingDecisions: number;
+  staleCases: string[];
+  editedTranslations: { caseInput: string; translation: string }[];
+};
+
+export function mergeDecisions(
+  rawDataset: RawDataset,
+  review: HarvestReview,
+): { dataset: RawDataset; stats: MergeStats } {
+  const dataset: RawDataset = JSON.parse(JSON.stringify(rawDataset));
+  const stats: MergeStats = {
+    validAdded: 0,
+    forbidAdded: 0,
+    pendingDecisions: 0,
+    staleCases: [],
+    editedTranslations: [],
   };
 
-  const decisions = parseDecisionsFromReview(content);
-  let validAdded = 0;
-  let forbidAdded = 0;
+  for (const reviewCase of review.cases) {
+    const caseObj = dataset.cases.find((c) => c.input === reviewCase.input);
+    if (!caseObj) {
+      stats.staleCases.push(reviewCase.input);
+      continue;
+    }
 
-  for (const dec of decisions) {
-    const caseObj = datasetRaw.cases.find((c) => c.input === dec.caseInput);
-    if (!caseObj) continue;
-    for (const row of dec.rows) {
-      const literal = { source: row.translation, flags: "i" };
-      if (row.decision === "valid") {
+    const originalTranslations = new Set(reviewCase.observations.map((o) => o.translation));
+
+    for (const obs of reviewCase.observations) {
+      if (obs.decision === null) {
+        stats.pendingDecisions += 1;
+        continue;
+      }
+
+      if (!originalTranslations.has(obs.translation)) {
+        stats.editedTranslations.push({ caseInput: reviewCase.input, translation: obs.translation });
+      }
+
+      const literal = { source: obs.translation, flags: "i" };
+
+      if (obs.decision === "v") {
         caseObj.target.preferredTranslation = caseObj.target.preferredTranslation ?? [];
-        if (!caseObj.target.preferredTranslation.some((r) => r.source === row.translation)) {
+        if (!caseObj.target.preferredTranslation.some((r) => r.source === obs.translation)) {
           caseObj.target.preferredTranslation.push(literal);
-          validAdded += 1;
+          stats.validAdded += 1;
         }
-      } else if (row.decision === "forbid") {
+      } else if (obs.decision === "f") {
         caseObj.target.forbiddenTranslation = caseObj.target.forbiddenTranslation ?? [];
-        if (!caseObj.target.forbiddenTranslation.some((r) => r.source === row.translation)) {
+        if (!caseObj.target.forbiddenTranslation.some((r) => r.source === obs.translation)) {
           caseObj.target.forbiddenTranslation.push(literal);
-          forbidAdded += 1;
+          stats.forbidAdded += 1;
         }
       }
     }
   }
 
-  writeFileSync(datasetPath, JSON.stringify(datasetRaw, null, 2) + "\n");
-  console.log(`Applied review for ${filename}: ${validAdded} VALID added to preferredTranslation, ${forbidAdded} FORBID added to forbiddenTranslation.`);
+  return { dataset, stats };
+}
+
+function applyDecisions(reviewPath: string): void {
+  const reviewRaw = JSON.parse(readFileSync(reviewPath, "utf8"));
+  const review = HarvestReviewSchema.parse(reviewRaw);
+
+  const datasetPath = join(DATA_DIR, review.dataset);
+  const datasetRaw = JSON.parse(readFileSync(datasetPath, "utf8")) as RawDataset;
+
+  const { dataset: mutated, stats } = mergeDecisions(datasetRaw, review);
+
+  EvalDatasetSchema.parse(mutated);
+
+  const tmpPath = `${datasetPath}.tmp`;
+  writeFileSync(tmpPath, JSON.stringify(mutated, null, 2) + "\n");
+  renameSync(tmpPath, datasetPath);
+
+  console.log(
+    `Applied review for ${review.dataset}: ${stats.validAdded} VALID added to preferredTranslation, ${stats.forbidAdded} FORBID added to forbiddenTranslation.`,
+  );
+  if (stats.pendingDecisions > 0) {
+    console.log(`  ${stats.pendingDecisions} pending (null) decision(s) ignored.`);
+  }
+  if (stats.staleCases.length > 0) {
+    console.log(`  Warning: ${stats.staleCases.length} case(s) in review not found in dataset: ${stats.staleCases.join(", ")}`);
+  }
+  if (stats.editedTranslations.length > 0) {
+    console.log(`  Warning: ${stats.editedTranslations.length} translation(s) appear edited from original observations:`);
+    for (const e of stats.editedTranslations) {
+      console.log(`    - "${e.translation}" in case "${e.caseInput}"`);
+    }
+  }
 }
 
 async function harvestMode(apiKey: string): Promise<void> {
@@ -212,14 +248,15 @@ async function harvestMode(apiKey: string): Promise<void> {
       casePairs.set(c.input, pairs);
       console.log(`${pairs.length} distinct pairs (${Date.now() - start}ms)`);
     }
-    const md = buildReviewMarkdown(filename, dataset, casePairs);
-    const outPath = join(HARVEST_DIR, filename.replace(/\.json$/, ".review.md"));
-    writeFileSync(outPath, md);
+    const rawDataset = JSON.parse(readFileSync(join(DATA_DIR, filename), "utf8")) as RawDataset;
+    const review = buildReview(filename, dataset, rawDataset, casePairs);
+    const outPath = join(HARVEST_DIR, filename.replace(/\.json$/, ".review.json"));
+    writeFileSync(outPath, JSON.stringify(review, null, 2) + "\n");
     console.log(`Wrote ${outPath}`);
   }
 
-  console.log("\nDone. Open the review files, mark each line VALID/INVALID/FORBID, then run:");
-  console.log("  npm run eval:harvest -- --apply evals/harvest/<dataset>.review.md");
+  console.log('\nDone. Open the review files, mark each "decision" null as "v" / "i" / "f", then run:');
+  console.log("  npm run eval:harvest -- --apply evals/harvest/<dataset>.review.json");
 }
 
 async function main(): Promise<number> {
@@ -245,10 +282,17 @@ async function main(): Promise<number> {
   return 0;
 }
 
-main().then(
-  (code) => process.exit(code),
-  (err) => {
-    console.error("Unhandled harvest error:", err);
-    process.exit(2);
-  },
-);
+const isDirectRun = (() => {
+  if (typeof process.argv[1] !== "string") return false;
+  return resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+})();
+
+if (isDirectRun) {
+  main().then(
+    (code) => process.exit(code),
+    (err) => {
+      console.error("Unhandled harvest error:", err);
+      process.exit(2);
+    },
+  );
+}

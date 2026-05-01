@@ -222,7 +222,7 @@ The hard gate for every translation case is `schemaValid + exampleUsesWord + scr
 npm run eval          # full suite (hard tier gates exit code; soft tier reported)
 npm run eval:smoke    # baseline.json only (~5 cases, ~15 calls)
 npm run eval:harvest  # harvest mode — see §13. Runs each case N=20× and writes
-                      # evals/harvest/<dataset>.review.md for native-speaker review.
+                      # evals/harvest/<dataset>.review.json for native-speaker review.
                       # Does NOT score; intended for one-time pre-freeze regex curation.
 ```
 
@@ -341,26 +341,30 @@ Hand-drafted regex lists capture what the spec author thought of, not what's nat
 1. Loads all `evals/data/*.json` cases.
 2. For each case, calls `translateWord` with `temperature=0.7` (intentionally higher than scoring runs — we want diversity, not determinism) `N=20` times.
 3. Collects every distinct `(translation, partOfSpeech)` pair across all runs and all senses, with frequency counts.
-4. Writes one Markdown file per dataset to `evals/harvest/<dataset>.review.md` with this shape:
+4. Writes one JSON file per dataset to `evals/harvest/<dataset>.review.json`, validated by `HarvestReviewSchema`. Shape:
 
-   ```markdown
-   # Harvest review: idioms.json
-   Generated: 2026-04-15T14:22:10Z (20 runs/case, temperature=0.7)
-
-   ## red herring
-   Already in preferredTranslation: оманлив, обманн, відволікаюч, хибн, приманк
-   Already in forbiddenTranslation: червоний оселедець
-
-   New observed translations (mark each VALID or INVALID):
-   - [ ] "оманливий хід" (noun) — 12 runs
-   - [ ] "обманний маневр" (noun) — 8 runs
-   - [ ] "червоний оселедець" (idiom) — 1 run     ← already forbidden, sanity check
-   - [ ] "хибне твердження" (noun) — 3 runs
-   - [ ] "відволікаючий фактор" (idiom) — 5 runs
+   ```json
+   {
+     "version": 1,
+     "dataset": "idioms.json",
+     "generatedAt": "2026-04-15T14:22:10Z",
+     "config": { "runs": 20, "temperature": 0.7 },
+     "cases": [
+       {
+         "input": "red herring",
+         "alreadyPreferred": [{ "source": "оманлив" }, { "source": "хибн" }],
+         "alreadyForbidden": [{ "source": "червоний оселедець" }],
+         "observations": [
+           { "translation": "оманливий хід", "partOfSpeech": "noun", "runs": 12, "tag": null, "decision": null },
+           { "translation": "червоний оселедець", "partOfSpeech": "idiom", "runs": 1, "tag": "alreadyForbidden", "decision": null }
+         ]
+       }
+     ]
+   }
    ```
 
-5. The native speaker marks each line `VALID` or `INVALID` and (optionally) edits the regex.
-6. `npm run eval:harvest --apply evals/harvest/idioms.review.md` reads the marked file and merges the `VALID` entries into the corresponding `preferredTranslation` lists in `evals/data/*.json`. `INVALID` entries are appended to `forbiddenTranslation` only when the reviewer explicitly opts in (e.g. lines marked `FORBID`).
+5. The native speaker edits each `"decision": null` to `"v"` (valid → merge into `preferredTranslation`), `"i"` (invalid → skip), or `"f"` (forbid → append to `forbiddenTranslation`). Three keystrokes per row.
+6. `npm run eval:harvest -- --apply evals/harvest/idioms.review.json` reads the marked JSON file (Zod-validated; typos like `"valdi"` fail loudly with the exact path) and merges decisions into the corresponding `preferredTranslation` / `forbiddenTranslation` lists in `evals/data/*.json`. The mutated dataset is written via `<file>.json.tmp` + `renameSync` for atomicity, and re-validated with `EvalDatasetSchema` before the rename.
 
 ### When to harvest
 

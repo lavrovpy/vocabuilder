@@ -25,6 +25,9 @@ dist/
 # Claude Code
 .claude/
 
+# Subagent scratch
+.agents/
+
 # Eval artifacts (generated per run)
 evals/results-*.json
 evals/harvest/
