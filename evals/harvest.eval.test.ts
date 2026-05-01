@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mergeDecisions, buildReview } from "./harvest.eval";
+import { mergeDecisions, buildReview, formatError } from "./harvest.eval";
 import { EvalDatasetSchema, type HarvestReview } from "./types";
 
 type RawDataset = {
@@ -342,5 +342,38 @@ describe("buildReview", () => {
     for (const obs of helloCase.observations) {
       expect(obs.decision).toBeNull();
     }
+  });
+});
+
+describe("formatError", () => {
+  it("returns the bare message when cause is undefined", () => {
+    expect(formatError("GEMINI_REQUEST_FAILED", undefined)).toBe("GEMINI_REQUEST_FAILED");
+  });
+
+  it("appends HTTP status and body when cause is structured", () => {
+    const cause = { status: 429, body: '{"error":{"message":"Resource has been exhausted"}}' };
+    expect(formatError("GEMINI_REQUEST_FAILED", cause)).toBe(
+      'GEMINI_REQUEST_FAILED (HTTP 429: {"error":{"message":"Resource has been exhausted"}})',
+    );
+  });
+
+  it("collapses whitespace and trims body", () => {
+    const cause = { status: 500, body: "  multi\n   line\n  body   " };
+    expect(formatError("X", cause)).toBe("X (HTTP 500: multi line body)");
+  });
+
+  it("uses '?' for non-numeric status", () => {
+    expect(formatError("X", { body: "no status" })).toBe("X (HTTP ?: no status)");
+  });
+
+  it("truncates the assembled string at 240 chars", () => {
+    const cause = { status: 500, body: "y".repeat(1000) };
+    expect(formatError("X", cause).length).toBe(240);
+  });
+
+  it("ignores non-object causes", () => {
+    expect(formatError("X", "string cause")).toBe("X");
+    expect(formatError("X", 42)).toBe("X");
+    expect(formatError("X", null)).toBe("X");
   });
 });

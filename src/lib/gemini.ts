@@ -57,7 +57,13 @@ async function callGemini(
   }
 
   if (!response.ok) {
-    throw new Error("GEMINI_REQUEST_FAILED");
+    let body = "";
+    try {
+      body = (await response.text()).slice(0, 500);
+    } catch {
+      // body unreadable — proceed with empty
+    }
+    throw new Error("GEMINI_REQUEST_FAILED", { cause: { status: response.status, body } });
   }
 
   const apiData = GeminiApiResponseSchema.parse(await response.json());

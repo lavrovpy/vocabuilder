@@ -276,6 +276,34 @@ describe("translateWord", () => {
     await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("INVALID_API_KEY");
   });
 
+  it("throws GEMINI_REQUEST_FAILED with cause carrying status and body on non-401/403 failures", async () => {
+    const body = '{"error":{"code":429,"message":"Resource has been exhausted"}}';
+    vi.mocked(fetch).mockResolvedValue(new Response(body, { status: 429 }));
+    try {
+      await translateWord("hello", API_KEY, pair);
+      throw new Error("expected rejection");
+    } catch (err) {
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).toBe("GEMINI_REQUEST_FAILED");
+      const cause = (err as Error).cause as { status?: number; body?: string } | undefined;
+      expect(cause?.status).toBe(429);
+      expect(cause?.body).toContain("Resource has been exhausted");
+    }
+  });
+
+  it("truncates long error bodies on the cause to 500 chars", async () => {
+    const huge = "x".repeat(2000);
+    vi.mocked(fetch).mockResolvedValue(new Response(huge, { status: 500 }));
+    try {
+      await translateWord("hello", API_KEY, pair);
+      throw new Error("expected rejection");
+    } catch (err) {
+      const cause = (err as Error).cause as { status?: number; body?: string };
+      expect(cause.status).toBe(500);
+      expect(cause.body!.length).toBe(500);
+    }
+  });
+
   it("throws GEMINI_EMPTY_RESPONSE when response text is empty", async () => {
     const body = {
       candidates: [{ content: { parts: [{ text: "" }] } }],

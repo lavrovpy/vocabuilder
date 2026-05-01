@@ -50,9 +50,37 @@ function loadDatasets(): { filename: string; dataset: EvalDataset }[] {
 
 type Pair = { translation: string; partOfSpeech: string; runs: number };
 
-async function harvestCase(c: EvalCase, apiKey: string): Promise<Pair[]> {
+type HarvestCaseResult = {
+  pairs: Pair[];
+  okCount: number;
+  errorCount: number;
+  errorSamples: string[];
+  durations: number[];
+};
+
+async function harvestCase(c: EvalCase, apiKey: string): Promise<HarvestCaseResult> {
   const counts = new Map<string, Pair>();
-  const runs = await runCase(c, apiKey, { runs: HARVEST_RUNS, temperature: HARVEST_TEMPERATURE });
+  const errorSamples: string[] = [];
+  const durations: number[] = [];
+  let okCount = 0;
+  let errorCount = 0;
+
+  const runs = await runCase(c, apiKey, {
+    runs: HARVEST_RUNS,
+    temperature: HARVEST_TEMPERATURE,
+    onRun: (result, _i, durationMs) => {
+      durations.push(durationMs);
+      if (result.kind === "ok") {
+        okCount += 1;
+        process.stdout.write(".");
+      } else {
+        errorCount += 1;
+        if (errorSamples.length < 3) errorSamples.push(formatError(result.message, result.cause));
+        process.stdout.write("x");
+      }
+    },
+  });
+
   for (const run of runs) {
     if (run.kind !== "ok") continue;
     for (const sense of run.output.senses) {
@@ -62,7 +90,13 @@ async function harvestCase(c: EvalCase, apiKey: string): Promise<Pair[]> {
       else counts.set(key, { translation: sense.translation, partOfSpeech: sense.partOfSpeech, runs: 1 });
     }
   }
-  return [...counts.values()].sort((a, b) => b.runs - a.runs);
+  return {
+    pairs: [...counts.values()].sort((a, b) => b.runs - a.runs),
+    okCount,
+    errorCount,
+    errorSamples,
+    durations,
+  };
 }
 
 function alreadyMatched(translation: string, regexes: { source: string; flags?: string }[]): boolean {
@@ -71,6 +105,16 @@ function alreadyMatched(translation: string, regexes: { source: string; flags?: 
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function formatError(message: string, cause: unknown): string {
+  if (cause && typeof cause === "object") {
+    const c = cause as { status?: unknown; body?: unknown };
+    const status = typeof c.status === "number" ? c.status : "?";
+    const body = typeof c.body === "string" ? c.body.replace(/\s+/g, " ").trim() : "";
+    return `${message} (HTTP ${status}: ${body})`.slice(0, 240);
+  }
+  return message;
 }
 
 function regexLiteralsFromCase(field: unknown): { source: string; flags?: string }[] {
@@ -243,15 +287,37 @@ async function harvestMode(apiKey: string): Promise<void> {
   console.log(`Harvesting ${totalCases} cases × ${HARVEST_RUNS} runs at temperature=${HARVEST_TEMPERATURE}.`);
   console.log(`This will make ~${totalCases * HARVEST_RUNS} Gemini API calls.\n`);
 
+  let totalOk = 0;
+  let totalErrors = 0;
+
   for (const { filename, dataset } of datasets) {
     console.log(`\n--- ${filename} ---`);
     const casePairs = new Map<string, Pair[]>();
     for (const c of dataset.cases) {
-      process.stdout.write(`  ${c.input} ... `);
+      process.stdout.write(`  ${c.input.padEnd(28)} `);
       const start = Date.now();
-      const pairs = await harvestCase(c, apiKey);
-      casePairs.set(c.input, pairs);
-      console.log(`${pairs.length} distinct pairs (${Date.now() - start}ms)`);
+      const result = await harvestCase(c, apiKey);
+      casePairs.set(c.input, result.pairs);
+      totalOk += result.okCount;
+      totalErrors += result.errorCount;
+
+      const total = Date.now() - start;
+      const min = result.durations.length ? Math.min(...result.durations) : 0;
+      const max = result.durations.length ? Math.max(...result.durations) : 0;
+      const avg = result.durations.length
+        ? Math.round(result.durations.reduce((a, b) => a + b, 0) / result.durations.length)
+        : 0;
+      console.log(
+        ` ${result.pairs.length} pairs | ${result.okCount} ok, ${result.errorCount} err | ${total}ms total, per-call avg ${avg}ms (min ${min}ms, max ${max}ms)`,
+      );
+      if (result.errorCount > 0) {
+        for (const sample of result.errorSamples) {
+          console.log(`    error: ${sample}`);
+        }
+        if (result.errorCount > result.errorSamples.length) {
+          console.log(`    ...and ${result.errorCount - result.errorSamples.length} more error(s) of similar shape.`);
+        }
+      }
     }
     const rawDataset = JSON.parse(readFileSync(join(DATA_DIR, filename), "utf8")) as RawDataset;
     const review = buildReview(filename, dataset, rawDataset, casePairs);
@@ -259,6 +325,8 @@ async function harvestMode(apiKey: string): Promise<void> {
     writeFileSync(outPath, JSON.stringify(review, null, 2) + "\n");
     console.log(`Wrote ${outPath}`);
   }
+
+  console.log(`\nTotals: ${totalOk} ok, ${totalErrors} error(s) across ${totalOk + totalErrors} call(s).`);
 
   console.log('\nDone. Open the review files, mark each "decision" null as "v" / "i" / "f", then run:');
   console.log("  npm run eval:harvest -- --apply evals/harvest/<dataset>.review.json");

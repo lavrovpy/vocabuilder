@@ -108,7 +108,7 @@ export type HarvestReview = z.infer<typeof HarvestReviewSchema>;
 
 export type CaseRunResult =
   | { kind: "ok"; output: import("../src/lib/types").GeminiWordResponse }
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string; cause?: unknown };
 
 export type ScorerTier = "hard" | "soft";
 

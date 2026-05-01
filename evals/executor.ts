@@ -23,6 +23,7 @@ export function seedFromInput(input: string): number {
 export type ExecutorOptions = {
   runs?: number;
   temperature?: number;
+  onRun?: (result: CaseRunResult, index: number, durationMs: number) => void;
 };
 
 export async function runCase(
@@ -37,16 +38,21 @@ export async function runCase(
 
   const results: CaseRunResult[] = [];
   for (let i = 0; i < runs; i++) {
+    const start = Date.now();
+    let result: CaseRunResult;
     try {
       const output = await translateWordRaw(c.input, apiKey, languagePair, undefined, {
         temperature,
         seed: baseSeed + i,
       });
-      results.push({ kind: "ok", output });
+      result = { kind: "ok", output };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      results.push({ kind: "error", message });
+      const cause = err instanceof Error && err.cause !== undefined ? err.cause : undefined;
+      result = { kind: "error", message, cause };
     }
+    results.push(result);
+    options?.onRun?.(result, i, Date.now() - start);
   }
   return results;
 }
