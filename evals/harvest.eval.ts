@@ -174,7 +174,7 @@ function applyDecisions(reviewPath: string): void {
     const caseObj = datasetRaw.cases.find((c) => c.input === dec.caseInput);
     if (!caseObj) continue;
     for (const row of dec.rows) {
-      const literal = { source: row.translation };
+      const literal = { source: row.translation, flags: "i" };
       if (row.decision === "valid") {
         caseObj.target.preferredTranslation = caseObj.target.preferredTranslation ?? [];
         if (!caseObj.target.preferredTranslation.some((r) => r.source === row.translation)) {

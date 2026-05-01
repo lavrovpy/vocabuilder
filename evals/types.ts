@@ -25,7 +25,6 @@ export const EvalTargetSchema = z
     preferredTranslationsCover: z
       .object({
         regexes: z.array(RegexLiteralSchema).min(1),
-        threshold: z.number().gt(0).lte(1),
       })
       .optional(),
     correctedWord: z.string().min(1).optional(),

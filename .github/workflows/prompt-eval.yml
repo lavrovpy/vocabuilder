@@ -5,12 +5,16 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "src/lib/gemini.ts"
+      - "src/lib/types.ts"
+      - "src/lib/input.ts"
       - "evals/**"
       - ".github/workflows/prompt-eval.yml"
   push:
     branches: [main]
     paths:
       - "src/lib/gemini.ts"
+      - "src/lib/types.ts"
+      - "src/lib/input.ts"
       - "evals/**"
       - ".github/workflows/prompt-eval.yml"
 

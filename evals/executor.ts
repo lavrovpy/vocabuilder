@@ -33,14 +33,14 @@ export async function runCase(
   const runs = options?.runs ?? SCORING_RUNS_PER_CASE;
   const temperature = options?.temperature ?? SCORING_TEMPERATURE;
   const languagePair = c.languagePair ?? DEFAULT_LANGUAGE_PAIR;
-  const seed = seedFromInput(c.input);
+  const baseSeed = seedFromInput(c.input);
 
   const results: CaseRunResult[] = [];
   for (let i = 0; i < runs; i++) {
     try {
       const output = await translateWordRaw(c.input, apiKey, languagePair, undefined, {
         temperature,
-        seed,
+        seed: baseSeed + i,
       });
       results.push({ kind: "ok", output });
     } catch (err) {

@@ -92,7 +92,7 @@ const CORRECTED_WORD_EQUALS: Scorer = {
   applies: (t) => t.correctedWord !== undefined,
   score: (run, c) => {
     if (run.kind !== "ok") return 0;
-    return run.output.correctedWord === c.target.correctedWord ? 1 : 0;
+    return run.output.correctedWord?.toLowerCase() === c.target.correctedWord?.toLowerCase() ? 1 : 0;
   },
 };
 

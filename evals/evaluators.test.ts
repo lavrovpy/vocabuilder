@@ -71,7 +71,7 @@ describe("applicableScorers (field-presence gating)", () => {
     expect(applicableScorers({}).map((s) => s.name)).not.toContain("sensesCoverPreferred");
     expect(
       applicableScorers({
-        preferredTranslationsCover: { regexes: [/x/], threshold: 0.5 },
+        preferredTranslationsCover: { regexes: [/x/] },
       }).map((s) => s.name),
     ).toContain("sensesCoverPreferred");
   });
@@ -204,6 +204,15 @@ describe("correctedWordEquals", () => {
     };
     expect(scorer.score(ok(out), c)).toBe(0);
   });
+
+  it("matches case-insensitively", () => {
+    const c = makeCase("red hering", { correctedWord: "red herring" });
+    const out: GeminiWordResponse = {
+      correctedWord: "Red Herring",
+      senses: [{ translation: "оманка", partOfSpeech: "idiom", example: "x", exampleTranslation: "y" }],
+    };
+    expect(scorer.score(ok(out), c)).toBe(1);
+  });
 });
 
 describe("avoidsForbiddenTranslation", () => {
@@ -314,7 +323,7 @@ describe("sensesCoverPreferred (soft)", () => {
 
   it("returns the fraction of preferred regexes each matched by ≥1 sense", () => {
     const c = makeCase("book", {
-      preferredTranslationsCover: { regexes: [/книга/, /книжка/, /бронювати/], threshold: 0.5 },
+      preferredTranslationsCover: { regexes: [/книга/, /книжка/, /бронювати/] },
     });
     const out: GeminiWordResponse = {
       senses: [
@@ -327,7 +336,7 @@ describe("sensesCoverPreferred (soft)", () => {
 
   it("returns 0 when senses are empty", () => {
     const c = makeCase("book", {
-      preferredTranslationsCover: { regexes: [/книга/], threshold: 0.5 },
+      preferredTranslationsCover: { regexes: [/книга/] },
     });
     expect(scorer.score(ok({ senses: [] }), c)).toBe(0);
   });
