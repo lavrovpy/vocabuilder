@@ -69,6 +69,10 @@ function alreadyMatched(translation: string, regexes: { source: string; flags?: 
   return regexes.some((r) => new RegExp(r.source, r.flags).test(translation));
 }
 
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function regexLiteralsFromCase(field: unknown): { source: string; flags?: string }[] {
   if (!Array.isArray(field)) return [];
   return field.filter(
@@ -178,17 +182,18 @@ export function mergeDecisions(
         stats.editedTranslations.push({ caseInput: reviewCase.input, translation: obs.translation });
       }
 
-      const literal = { source: obs.translation, flags: "i" };
+      const source = escapeRegex(obs.translation);
+      const literal = { source, flags: "i" };
 
       if (obs.decision === "v") {
         caseObj.target.preferredTranslation = caseObj.target.preferredTranslation ?? [];
-        if (!caseObj.target.preferredTranslation.some((r) => r.source === obs.translation)) {
+        if (!caseObj.target.preferredTranslation.some((r) => r.source === source)) {
           caseObj.target.preferredTranslation.push(literal);
           stats.validAdded += 1;
         }
       } else if (obs.decision === "f") {
         caseObj.target.forbiddenTranslation = caseObj.target.forbiddenTranslation ?? [];
-        if (!caseObj.target.forbiddenTranslation.some((r) => r.source === obs.translation)) {
+        if (!caseObj.target.forbiddenTranslation.some((r) => r.source === source)) {
           caseObj.target.forbiddenTranslation.push(literal);
           stats.forbidAdded += 1;
         }

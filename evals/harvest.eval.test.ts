@@ -198,6 +198,73 @@ describe("mergeDecisions", () => {
     expect(helloCase.target.preferredTranslation).toEqual([{ source: "new", flags: "i" }]);
   });
 
+  it("escapes regex metacharacters in stored source", () => {
+    const dataset: RawDataset = { name: "test", cases: [{ input: "hello", target: {} }] };
+    const review = makeReview([
+      {
+        input: "hello",
+        observations: [
+          { translation: "щось (розм.)", partOfSpeech: "noun", runs: 3, tag: null, decision: "v" },
+          { translation: "C++", partOfSpeech: "noun", runs: 2, tag: null, decision: "f" },
+        ],
+      },
+    ]);
+    const { dataset: mutated } = mergeDecisions(dataset, review);
+    const helloCase = mutated.cases.find((c) => c.input === "hello")!;
+    expect(helloCase.target.preferredTranslation).toContainEqual({
+      source: "щось \\(розм\\.\\)",
+      flags: "i",
+    });
+    expect(helloCase.target.forbiddenTranslation).toContainEqual({
+      source: "C\\+\\+",
+      flags: "i",
+    });
+  });
+
+  it("produces a dataset that compiles under EvalDatasetSchema even with metacharacter translations", () => {
+    const dataset: RawDataset = {
+      name: "test",
+      cases: [
+        {
+          input: "hello",
+          target: { preferredTranslation: [{ source: "привіт" }], preferredPOS: [{ source: "interjection", flags: "i" }] },
+        },
+      ],
+    };
+    const review = makeReview([
+      {
+        input: "hello",
+        observations: [
+          { translation: "[unclosed", partOfSpeech: "noun", runs: 1, tag: null, decision: "v" },
+          { translation: "a|b", partOfSpeech: "noun", runs: 1, tag: null, decision: "f" },
+        ],
+      },
+    ]);
+    const evalReady = EvalDatasetSchema.parse({
+      ...mergeDecisions(dataset, review).dataset,
+      cases: mergeDecisions(dataset, review).dataset.cases.map((c) => ({ ...c, category: "golden" as const })),
+    });
+    const helloCase = evalReady.cases.find((c) => c.input === "hello")!;
+    expect(helloCase.target.preferredTranslation!.some((r) => r.test("[unclosed"))).toBe(true);
+    expect(helloCase.target.forbiddenTranslation!.some((r) => r.test("a|b"))).toBe(true);
+    expect(helloCase.target.forbiddenTranslation!.some((r) => r.test("a"))).toBe(false);
+  });
+
+  it("dedupes escaped sources idempotently across re-applies", () => {
+    const dataset: RawDataset = { name: "test", cases: [{ input: "hello", target: {} }] };
+    const review = makeReview([
+      {
+        input: "hello",
+        observations: [{ translation: "C++", partOfSpeech: "noun", runs: 2, tag: null, decision: "v" }],
+      },
+    ]);
+    const first = mergeDecisions(dataset, review);
+    const second = mergeDecisions(first.dataset, review);
+    expect(second.stats.validAdded).toBe(0);
+    const helloCase = second.dataset.cases.find((c) => c.input === "hello")!;
+    expect(helloCase.target.preferredTranslation).toHaveLength(1);
+  });
+
   it("aggregates stats across multiple cases", () => {
     const dataset = makeDataset();
     const review = makeReview([
