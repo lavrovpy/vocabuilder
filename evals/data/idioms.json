@@ -63,8 +63,7 @@
       "target": {
         "preferredTranslation": [
           { "source": "найкращ" },
-          { "source": "обох світів" },
-          { "source": "обидв" }
+          { "source": "обох" }
         ],
         "preferredPOS": [
           { "source": "idiom", "flags": "i" },
@@ -84,8 +83,7 @@
           { "source": "blue bird", "flags": "i" },
           { "source": "blue-bird", "flags": "i" },
           { "source": "bluebird", "flags": "i" },
-          { "source": "bird of happiness", "flags": "i" },
-          { "source": "symbol of happiness", "flags": "i" }
+          { "source": "bluebird of happiness", "flags": "i" }
         ]
       }
     }
