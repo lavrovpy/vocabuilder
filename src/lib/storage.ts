@@ -52,10 +52,12 @@ function senseMatchesStoredTranslation(a: Translation, b: Translation): boolean 
   if (a.type === "text") {
     return a.word === b.word;
   }
+  const posA = a.partOfSpeech.trim().toLowerCase();
+  const posB = b.partOfSpeech.trim().toLowerCase();
   return (
     a.word === b.word &&
     a.translation.trim().toLowerCase() === b.translation.trim().toLowerCase() &&
-    a.partOfSpeech.trim().toLowerCase() === b.partOfSpeech.trim().toLowerCase()
+    (posA === "" || posB === "" || posA === posB)
   );
 }
 
@@ -102,6 +104,42 @@ export async function deleteTranslation(id: string, pair: LanguagePair): Promise
 
 export async function clearHistory(pair: LanguagePair): Promise<void> {
   await LocalStorage.removeItem(historyKey(pair));
+}
+
+export interface ImportResult {
+  imported: number;
+  skipped: number;
+}
+
+export async function importTranslations(
+  translations: Translation[],
+  pair: LanguagePair,
+): Promise<ImportResult | null> {
+  const key = historyKey(pair);
+  const raw = await LocalStorage.getItem<string>(key);
+  const history = raw
+    ? await parseStoredArray(key, historyCorruptBackupKey(pair), raw, z.array(TranslationSchema))
+    : [];
+  if (!history) return null;
+
+  let imported = 0;
+  let skipped = 0;
+  const updated = [...history];
+
+  for (const t of translations) {
+    const existing = updated.find((h) => senseMatchesStoredTranslation(h, t));
+    if (existing) {
+      skipped++;
+    } else {
+      updated.unshift(t);
+      imported++;
+    }
+  }
+
+  if (imported > 0) {
+    await LocalStorage.setItem(key, JSON.stringify(updated));
+  }
+  return { imported, skipped };
 }
 
 async function getFlashcardProgress(pair: LanguagePair): Promise<Map<string, FlashcardProgress>> {
