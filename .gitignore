@@ -29,3 +29,4 @@ dist/
 
 # Promptfoo local artifacts
 .promptfoo/
+evals/results/

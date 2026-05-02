@@ -34,7 +34,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -43,7 +43,6 @@ jobs:
       - name: Run prompt eval
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          EVAL_SUITE: full
         run: npm run eval
 
       - name: Upload eval artifact
@@ -51,6 +50,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: prompt-eval-results
-          path: evals/results-*.json
+          path: evals/results/*.json
           if-no-files-found: warn
           retention-days: 30
