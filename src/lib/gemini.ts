@@ -79,17 +79,6 @@ async function callGemini(
     .trim();
 }
 
-/** Check that the source-language example sentence actually uses the word or phrase being translated. */
-export function exampleContainsWord(exampleTranslation: string, word: string): boolean {
-  const escaped = word
-    .trim()
-    .replace(/\s+/g, " ")
-    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-    .replace(/ /g, "\\s+");
-  const pattern = new RegExp(`(?<![\\p{L}\\p{N}\\-])${escaped}(?![\\p{L}\\p{N}\\-])`, "iu");
-  return pattern.test(exampleTranslation);
-}
-
 /** Same translation + part of speech = same sense, regardless of example wording. */
 function senseIdentityKey(s: WordSense): string {
   return [s.translation.trim().toLowerCase(), s.partOfSpeech.trim().toLowerCase()].join("\u0001");
@@ -108,12 +97,10 @@ function dedupeSenses(senses: WordSense[]): WordSense[] {
 }
 
 /**
- * Raw translate-word path used by the eval harness. Returns Gemini's parsed
- * response unchanged — does not enforce notAWord routing, sense de-duplication,
- * or example-uses-word filtering. Throws on transport, auth, and schema-level
- * failures only.
+ * Low-level translate-word Gemini call. Returns Gemini's parsed response before
+ * production notAWord routing and sense de-duplication.
  */
-export async function translateWordRaw(
+async function translateWordRaw(
   word: string,
   apiKey: string,
   languagePair: LanguagePair,
@@ -179,17 +166,7 @@ export async function translateWord(
     throw new Error("GEMINI_INVALID_RESPONSE");
   }
 
-  const normalizedWord = normalizeWordInput(word);
-  const effectiveWord = parsed.correctedWord ?? normalizedWord ?? word;
-  const validSenses = dedupeSenses(parsed.senses).filter((s) =>
-    exampleContainsWord(s.exampleTranslation, effectiveWord),
-  );
-
-  if (validSenses.length === 0) {
-    throw new Error("GEMINI_INVALID_RESPONSE");
-  }
-
-  return { ...parsed, senses: validSenses };
+  return { ...parsed, senses: dedupeSenses(parsed.senses) };
 }
 
 // --- In-source tests for private functions ---
@@ -233,96 +210,6 @@ if (import.meta.vitest) {
       await callGemini("hi", "key", undefined, { temperature: 0.7 });
       const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
       expect(body.generationConfig).toEqual({ temperature: 0.7 });
-    });
-  });
-
-  describe("exampleContainsWord", () => {
-    it("matches a standalone word in a sentence", () => {
-      expect(exampleContainsWord("I saw the cat today", "cat")).toBe(true);
-    });
-
-    it("returns false when the word is absent", () => {
-      expect(exampleContainsWord("I saw the dog today", "cat")).toBe(false);
-    });
-
-    it("rejects prefix false-positive (helloworld vs hello)", () => {
-      expect(exampleContainsWord("This is helloworld", "hello")).toBe(false);
-    });
-
-    it("rejects suffix false-positive (worldhello vs hello)", () => {
-      expect(exampleContainsWord("This is worldhello", "hello")).toBe(false);
-    });
-
-    it("matches when adjacent to punctuation", () => {
-      expect(exampleContainsWord("hello, world!", "hello")).toBe(true);
-      expect(exampleContainsWord("(hello) world", "hello")).toBe(true);
-      expect(exampleContainsWord('She said "hello"', "hello")).toBe(true);
-    });
-
-    it("matches case-insensitively", () => {
-      expect(exampleContainsWord("Hello there", "hello")).toBe(true);
-      expect(exampleContainsWord("hello there", "Hello")).toBe(true);
-    });
-
-    it("matches apostrophe words", () => {
-      expect(exampleContainsWord("I don't know", "don't")).toBe(true);
-      expect(exampleContainsWord("I do not know", "don't")).toBe(false);
-    });
-
-    it("treats hyphen as word-joining — parts don't match individually", () => {
-      expect(exampleContainsWord("This is well-known", "well")).toBe(false);
-      expect(exampleContainsWord("This is well-known", "known")).toBe(false);
-      expect(exampleContainsWord("This is well-known", "well-known")).toBe(true);
-    });
-
-    it("matches Cyrillic words", () => {
-      expect(exampleContainsWord("Він сказав привіт другу", "привіт")).toBe(true);
-      expect(exampleContainsWord("Він сказав привітання другу", "привіт")).toBe(false);
-    });
-
-    it("matches word at start and end of string", () => {
-      expect(exampleContainsWord("hello world", "hello")).toBe(true);
-      expect(exampleContainsWord("say hello", "hello")).toBe(true);
-    });
-
-    it("matches a multi-word idiom as a contiguous phrase", () => {
-      expect(exampleContainsWord("That clue was a red herring in the plot.", "red herring")).toBe(true);
-    });
-
-    it("rejects phrase when only one token appears", () => {
-      expect(exampleContainsWord("The red fish swam past the herring.", "red herring")).toBe(false);
-    });
-
-    it("rejects phrase when tokens are not contiguous", () => {
-      expect(exampleContainsWord("Red and pickled herring on the plate.", "red herring")).toBe(false);
-    });
-
-    it("tolerates multiple spaces inside the example", () => {
-      expect(exampleContainsWord("A classic red  herring appears here.", "red herring")).toBe(true);
-      expect(exampleContainsWord("A classic red\therring appears here.", "red herring")).toBe(true);
-      expect(exampleContainsWord("A classic red\nherring appears here.", "red herring")).toBe(true);
-    });
-
-    it("matches a phrasal verb inside a sentence", () => {
-      expect(exampleContainsWord("Don't give up on your dreams.", "give up")).toBe(true);
-    });
-
-    it("rejects phrase when the second token is only a prefix of a longer word", () => {
-      // "give up" as regex is `give\s+up`; in "give uptown" the engine matches
-      // "give up" as a prefix of "uptown", and the negative lookahead must
-      // reject the trailing letter to avoid a false positive.
-      expect(exampleContainsWord("She decided to give uptown tours.", "give up")).toBe(false);
-    });
-
-    it("rejects phrase when the first token is only a suffix of a longer word", () => {
-      // Negative lookbehind on the first token's left boundary: "forgive up"
-      // contains "give up" but "give" is glued to "for".
-      expect(exampleContainsWord("I cannot forgive up to this point.", "give up")).toBe(false);
-    });
-
-    it("matches multi-word Cyrillic phrase", () => {
-      expect(exampleContainsWord("Легенда про синій птах досі жива.", "синій птах")).toBe(true);
-      expect(exampleContainsWord("У саду сидів птах, а небо було синє.", "синій птах")).toBe(false);
     });
   });
 }

@@ -216,6 +216,7 @@
     "eslint": "^9.22.0",
     "husky": "^9.1.7",
     "prettier": "^3.8.1",
+    "promptfoo": "^0.121.9",
     "tsx": "^4.21.0",
     "typescript": "^5.8.2",
     "vitest": "^4.0.18"
@@ -230,9 +231,9 @@
     "publish": "npx @raycast/api@latest publish",
     "test": "vitest run",
     "test:watch": "vitest",
-    "eval": "tsx evals/translate.eval.ts",
-    "eval:smoke": "EVAL_SUITE=smoke tsx evals/translate.eval.ts",
-    "eval:harvest": "tsx evals/harvest.eval.ts",
+    "eval": "PROMPTFOO_PASS_RATE_THRESHOLD=90 promptfoo eval -c evals/promptfooconfig.yaml --repeat 3 --no-share",
+    "eval:smoke": "PROMPTFOO_PASS_RATE_THRESHOLD=90 promptfoo eval -c evals/promptfooconfig.yaml --filter-metadata suite=smoke --repeat 3 --no-share",
+    "eval:validate": "promptfoo validate -c evals/promptfooconfig.yaml",
     "prepare": "husky"
   }
 }

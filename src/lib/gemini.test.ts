@@ -141,7 +141,7 @@ describe("translateWord", () => {
     await expect(translateWord("zzzqqq", API_KEY, pair)).rejects.toThrow("GEMINI_INVALID_RESPONSE");
   });
 
-  it("filters out senses whose exampleTranslation does not contain the word", async () => {
+  it("keeps senses even when exampleTranslation does not contain the exact input", async () => {
     const payload = {
       senses: [
         {
@@ -166,11 +166,11 @@ describe("translateWord", () => {
     );
 
     const result = await translateWord("hello", API_KEY, pair);
-    expect(result.senses).toHaveLength(1);
-    expect(result.senses[0].translation).toBe("привіт");
+    expect(result.senses).toHaveLength(2);
+    expect(result.senses.map((s) => s.translation)).toEqual(["привіт", "збірка"]);
   });
 
-  it("throws GEMINI_INVALID_RESPONSE when all senses fail the word check", async () => {
+  it("keeps a valid sense even when the example uses a paraphrase", async () => {
     const payload = {
       senses: [
         {
@@ -187,10 +187,12 @@ describe("translateWord", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
-    await expect(translateWord("omnibus", API_KEY, pair)).rejects.toThrow("GEMINI_INVALID_RESPONSE");
+    const result = await translateWord("omnibus", API_KEY, pair);
+    expect(result.senses).toHaveLength(1);
+    expect(result.senses[0].translation).toBe("збірка");
   });
 
-  it("corrects a misspelled phrase and validates example against the corrected form", async () => {
+  it("corrects a misspelled phrase", async () => {
     const payload = {
       senses: [
         {
@@ -215,7 +217,7 @@ describe("translateWord", () => {
     expect(result.senses[0].partOfSpeech).toBe("idiom");
   });
 
-  it("validates exampleTranslation against correctedWord, not the original typo", async () => {
+  it("keeps corrected-word translations even when examples are inflected", async () => {
     const payload = {
       senses: [
         {

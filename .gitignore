@@ -27,6 +27,5 @@ dist/
 # Subagent scratch
 .agents/
 
-# Eval artifacts (generated per run)
-evals/results-*.json
-evals/harvest/
+# Promptfoo local artifacts
+.promptfoo/
