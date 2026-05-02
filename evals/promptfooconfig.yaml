@@ -18,7 +18,10 @@ defaultTest:
         id: google:gemini-2.5-pro
         config:
           temperature: 0
-          maxOutputTokens: 1024
+          # Headroom for 2.5-pro reasoning tokens before the JSON verdict.
+          maxOutputTokens: 4096
+          retries: 3
+          timeout: 60000
       value: |
         Judge the Vocabuilder translation output for this case.
 
