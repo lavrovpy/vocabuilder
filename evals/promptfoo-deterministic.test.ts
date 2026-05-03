@@ -12,64 +12,102 @@ const transformVars = require("./promptfoo/transform-vars.cjs") as (vars: Record
   expectJson: string;
 };
 
+function defaultSense(overrides: Record<string, unknown> = {}) {
+  return {
+    translation: "оманлива підказка",
+    partOfSpeech: "idiom",
+    example: "Ця підказка була оманливою.",
+    exampleTranslation: "That clue was a red herring.",
+    ...overrides,
+  };
+}
+
 function okOutput(overrides: Record<string, unknown> = {}) {
   return JSON.stringify({
     status: "ok",
     input: "red herring",
+    languagePair: {
+      source: { code: "en", name: "English" },
+      target: { code: "uk", name: "Ukrainian" },
+    },
     correctedWord: null,
     notAWord: false,
-    senses: [
-      {
-        translation: "оманлива підказка",
-        partOfSpeech: "idiom",
-        example: "Ця підказка була оманливою.",
-        exampleTranslation: "That clue was a red herring.",
-      },
-    ],
+    senses: [defaultSense()],
     ...overrides,
   });
+}
+
+function caseVars(expect: Record<string, unknown> = {}) {
+  return {
+    input: "red herring",
+    sourceLanguageCode: "en",
+    sourceLanguageName: "English",
+    targetLanguageCode: "uk",
+    targetLanguageName: "Ukrainian",
+    expect: {
+      status: "ok",
+      targetScript: "Cyrillic",
+      sourceScript: "Latin",
+      ...expect,
+    },
+  };
 }
 
 describe("Promptfoo deterministic assertion", () => {
   it("passes a valid ok translation projection", () => {
     const result = deterministic(okOutput(), {
-      vars: {
-        expect: {
-          status: "ok",
-          targetScript: "Cyrillic",
-          forbiddenTranslations: ["червоний оселедець"],
-        },
-      },
+      vars: caseVars(),
     });
 
     expect(result.pass).toBe(true);
   });
 
-  it("fails when a forbidden literal translation appears", () => {
+  it("fails when the projected language pair does not match the eval case", () => {
     const result = deterministic(
       okOutput({
-        senses: [
-          {
-            translation: "червоний оселедець",
-            partOfSpeech: "idiom",
-            example: "x",
-            exampleTranslation: "x",
-          },
-        ],
-      }),
-      {
-        vars: {
-          expect: {
-            status: "ok",
-            targetScript: "Cyrillic",
-            forbiddenTranslations: ["червоний оселедець"],
-          },
+        languagePair: {
+          source: { code: "en", name: "English" },
+          target: { code: "pl", name: "Polish" },
         },
-      },
+      }),
+      { vars: caseVars() },
     );
 
     expect(result.pass).toBe(false);
-    expect(result.reason).toContain("forbidden translation appeared");
+    expect(result.reason).toContain("language pair mismatch");
+  });
+
+  it("fails when required sense fields are empty", () => {
+    const result = deterministic(okOutput({ senses: [defaultSense({ example: " " })] }), {
+      vars: caseVars(),
+    });
+
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain("sense fields");
+  });
+
+  it("checks configured sense count bounds", () => {
+    const result = deterministic(okOutput(), {
+      vars: caseVars({ minSenses: 2, maxSenses: 3 }),
+    });
+
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain("sense count");
+  });
+
+  it("fails duplicate sense identities", () => {
+    const result = deterministic(
+      okOutput({
+        senses: [
+          defaultSense({ example: "Це була оманлива підказка." }),
+          defaultSense({ example: "Підказка була оманливою." }),
+        ],
+      }),
+      { vars: caseVars() },
+    );
+
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain("duplicate translation+partOfSpeech");
   });
 
   it("checks expected typo corrections", () => {
@@ -85,30 +123,75 @@ describe("Promptfoo deterministic assertion", () => {
     expect(result.pass).toBe(true);
   });
 
+  it("fails unexpected corrections unless explicitly allowed", () => {
+    const result = deterministic(okOutput({ correctedWord: "red hearing" }), {
+      vars: caseVars(),
+    });
+
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain("unexpected correction");
+  });
+
+  it("checks every exampleTranslation contains the input or corrected item", () => {
+    const result = deterministic(
+      okOutput({
+        senses: [defaultSense({ exampleTranslation: "That clue was misleading." })],
+      }),
+      { vars: caseVars() },
+    );
+
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain("exampleTranslation");
+  });
+
   it("fails when the target script is wrong", () => {
     const result = deterministic(
       okOutput({
-        senses: [
-          {
-            translation: "red herring",
-            partOfSpeech: "idiom",
-            example: "x",
-            exampleTranslation: "x",
-          },
-        ],
+        senses: [defaultSense({ translation: "red herring" })],
       }),
-      {
-        vars: {
-          expect: {
-            status: "ok",
-            targetScript: "Cyrillic",
-          },
-        },
-      },
+      { vars: caseVars() },
     );
 
     expect(result.pass).toBe(false);
     expect(result.reason).toContain("targetScript");
+  });
+
+  it("checks source script when configured", () => {
+    const result = deterministic(
+      okOutput({
+        senses: [defaultSense({ exampleTranslation: "Ця підказка була оманливою." })],
+      }),
+      { vars: caseVars() },
+    );
+
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain("sourceScript");
+  });
+
+  it("checks source leakage only when configured", () => {
+    const result = deterministic(
+      okOutput({
+        senses: [defaultSense({ example: "Цей red herring був очевидним." })],
+      }),
+      {
+        vars: caseVars({
+          targetScript: undefined,
+          disallowSourceLeakage: true,
+        }),
+      },
+    );
+
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain("source leakage");
+  });
+
+  it("checks optional part-of-speech expectations", () => {
+    const result = deterministic(okOutput(), {
+      vars: caseVars({ partOfSpeechAny: ["noun", "verb"] }),
+    });
+
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain("partOfSpeechAny");
   });
 
   it("passes an expected WORD_NOT_FOUND projection", () => {
@@ -116,15 +199,14 @@ describe("Promptfoo deterministic assertion", () => {
       JSON.stringify({
         status: "error",
         input: "xqfjvbn",
+        languagePair: {
+          source: { code: "en", name: "English" },
+          target: { code: "uk", name: "Ukrainian" },
+        },
         error: "WORD_NOT_FOUND",
       }),
       {
-        vars: {
-          expect: {
-            status: "error",
-            error: "WORD_NOT_FOUND",
-          },
-        },
+        vars: caseVars({ status: "error", error: "WORD_NOT_FOUND" }),
       },
     );
 
@@ -145,12 +227,13 @@ describe("Promptfoo rubric variables", () => {
       expect: {
         status: "ok",
         targetScript: "Cyrillic",
-        forbiddenTranslations: ["червоний оселедець"],
+        partOfSpeechAny: ["idiom", "expression"],
       },
     });
 
     expect(result.expectJson).toContain('"status": "ok"');
     expect(result.expectJson).toContain('"targetScript": "Cyrillic"');
+    expect(result.expectJson).toContain('"partOfSpeechAny"');
     expect(result.expectJson).not.toBe("[object Object]");
   });
 
