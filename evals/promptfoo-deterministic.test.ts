@@ -259,4 +259,22 @@ describe("Promptfoo npm scripts", () => {
     expect(packageJson.scripts["eval:full"]).toContain("evals/promptfooconfig.full.yaml");
     expect(packageJson.scripts.publish).toMatch(/^npm run eval:full && /);
   });
+
+  it("keeps the deterministic threshold at 100% and the full threshold relaxed for judge flakiness", () => {
+    // The deterministic suite uses pure JS assertions in
+    // evals/promptfoo/assertions/deterministic.cjs — any failure is a real regression,
+    // so the threshold must stay at 100%.
+    //
+    // The full suite layers an LLM-judge (gemini-2.5-pro) that returns 503 UNAVAILABLE
+    // under demand; failures there are dominated by judge flakiness rather than SUT
+    // regressions. The threshold is temporarily relaxed to 85% while a sturdier
+    // retry / re-judge strategy is being designed. Tighten back toward 100% once the
+    // judge layer is reliable.
+    const packageJson = JSON.parse(readFileSync(join(import.meta.dirname, "..", "package.json"), "utf8")) as {
+      scripts: Record<string, string>;
+    };
+
+    expect(packageJson.scripts.eval).toContain("PROMPTFOO_PASS_RATE_THRESHOLD=100");
+    expect(packageJson.scripts["eval:full"]).toContain("PROMPTFOO_PASS_RATE_THRESHOLD=85");
+  });
 });

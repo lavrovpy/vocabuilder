@@ -233,7 +233,7 @@
     "test:watch": "vitest",
     "eval": "mkdir -p evals/results && PROMPTFOO_PASS_RATE_THRESHOLD=100 PROMPTFOO_REQUEST_BACKOFF_MS=10000 promptfoo eval -c evals/promptfooconfig.yaml --no-share -o evals/results/promptfoo.json",
     "eval:smoke": "mkdir -p evals/results && PROMPTFOO_PASS_RATE_THRESHOLD=100 PROMPTFOO_REQUEST_BACKOFF_MS=10000 promptfoo eval -c evals/promptfooconfig.yaml --filter-metadata suite=smoke --no-share -o evals/results/promptfoo-smoke.json",
-    "eval:full": "mkdir -p evals/results && PROMPTFOO_PASS_RATE_THRESHOLD=90 PROMPTFOO_REQUEST_BACKOFF_MS=10000 promptfoo eval -c evals/promptfooconfig.yaml evals/promptfooconfig.full.yaml --max-concurrency 1 --delay 2000 --no-share -o evals/results/promptfoo-full.json",
+    "eval:full": "mkdir -p evals/results && PROMPTFOO_PASS_RATE_THRESHOLD=85 PROMPTFOO_REQUEST_BACKOFF_MS=10000 promptfoo eval -c evals/promptfooconfig.yaml evals/promptfooconfig.full.yaml --max-concurrency 1 --delay 2000 --no-share -o evals/results/promptfoo-full.json",
     "eval:validate": "promptfoo validate -c evals/promptfooconfig.yaml && promptfoo validate -c evals/promptfooconfig.full.yaml && promptfoo validate -c evals/promptfooconfig.yaml evals/promptfooconfig.full.yaml",
     "prepare": "husky"
   }
