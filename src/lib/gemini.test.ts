@@ -22,6 +22,12 @@ function geminiJsonBody(payload: object): object {
   };
 }
 
+function lastGeminiRequestBody(): Record<string, unknown> {
+  const body = vi.mocked(fetch).mock.calls.at(-1)?.[1]?.body;
+  expect(typeof body).toBe("string");
+  return JSON.parse(body as string) as Record<string, unknown>;
+}
+
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn());
 });
@@ -53,6 +59,45 @@ describe("translateWord", () => {
     expect(result.senses).toHaveLength(1);
     expect(result.senses[0].translation).toBe("привіт");
     expect(result.senses[0].partOfSpeech).toBe("interjection");
+  });
+
+  it("requests structured JSON output for word translations", async () => {
+    const payload = {
+      senses: [
+        {
+          translation: "привіт",
+          partOfSpeech: "interjection",
+          example: "Привіт!",
+          exampleTranslation: "Hello!",
+        },
+      ],
+    };
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(geminiJsonBody(payload)), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await translateWord("hello", API_KEY, pair, undefined, { temperature: 0, seed: 42 });
+
+    const body = lastGeminiRequestBody();
+    expect(body.generationConfig).toMatchObject({
+      temperature: 0,
+      seed: 42,
+      responseMimeType: "application/json",
+      responseJsonSchema: {
+        type: "object",
+        required: ["senses"],
+      },
+    });
+    expect(
+      (
+        body.generationConfig as {
+          responseJsonSchema: { properties: { senses: { items: { required: string[] } } } };
+        }
+      ).responseJsonSchema.properties.senses.items.required,
+    ).toEqual(["translation", "partOfSpeech", "example", "exampleTranslation"]);
   });
 
   it("dedupes senses with same translation+POS even if examples differ", async () => {
@@ -354,6 +399,27 @@ describe("translateText", () => {
 
     const result = await translateText("Hello world", API_KEY, pair);
     expect(result.translation).toBe("Привіт світ");
+  });
+
+  it("requests structured JSON output for text translations", async () => {
+    const payload = { translation: "Привіт світ" };
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(geminiJsonBody(payload)), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await translateText("Hello world", API_KEY, pair);
+
+    const body = lastGeminiRequestBody();
+    expect(body.generationConfig).toMatchObject({
+      responseMimeType: "application/json",
+      responseJsonSchema: {
+        type: "object",
+        required: ["translation"],
+      },
+    });
   });
 
   it("throws INVALID_TEXT_INPUT for empty input", async () => {

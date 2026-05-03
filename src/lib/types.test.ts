@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { FlashcardProgressSchema, GeminiWordResponseSchema, TranslationSchema, WordSenseSchema } from "./types";
+import {
+  FlashcardProgressSchema,
+  GeminiTextResponseJsonSchema,
+  GeminiWordResponseJsonSchema,
+  GeminiWordResponseSchema,
+  TranslationSchema,
+  WordSenseSchema,
+} from "./types";
 
 describe("WordSenseSchema", () => {
   const valid = {
@@ -52,6 +59,33 @@ describe("GeminiWordResponseSchema", () => {
   it("rejects more than five senses", () => {
     const senses = Array.from({ length: 6 }, () => ({ ...sense }));
     expect(() => GeminiWordResponseSchema.parse({ senses })).toThrow();
+  });
+});
+
+describe("Gemini structured output JSON schemas", () => {
+  it("keeps word response JSON schema aligned with required sense fields", () => {
+    expect(GeminiWordResponseJsonSchema).toMatchObject({
+      type: "object",
+      required: ["senses"],
+      properties: {
+        senses: {
+          maxItems: 5,
+          items: {
+            required: ["translation", "partOfSpeech", "example", "exampleTranslation"],
+          },
+        },
+      },
+    });
+  });
+
+  it("keeps text response JSON schema aligned with the translation payload", () => {
+    expect(GeminiTextResponseJsonSchema).toMatchObject({
+      type: "object",
+      required: ["translation"],
+      properties: {
+        translation: { type: "string" },
+      },
+    });
   });
 });
 

@@ -1,8 +1,10 @@
 import {
   GeminiApiResponseSchema,
   GeminiWordResponse,
+  GeminiWordResponseJsonSchema,
   GeminiWordResponseSchema,
   GeminiTextResponse,
+  GeminiTextResponseJsonSchema,
   GeminiTextResponseSchema,
   WordSense,
 } from "./types";
@@ -17,17 +19,25 @@ export type GenerationOptions = {
   seed?: number;
 };
 
+type GeminiCallOptions = GenerationOptions & {
+  responseJsonSchema?: Record<string, unknown>;
+};
+
 async function callGemini(
   prompt: string,
   apiKey: string,
   signal?: AbortSignal,
-  options?: GenerationOptions,
+  options?: GeminiCallOptions,
 ): Promise<string> {
   const url = `${BASE_URL}/${MODEL}:generateContent`;
 
   const generationConfig: Record<string, unknown> = {};
   if (options?.temperature !== undefined) generationConfig.temperature = options.temperature;
   if (options?.seed !== undefined) generationConfig.seed = options.seed;
+  if (options?.responseJsonSchema !== undefined) {
+    generationConfig.responseMimeType = "application/json";
+    generationConfig.responseJsonSchema = options.responseJsonSchema;
+  }
 
   const body: Record<string, unknown> = {
     contents: [{ parts: [{ text: prompt }] }],
@@ -144,7 +154,10 @@ async function translateWordRaw(
   }
 
   const prompt = buildWordPrompt(normalizedWord, languagePair);
-  const cleaned = await callGemini(prompt, apiKey, signal, options);
+  const cleaned = await callGemini(prompt, apiKey, signal, {
+    ...options,
+    responseJsonSchema: GeminiWordResponseJsonSchema,
+  });
 
   try {
     return GeminiWordResponseSchema.parse(JSON.parse(cleaned));
@@ -213,6 +226,20 @@ if (import.meta.vitest) {
       await callGemini("hi", "key", undefined, { temperature: 0.7 });
       const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
       expect(body.generationConfig).toEqual({ temperature: 0.7 });
+    });
+
+    it("includes structured JSON output config when a response schema is supplied", async () => {
+      const responseJsonSchema = {
+        type: "object",
+        properties: { translation: { type: "string" } },
+        required: ["translation"],
+      };
+      await callGemini("hi", "key", undefined, { responseJsonSchema });
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+      expect(body.generationConfig).toEqual({
+        responseMimeType: "application/json",
+        responseJsonSchema,
+      });
     });
   });
 
@@ -290,7 +317,10 @@ Respond ONLY with valid JSON:
 
 Text: ${asJsonStringLiteral(normalizedText)}`;
 
-  const cleaned = await callGemini(prompt, apiKey, signal, options);
+  const cleaned = await callGemini(prompt, apiKey, signal, {
+    ...options,
+    responseJsonSchema: GeminiTextResponseJsonSchema,
+  });
 
   try {
     return GeminiTextResponseSchema.parse(JSON.parse(cleaned));
