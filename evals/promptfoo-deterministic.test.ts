@@ -1,4 +1,6 @@
 import { createRequire } from "node:module";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
@@ -6,6 +8,9 @@ const deterministic = require("./promptfoo/assertions/deterministic.cjs") as (
   output: string,
   context: { vars?: Record<string, unknown> },
 ) => { pass: boolean; reason: string; componentResults: { pass: boolean; reason: string }[] };
+const transformVars = require("./promptfoo/transform-vars.cjs") as (vars: Record<string, unknown>) => {
+  expectJson: string;
+};
 
 function okOutput(overrides: Record<string, unknown> = {}) {
   return JSON.stringify({
@@ -131,5 +136,29 @@ describe("Promptfoo deterministic assertion", () => {
 
     expect(result.pass).toBe(false);
     expect(result.reason).toContain("JSON");
+  });
+});
+
+describe("Promptfoo rubric variables", () => {
+  it("serializes expected fields before rendering the LLM judge rubric", () => {
+    const result = transformVars({
+      expect: {
+        status: "ok",
+        targetScript: "Cyrillic",
+        forbiddenTranslations: ["червоний оселедець"],
+      },
+    });
+
+    expect(result.expectJson).toContain('"status": "ok"');
+    expect(result.expectJson).toContain('"targetScript": "Cyrillic"');
+    expect(result.expectJson).not.toBe("[object Object]");
+  });
+
+  it("uses the serialized expectations var in promptfoo config", () => {
+    const config = readFileSync(join(import.meta.dirname, "promptfooconfig.yaml"), "utf8");
+
+    expect(config).toContain("transformVars: file://promptfoo/transform-vars.cjs");
+    expect(config).toContain("{{expectJson}}");
+    expect(config).not.toContain("{{expect}}");
   });
 });

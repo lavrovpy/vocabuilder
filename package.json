@@ -231,8 +231,8 @@
     "publish": "npx @raycast/api@latest publish",
     "test": "vitest run",
     "test:watch": "vitest",
-    "eval": "mkdir -p evals/results && PROMPTFOO_PASS_RATE_THRESHOLD=90 PROMPTFOO_REQUEST_BACKOFF_MS=10000 promptfoo eval -c evals/promptfooconfig.yaml --repeat 3 --no-share -o evals/results/promptfoo-full.json",
-    "eval:smoke": "mkdir -p evals/results && PROMPTFOO_PASS_RATE_THRESHOLD=90 PROMPTFOO_REQUEST_BACKOFF_MS=10000 promptfoo eval -c evals/promptfooconfig.yaml --filter-metadata suite=smoke --repeat 3 --no-share -o evals/results/promptfoo-smoke.json",
+    "eval": "mkdir -p evals/results && PROMPTFOO_PASS_RATE_THRESHOLD=90 PROMPTFOO_REQUEST_BACKOFF_MS=10000 promptfoo eval -c evals/promptfooconfig.yaml --no-share -o evals/results/promptfoo-full.json",
+    "eval:smoke": "mkdir -p evals/results && PROMPTFOO_PASS_RATE_THRESHOLD=90 PROMPTFOO_REQUEST_BACKOFF_MS=10000 promptfoo eval -c evals/promptfooconfig.yaml --filter-metadata suite=smoke --no-share -o evals/results/promptfoo-smoke.json",
     "eval:validate": "promptfoo validate -c evals/promptfooconfig.yaml",
     "prepare": "husky"
   }
