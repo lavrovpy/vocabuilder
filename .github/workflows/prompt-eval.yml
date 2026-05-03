@@ -1,6 +1,16 @@
 name: Prompt Eval
 
 on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Eval suite to run"
+        required: true
+        default: full
+        type: choice
+        options:
+          - deterministic
+          - full
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
@@ -40,10 +50,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run prompt eval
+      - name: Run deterministic prompt eval
+        if: github.event_name != 'workflow_dispatch' || inputs.suite == 'deterministic'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: npm run eval
+
+      - name: Run full prompt eval
+        if: github.event_name == 'workflow_dispatch' && inputs.suite == 'full'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: npm run eval:full
 
       - name: Upload eval artifact
         if: always()

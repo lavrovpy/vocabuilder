@@ -237,11 +237,26 @@ describe("Promptfoo rubric variables", () => {
     expect(result.expectJson).not.toBe("[object Object]");
   });
 
-  it("uses the serialized expectations var in promptfoo config", () => {
+  it("uses the serialized expectations var in the full promptfoo config", () => {
     const config = readFileSync(join(import.meta.dirname, "promptfooconfig.yaml"), "utf8");
+    const fullConfig = readFileSync(join(import.meta.dirname, "promptfooconfig.full.yaml"), "utf8");
 
     expect(config).toContain("transformVars: file://promptfoo/transform-vars.cjs");
-    expect(config).toContain("{{expectJson}}");
-    expect(config).not.toContain("{{expect}}");
+    expect(config).not.toContain("llm-rubric");
+    expect(fullConfig).toContain("{{expectJson}}");
+    expect(fullConfig).not.toContain("{{expect}}");
+  });
+});
+
+describe("Promptfoo npm scripts", () => {
+  it("keeps regular eval deterministic and gates publish on the full eval", () => {
+    const packageJson = JSON.parse(readFileSync(join(import.meta.dirname, "..", "package.json"), "utf8")) as {
+      scripts: Record<string, string>;
+    };
+
+    expect(packageJson.scripts.eval).toContain("-c evals/promptfooconfig.yaml");
+    expect(packageJson.scripts.eval).not.toContain("promptfooconfig.full.yaml");
+    expect(packageJson.scripts["eval:full"]).toContain("evals/promptfooconfig.full.yaml");
+    expect(packageJson.scripts.publish).toMatch(/^npm run eval:full && /);
   });
 });
