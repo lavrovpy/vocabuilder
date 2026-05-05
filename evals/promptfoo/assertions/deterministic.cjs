@@ -25,6 +25,14 @@ function nonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function containsWordBounded(text, word) {
+  const escaped = word
+    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    .replace(/\s+/g, "\\s+");
+  const pattern = new RegExp(`(?<![\\p{L}\\p{N}\\-])${escaped}(?![\\p{L}\\p{N}\\-])`, "iu");
+  return pattern.test(text);
+}
+
 function stringArray(value) {
   if (typeof value === "string" && value.trim()) return [value.trim()];
   if (!Array.isArray(value)) return [];
@@ -234,15 +242,14 @@ module.exports = (output, context) => {
 
   const sourceItem = configuredSourceItem(projection, vars, expect);
   if (sourceItem) {
-    const normalizedSourceItem = normalize(sourceItem);
     const badExamples = senses
-      .filter((sense) => !normalize(sense?.exampleTranslation).includes(normalizedSourceItem))
+      .filter((sense) => !containsWordBounded(sense?.exampleTranslation ?? "", sourceItem))
       .map((sense) => sense.exampleTranslation);
     componentResults.push(
       check(
         "exampleTranslation source item",
         badExamples.length === 0,
-        `expected each exampleTranslation to contain ${JSON.stringify(sourceItem)}, mismatches: ${JSON.stringify(badExamples)}`,
+        `expected each exampleTranslation to contain ${JSON.stringify(sourceItem)} (word-bounded), mismatches: ${JSON.stringify(badExamples)}`,
       ),
     );
   }
@@ -287,6 +294,26 @@ module.exports = (output, context) => {
         "partOfSpeechAny",
         actualPartsOfSpeech.some((partOfSpeech) => expectedPartsOfSpeech.includes(partOfSpeech)),
         `expected one of ${JSON.stringify(expectedPartsOfSpeech)}, got ${JSON.stringify(actualPartsOfSpeech)}`,
+      ),
+    );
+  }
+
+  const forbiddenTranslations = stringArray(expect.forbiddenTranslations).map(normalize);
+  if (forbiddenTranslations.length > 0) {
+    const violations = [];
+    for (const sense of senses) {
+      const normalized = normalize(sense?.translation);
+      for (const forbidden of forbiddenTranslations) {
+        if (normalized.includes(forbidden)) {
+          violations.push(`${sense.translation} contains forbidden "${forbidden}"`);
+        }
+      }
+    }
+    componentResults.push(
+      check(
+        "forbiddenTranslation",
+        violations.length === 0,
+        `forbidden translation found: ${violations.join("; ")}`,
       ),
     );
   }

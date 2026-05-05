@@ -194,6 +194,50 @@ describe("Promptfoo deterministic assertion", () => {
     expect(result.reason).toContain("partOfSpeechAny");
   });
 
+  it("fails when a forbidden translation matches a sense", () => {
+    const result = deterministic(
+      okOutput({
+        senses: [defaultSense({ translation: "червоний оселедець" })],
+      }),
+      {
+        vars: caseVars({ forbiddenTranslations: ["червоний оселедець"] }),
+      },
+    );
+
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain("forbiddenTranslation");
+  });
+
+  it("passes when no forbidden translation matches", () => {
+    const result = deterministic(okOutput(), {
+      vars: caseVars({ forbiddenTranslations: ["червоний оселедець"] }),
+    });
+
+    expect(result.pass).toBe(true);
+  });
+
+  it("rejects exampleTranslation when source item is a substring of a longer word", () => {
+    const result = deterministic(
+      okOutput({
+        input: "give up",
+        senses: [
+          defaultSense({
+            exampleTranslation: "She decided to give uptown tours.",
+          }),
+        ],
+      }),
+      {
+        vars: {
+          input: "give up",
+          expect: { status: "ok" },
+        },
+      },
+    );
+
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain("exampleTranslation");
+  });
+
   it("passes an expected WORD_NOT_FOUND projection", () => {
     const result = deterministic(
       JSON.stringify({
