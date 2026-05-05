@@ -27,6 +27,64 @@ export const GeminiTextResponseSchema = z.object({
   translation: z.string(),
 });
 
+export const GeminiWordResponseJsonSchema = {
+  type: "object",
+  properties: {
+    senses: {
+      type: "array",
+      maxItems: 5,
+      items: {
+        type: "object",
+        properties: {
+          translation: {
+            type: "string",
+            description: "Target-language gloss for this sense.",
+          },
+          partOfSpeech: {
+            type: "string",
+            description: 'Part of speech label such as "noun", "verb", "phrasal verb", "idiom", or "expression".',
+          },
+          example: {
+            type: "string",
+            description: "Natural target-language example sentence.",
+          },
+          exampleTranslation: {
+            type: "string",
+            description: "Source-language example sentence containing the source item or corrected item.",
+          },
+        },
+        required: ["translation", "partOfSpeech", "example", "exampleTranslation"],
+        additionalProperties: false,
+        propertyOrdering: ["translation", "partOfSpeech", "example", "exampleTranslation"],
+      },
+    },
+    correctedWord: {
+      type: "string",
+      description: "Corrected source item. Include only when the input was misspelled.",
+    },
+    notAWord: {
+      type: "boolean",
+      description: "True only when no plausible word or expression correction exists.",
+    },
+  },
+  required: ["senses"],
+  additionalProperties: false,
+  propertyOrdering: ["senses", "correctedWord", "notAWord"],
+} as const;
+
+export const GeminiTextResponseJsonSchema = {
+  type: "object",
+  properties: {
+    translation: {
+      type: "string",
+      description: "Translated text in the target language.",
+    },
+  },
+  required: ["translation"],
+  additionalProperties: false,
+  propertyOrdering: ["translation"],
+} as const;
+
 export const TranslationSchema = z.object({
   id: z.string(),
   word: z.string(),

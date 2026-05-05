@@ -22,6 +22,12 @@ function geminiJsonBody(payload: object): object {
   };
 }
 
+function lastGeminiRequestBody(): Record<string, unknown> {
+  const body = vi.mocked(fetch).mock.calls.at(-1)?.[1]?.body;
+  expect(typeof body).toBe("string");
+  return JSON.parse(body as string) as Record<string, unknown>;
+}
+
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn());
 });
@@ -53,6 +59,45 @@ describe("translateWord", () => {
     expect(result.senses).toHaveLength(1);
     expect(result.senses[0].translation).toBe("привіт");
     expect(result.senses[0].partOfSpeech).toBe("interjection");
+  });
+
+  it("requests structured JSON output for word translations", async () => {
+    const payload = {
+      senses: [
+        {
+          translation: "привіт",
+          partOfSpeech: "interjection",
+          example: "Привіт!",
+          exampleTranslation: "Hello!",
+        },
+      ],
+    };
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(geminiJsonBody(payload)), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await translateWord("hello", API_KEY, pair, undefined, { temperature: 0, seed: 42 });
+
+    const body = lastGeminiRequestBody();
+    expect(body.generationConfig).toMatchObject({
+      temperature: 0,
+      seed: 42,
+      responseMimeType: "application/json",
+      responseJsonSchema: {
+        type: "object",
+        required: ["senses"],
+      },
+    });
+    expect(
+      (
+        body.generationConfig as {
+          responseJsonSchema: { properties: { senses: { items: { required: string[] } } } };
+        }
+      ).responseJsonSchema.properties.senses.items.required,
+    ).toEqual(["translation", "partOfSpeech", "example", "exampleTranslation"]);
   });
 
   it("dedupes senses with same translation+POS even if examples differ", async () => {
@@ -141,7 +186,7 @@ describe("translateWord", () => {
     await expect(translateWord("zzzqqq", API_KEY, pair)).rejects.toThrow("GEMINI_INVALID_RESPONSE");
   });
 
-  it("filters out senses whose exampleTranslation does not contain the word", async () => {
+  it("keeps senses even when exampleTranslation does not contain the exact input", async () => {
     const payload = {
       senses: [
         {
@@ -166,11 +211,11 @@ describe("translateWord", () => {
     );
 
     const result = await translateWord("hello", API_KEY, pair);
-    expect(result.senses).toHaveLength(1);
-    expect(result.senses[0].translation).toBe("привіт");
+    expect(result.senses).toHaveLength(2);
+    expect(result.senses.map((s) => s.translation)).toEqual(["привіт", "збірка"]);
   });
 
-  it("throws GEMINI_INVALID_RESPONSE when all senses fail the word check", async () => {
+  it("keeps a valid sense even when the example uses a paraphrase", async () => {
     const payload = {
       senses: [
         {
@@ -187,10 +232,12 @@ describe("translateWord", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
-    await expect(translateWord("omnibus", API_KEY, pair)).rejects.toThrow("GEMINI_INVALID_RESPONSE");
+    const result = await translateWord("omnibus", API_KEY, pair);
+    expect(result.senses).toHaveLength(1);
+    expect(result.senses[0].translation).toBe("збірка");
   });
 
-  it("corrects a misspelled phrase and validates example against the corrected form", async () => {
+  it("corrects a misspelled phrase", async () => {
     const payload = {
       senses: [
         {
@@ -215,7 +262,7 @@ describe("translateWord", () => {
     expect(result.senses[0].partOfSpeech).toBe("idiom");
   });
 
-  it("validates exampleTranslation against correctedWord, not the original typo", async () => {
+  it("keeps corrected-word translations even when examples are inflected", async () => {
     const payload = {
       senses: [
         {
@@ -276,6 +323,34 @@ describe("translateWord", () => {
     await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("INVALID_API_KEY");
   });
 
+  it("throws GEMINI_REQUEST_FAILED with cause carrying status and body on non-401/403 failures", async () => {
+    const body = '{"error":{"code":429,"message":"Resource has been exhausted"}}';
+    vi.mocked(fetch).mockResolvedValue(new Response(body, { status: 429 }));
+    try {
+      await translateWord("hello", API_KEY, pair);
+      throw new Error("expected rejection");
+    } catch (err) {
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).toBe("GEMINI_REQUEST_FAILED");
+      const cause = (err as Error).cause as { status?: number; body?: string } | undefined;
+      expect(cause?.status).toBe(429);
+      expect(cause?.body).toContain("Resource has been exhausted");
+    }
+  });
+
+  it("truncates long error bodies on the cause to 500 chars", async () => {
+    const huge = "x".repeat(2000);
+    vi.mocked(fetch).mockResolvedValue(new Response(huge, { status: 500 }));
+    try {
+      await translateWord("hello", API_KEY, pair);
+      throw new Error("expected rejection");
+    } catch (err) {
+      const cause = (err as Error).cause as { status?: number; body?: string };
+      expect(cause.status).toBe(500);
+      expect(cause.body!.length).toBe(500);
+    }
+  });
+
   it("throws GEMINI_EMPTY_RESPONSE when response text is empty", async () => {
     const body = {
       candidates: [{ content: { parts: [{ text: "" }] } }],
@@ -324,6 +399,27 @@ describe("translateText", () => {
 
     const result = await translateText("Hello world", API_KEY, pair);
     expect(result.translation).toBe("Привіт світ");
+  });
+
+  it("requests structured JSON output for text translations", async () => {
+    const payload = { translation: "Привіт світ" };
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(geminiJsonBody(payload)), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await translateText("Hello world", API_KEY, pair);
+
+    const body = lastGeminiRequestBody();
+    expect(body.generationConfig).toMatchObject({
+      responseMimeType: "application/json",
+      responseJsonSchema: {
+        type: "object",
+        required: ["translation"],
+      },
+    });
   });
 
   it("throws INVALID_TEXT_INPUT for empty input", async () => {
