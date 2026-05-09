@@ -17,7 +17,6 @@ const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 export type GenerationOptions = {
   temperature?: number;
-  seed?: number;
 };
 
 type GeminiCallOptions = GenerationOptions & {
@@ -34,7 +33,6 @@ async function callGemini(
 
   const generationConfig: Record<string, unknown> = {};
   if (options?.temperature !== undefined) generationConfig.temperature = options.temperature;
-  if (options?.seed !== undefined) generationConfig.seed = options.seed;
   if (options?.responseJsonSchema !== undefined) {
     generationConfig.responseMimeType = "application/json";
     generationConfig.responseJsonSchema = options.responseJsonSchema;
@@ -218,13 +216,7 @@ if (import.meta.vitest) {
       expect(body.generationConfig).toBeUndefined();
     });
 
-    it("includes temperature and seed when supplied", async () => {
-      await callGemini("hi", "key", undefined, { temperature: 0, seed: 42 });
-      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
-      expect(body.generationConfig).toEqual({ temperature: 0, seed: 42 });
-    });
-
-    it("includes only the fields that were specified", async () => {
+    it("includes temperature when supplied", async () => {
       await callGemini("hi", "key", undefined, { temperature: 0.7 });
       const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
       expect(body.generationConfig).toEqual({ temperature: 0.7 });

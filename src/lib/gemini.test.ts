@@ -79,12 +79,11 @@ describe("translateWord", () => {
       }),
     );
 
-    await translateWord("hello", API_KEY, pair, undefined, { temperature: 0, seed: 42 });
+    await translateWord("hello", API_KEY, pair, undefined, { temperature: 0 });
 
     const body = lastGeminiRequestBody();
     expect(body.generationConfig).toMatchObject({
       temperature: 0,
-      seed: 42,
       responseMimeType: "application/json",
       responseJsonSchema: {
         type: "object",

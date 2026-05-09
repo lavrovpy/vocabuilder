@@ -56,19 +56,6 @@ function languagePairFromVars(vars: Record<string, unknown> | undefined): Langua
   };
 }
 
-/**
- * FNV-1a 32-bit hash, coerced to signed int32 for Gemini generationConfig.seed.
- */
-function seedFromEvalInput(input: string, pair: LanguagePair): number {
-  let h = 0x811c9dc5;
-  const material = `${pair.source.code}:${pair.target.code}:${input}`;
-  for (let i = 0; i < material.length; i++) {
-    h ^= material.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return h | 0;
-}
-
 function projectSuccess(
   input: string,
   pair: LanguagePair,
@@ -123,7 +110,6 @@ export default class VocabuilderTranslateWordProvider {
     try {
       const response = await translateWord(input, apiKey, pair, undefined, {
         temperature: this.temperature,
-        seed: seedFromEvalInput(input, pair),
       });
       return { output: JSON.stringify(projectSuccess(input, pair, response), null, 2) };
     } catch (err) {
