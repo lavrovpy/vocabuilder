@@ -3,18 +3,6 @@ import { translateWord } from "../../src/lib/gemini";
 import type { LanguagePair } from "../../src/lib/languages";
 import type { GeminiWordResponse } from "../../src/lib/types";
 
-type ProviderOptions = {
-  config?: unknown;
-};
-
-type PromptfooContext = {
-  vars?: Record<string, unknown>;
-};
-
-export const ProviderConfigSchema = z.object({
-  temperature: z.number(),
-});
-
 const KNOWN_DOMAIN_ERRORS = new Set([
   "WORD_NOT_FOUND",
   "INVALID_WORD_INPUT",
@@ -27,6 +15,10 @@ export function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown, prefix: str
   const fields = parsed.error.issues.map((i) => i.path.join(".")).join(", ");
   throw new Error(`${prefix} (${fields}) — ${hint}`);
 }
+
+export const ProviderConfigSchema = z.object({
+  temperature: z.number(),
+});
 
 export const EvalVarsSchema = z
   .object({
@@ -43,6 +35,17 @@ export const EvalVarsSchema = z
     },
     input: v.input,
   }));
+
+type ProviderOptions = {
+  config?: z.infer<typeof ProviderConfigSchema>;
+};
+
+// Promptfoo passes the full vars bag for each test case, including fields the
+// schema doesn't parse (intent, expect, metadata). Typing as Record keeps the
+// extras visible at the boundary; the schema picks out what we actually need.
+type PromptfooContext = {
+  vars?: Record<string, unknown>;
+};
 
 function projectSuccess(
   input: string,
