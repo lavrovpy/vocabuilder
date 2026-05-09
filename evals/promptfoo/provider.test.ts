@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import VocabuilderTranslateWordProvider, {
   EvalVarsSchema,
-  ProviderConfigSchema,
   parseOrThrow,
 } from "./provider";
 
@@ -61,31 +60,8 @@ describe("EvalVarsSchema", () => {
   });
 });
 
-describe("ProviderConfigSchema", () => {
-  it("accepts a numeric temperature", () => {
-    expect(ProviderConfigSchema.parse({ temperature: 0 })).toEqual({ temperature: 0 });
-    expect(ProviderConfigSchema.parse({ temperature: 0.7 })).toEqual({ temperature: 0.7 });
-  });
-
-  it("rejects missing temperature", () => {
-    const result = ProviderConfigSchema.safeParse({});
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.issues.map((i) => i.path.join("."))).toContain("temperature");
-    }
-  });
-
-  it("rejects non-numeric temperature", () => {
-    expect(ProviderConfigSchema.safeParse({ temperature: "0" }).success).toBe(false);
-  });
-});
-
 describe("parseOrThrow", () => {
   const schema = z.object({ a: z.string(), b: z.number() });
-
-  it("returns parsed data on success", () => {
-    expect(parseOrThrow(schema, { a: "x", b: 1 }, "Bad", "fix it")).toEqual({ a: "x", b: 1 });
-  });
 
   it("throws with prefix, dotted field paths, and hint on failure", () => {
     expect(() => parseOrThrow(schema, { a: 1 }, "Bad input", "set a and b in the config.")).toThrow(

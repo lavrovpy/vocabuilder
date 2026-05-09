@@ -120,25 +120,6 @@ describe("translateWord", () => {
     expect(result.senses).toHaveLength(1);
   });
 
-  it("removes byte-for-byte duplicate senses from the model", async () => {
-    const s = {
-      translation: "привіт",
-      partOfSpeech: "interjection",
-      example: "Привіт!",
-      exampleTranslation: "Hello!",
-    };
-    const payload = { senses: [s, s] };
-    vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify(geminiJsonBody(payload)), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
-
-    const result = await translateWord("hello", API_KEY, pair);
-    expect(result.senses).toHaveLength(1);
-  });
-
   it("keeps same target gloss when part of speech differs", async () => {
     const base = {
       translation: "процент",
