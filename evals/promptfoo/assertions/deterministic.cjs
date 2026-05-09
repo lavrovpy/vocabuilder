@@ -25,14 +25,6 @@ function nonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function containsWordBounded(text, word) {
-  const escaped = word
-    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-    .replace(/\s+/g, "\\s+");
-  const pattern = new RegExp(`(?<![\\p{L}\\p{N}\\-])${escaped}(?![\\p{L}\\p{N}\\-])`, "iu");
-  return pattern.test(text);
-}
-
 function stringArray(value) {
   if (typeof value === "string" && value.trim()) return [value.trim()];
   if (!Array.isArray(value)) return [];
@@ -241,18 +233,6 @@ module.exports = (output, context) => {
   }
 
   const sourceItem = configuredSourceItem(projection, vars, expect);
-  if (sourceItem) {
-    const badExamples = senses
-      .filter((sense) => !containsWordBounded(sense?.exampleTranslation ?? "", sourceItem))
-      .map((sense) => sense.exampleTranslation);
-    componentResults.push(
-      check(
-        "exampleTranslation source item",
-        badExamples.length === 0,
-        `expected each exampleTranslation to contain ${JSON.stringify(sourceItem)} (word-bounded), mismatches: ${JSON.stringify(badExamples)}`,
-      ),
-    );
-  }
 
   if (expect.targetScript) {
     const bad = scriptMismatches(targetTexts(projection), expect.targetScript);

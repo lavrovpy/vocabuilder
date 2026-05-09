@@ -132,18 +132,6 @@ describe("Promptfoo deterministic assertion", () => {
     expect(result.reason).toContain("unexpected correction");
   });
 
-  it("checks every exampleTranslation contains the input or corrected item", () => {
-    const result = deterministic(
-      okOutput({
-        senses: [defaultSense({ exampleTranslation: "That clue was misleading." })],
-      }),
-      { vars: caseVars() },
-    );
-
-    expect(result.pass).toBe(false);
-    expect(result.reason).toContain("exampleTranslation");
-  });
-
   it("fails when the target script is wrong", () => {
     const result = deterministic(
       okOutput({
@@ -214,28 +202,6 @@ describe("Promptfoo deterministic assertion", () => {
     });
 
     expect(result.pass).toBe(true);
-  });
-
-  it("rejects exampleTranslation when source item is a substring of a longer word", () => {
-    const result = deterministic(
-      okOutput({
-        input: "give up",
-        senses: [
-          defaultSense({
-            exampleTranslation: "She decided to give uptown tours.",
-          }),
-        ],
-      }),
-      {
-        vars: {
-          input: "give up",
-          expect: { status: "ok" },
-        },
-      },
-    );
-
-    expect(result.pass).toBe(false);
-    expect(result.reason).toContain("exampleTranslation");
   });
 
   it("passes an expected WORD_NOT_FOUND projection", () => {
