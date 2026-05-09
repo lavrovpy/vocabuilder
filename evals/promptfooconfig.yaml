@@ -1,5 +1,14 @@
 description: Vocabuilder translateWord LLM-judged evals
 
+env:
+  PROMPTFOO_PASS_RATE_THRESHOLD: 75
+  PROMPTFOO_REQUEST_BACKOFF_MS: 10000
+
+commandLineOptions:
+  maxConcurrency: 1
+  delay: 2000
+  share: false
+
 prompts:
   - "{{input}}"
 
