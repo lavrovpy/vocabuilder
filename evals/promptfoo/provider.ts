@@ -22,26 +22,6 @@ type PromptfooContext = {
   vars?: Record<string, unknown>;
 };
 
-const LANGUAGE_NAMES: Record<string, string> = {
-  en: "English",
-  uk: "Ukrainian",
-  ru: "Russian",
-  be: "Belarusian",
-  pl: "Polish",
-  de: "German",
-  fr: "French",
-  es: "Spanish",
-  it: "Italian",
-  pt: "Portuguese",
-  nl: "Dutch",
-  cs: "Czech",
-  sv: "Swedish",
-  ja: "Japanese",
-  ko: "Korean",
-  zh: "Chinese",
-  tr: "Turkish",
-};
-
 const KNOWN_DOMAIN_ERRORS = new Set([
   "WORD_NOT_FOUND",
   "INVALID_WORD_INPUT",
@@ -53,33 +33,19 @@ function stringVar(vars: Record<string, unknown> | undefined, key: string): stri
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
-function language(code: string | undefined, name: string | undefined, fallbackCode: string): Language {
-  const resolvedCode = code ?? fallbackCode;
+function languagePairFromVars(vars: Record<string, unknown> | undefined): LanguagePair {
+  const sourceCode = stringVar(vars, "sourceLanguageCode") ?? "en";
+  const targetCode = stringVar(vars, "targetLanguageCode") ?? "uk";
   return {
-    code: resolvedCode,
-    name: name ?? LANGUAGE_NAMES[resolvedCode] ?? resolvedCode,
-  };
-}
-
-export function languagePairFromVars(vars: Record<string, unknown> | undefined): LanguagePair {
-  return {
-    source: language(
-      stringVar(vars, "sourceLanguageCode"),
-      stringVar(vars, "sourceLanguageName"),
-      "en",
-    ),
-    target: language(
-      stringVar(vars, "targetLanguageCode"),
-      stringVar(vars, "targetLanguageName"),
-      "uk",
-    ),
+    source: { code: sourceCode, name: stringVar(vars, "sourceLanguageName") ?? sourceCode },
+    target: { code: targetCode, name: stringVar(vars, "targetLanguageName") ?? targetCode },
   };
 }
 
 /**
  * FNV-1a 32-bit hash, coerced to signed int32 for Gemini generationConfig.seed.
  */
-export function seedFromEvalInput(input: string, pair: LanguagePair): number {
+function seedFromEvalInput(input: string, pair: LanguagePair): number {
   let h = 0x811c9dc5;
   const material = `${pair.source.code}:${pair.target.code}:${input}`;
   for (let i = 0; i < material.length; i++) {
@@ -89,7 +55,7 @@ export function seedFromEvalInput(input: string, pair: LanguagePair): number {
   return h | 0;
 }
 
-export function projectSuccess(
+function projectSuccess(
   input: string,
   pair: LanguagePair,
   response: GeminiWordResponse,
@@ -109,7 +75,7 @@ export function projectSuccess(
   };
 }
 
-export function projectKnownError(input: string, pair: LanguagePair, error: string): Record<string, unknown> {
+function projectKnownError(input: string, pair: LanguagePair, error: string): Record<string, unknown> {
   return {
     status: "error",
     input,
