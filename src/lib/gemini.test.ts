@@ -304,8 +304,10 @@ describe("translateWord", () => {
   });
 
   it("throws GEMINI_REQUEST_FAILED with cause carrying status and body on non-401/403 failures", async () => {
+    // Pin the retry sleep to 0 so this test stays fast.
+    vi.spyOn(Math, "random").mockReturnValue(0);
     const body = '{"error":{"code":429,"message":"Resource has been exhausted"}}';
-    vi.mocked(fetch).mockResolvedValue(new Response(body, { status: 429 }));
+    vi.mocked(fetch).mockImplementation(async () => new Response(body, { status: 429 }));
     try {
       await translateWord("hello", API_KEY, pair);
       throw new Error("expected rejection");
@@ -319,8 +321,9 @@ describe("translateWord", () => {
   });
 
   it("truncates long error bodies on the cause to 500 chars", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
     const huge = "x".repeat(2000);
-    vi.mocked(fetch).mockResolvedValue(new Response(huge, { status: 500 }));
+    vi.mocked(fetch).mockImplementation(async () => new Response(huge, { status: 500 }));
     try {
       await translateWord("hello", API_KEY, pair);
       throw new Error("expected rejection");
@@ -362,8 +365,110 @@ describe("translateWord", () => {
   });
 
   it("throws NETWORK_OFFLINE when fetch fails with a network TypeError", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
     vi.mocked(fetch).mockRejectedValue(new TypeError("fetch failed"));
     await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("NETWORK_OFFLINE");
+  });
+});
+
+describe("translateWord retry behavior", () => {
+  // Pin Math.random to 0 so getRetryDelayMs() returns 0 and tests stay instant.
+  beforeEach(() => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+  });
+
+  function successResponse(): Response {
+    const payload = {
+      senses: [
+        {
+          translation: "привіт",
+          partOfSpeech: "noun",
+          example: "Привіт, як справи?",
+          exampleTranslation: "Hello, how are you?",
+        },
+      ],
+    };
+    return new Response(JSON.stringify(geminiJsonBody(payload)), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  it("retries on 503 then succeeds on the next attempt", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response("Service Unavailable", { status: 503 }))
+      .mockResolvedValueOnce(successResponse());
+
+    const result = await translateWord("hello", API_KEY, pair);
+    expect(result.senses[0].translation).toBe("привіт");
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries on 429 then succeeds", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response("Too Many Requests", { status: 429 }))
+      .mockResolvedValueOnce(successResponse());
+
+    const result = await translateWord("hello", API_KEY, pair);
+    expect(result.senses[0].translation).toBe("привіт");
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries NETWORK_OFFLINE (TypeError) then succeeds", async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new TypeError("fetch failed")).mockResolvedValueOnce(successResponse());
+
+    const result = await translateWord("hello", API_KEY, pair);
+    expect(result.senses[0].translation).toBe("привіт");
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+  });
+
+  it("gives up after MAX_RETRY_ATTEMPTS and surfaces GEMINI_REQUEST_FAILED", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response("Service Unavailable", { status: 503 }));
+
+    try {
+      await translateWord("hello", API_KEY, pair);
+      throw new Error("expected rejection");
+    } catch (err) {
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).toBe("GEMINI_REQUEST_FAILED");
+      const cause = (err as Error).cause as { status?: number };
+      expect(cause?.status).toBe(503);
+    }
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(3);
+  });
+
+  it("does NOT retry 400 — fails fast on the first attempt", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response("Bad Request", { status: 400 }));
+
+    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("GEMINI_REQUEST_FAILED");
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT retry 401 — fails fast with INVALID_API_KEY", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response("Unauthorized", { status: 401 }));
+
+    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("INVALID_API_KEY");
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT retry 404 (transient-looking but permanent for our endpoint)", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response("Not Found", { status: 404 }));
+
+    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("GEMINI_REQUEST_FAILED");
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+  });
+
+  it("aborts cleanly during retry backoff without making more fetch calls", async () => {
+    const controller = new AbortController();
+    // First fetch returns 503 *and* aborts the controller; the next abortableSleep
+    // should reject immediately, before a second fetch is attempted.
+    vi.mocked(fetch).mockImplementationOnce(async () => {
+      controller.abort();
+      return new Response("Service Unavailable", { status: 503 });
+    });
+
+    await expect(translateWord("hello", API_KEY, pair, controller.signal)).rejects.toThrow();
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -407,6 +512,7 @@ describe("translateText", () => {
   });
 
   it("throws NETWORK_OFFLINE when fetch fails with a network TypeError", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
     vi.mocked(fetch).mockRejectedValue(new TypeError("fetch failed"));
     await expect(translateText("Hello world", API_KEY, pair)).rejects.toThrow("NETWORK_OFFLINE");
   });

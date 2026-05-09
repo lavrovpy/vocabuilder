@@ -15,6 +15,9 @@ import type { LanguagePair } from "./languages";
 const MODEL = "gemini-2.5-flash-lite";
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
+const MAX_RETRY_ATTEMPTS = 3;
+const BASE_RETRY_DELAY_MS = 400;
+
 export type GenerationOptions = {
   temperature?: number;
 };
@@ -23,26 +26,49 @@ type GeminiCallOptions = GenerationOptions & {
   responseJsonSchema?: Record<string, unknown>;
 };
 
-async function callGemini(
-  prompt: string,
+/** Exponential backoff with full jitter. attempt is 1-based. */
+function getRetryDelayMs(attempt: number): number {
+  const ceiling = BASE_RETRY_DELAY_MS * 2 ** (attempt - 1);
+  return Math.floor(Math.random() * ceiling);
+}
+
+/**
+ * Sleep that resolves early if the signal aborts. Throws the abort reason
+ * (matching fetch's behavior) when the signal fires during the wait.
+ */
+function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal?.reason ?? new DOMException("Aborted", "AbortError"));
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+/** Retry only on transient failures: network drops and 5xx/429/408 from Gemini. */
+function shouldRetryGeminiError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  if (error.message === "NETWORK_OFFLINE") return true;
+  if (error.message !== "GEMINI_REQUEST_FAILED") return false;
+  const status = (error.cause as { status?: number } | undefined)?.status;
+  return typeof status === "number" && (status >= 500 || status === 429 || status === 408);
+}
+
+async function fetchGeminiOnce(
+  url: string,
   apiKey: string,
-  signal?: AbortSignal,
-  options?: GeminiCallOptions,
-): Promise<string> {
-  const url = `${BASE_URL}/${MODEL}:generateContent`;
-
-  const generationConfig: Record<string, unknown> = {};
-  if (options?.temperature !== undefined) generationConfig.temperature = options.temperature;
-  if (options?.responseJsonSchema !== undefined) {
-    generationConfig.responseMimeType = "application/json";
-    generationConfig.responseJsonSchema = options.responseJsonSchema;
-  }
-
-  const body: Record<string, unknown> = {
-    contents: [{ parts: [{ text: prompt }] }],
-  };
-  if (Object.keys(generationConfig).length > 0) body.generationConfig = generationConfig;
-
+  body: Record<string, unknown>,
+  signal: AbortSignal | undefined,
+): Promise<Response> {
   let response: Response;
   try {
     response = await fetch(url, {
@@ -66,14 +92,53 @@ async function callGemini(
   }
 
   if (!response.ok) {
-    let body = "";
+    let errBody = "";
     try {
-      body = (await response.text()).slice(0, 500);
+      errBody = (await response.text()).slice(0, 500);
     } catch {
       // body unreadable - proceed with empty
     }
-    throw new Error("GEMINI_REQUEST_FAILED", { cause: { status: response.status, body } });
+    throw new Error("GEMINI_REQUEST_FAILED", { cause: { status: response.status, body: errBody } });
   }
+
+  return response;
+}
+
+async function callGemini(
+  prompt: string,
+  apiKey: string,
+  signal?: AbortSignal,
+  options?: GeminiCallOptions,
+): Promise<string> {
+  const url = `${BASE_URL}/${MODEL}:generateContent`;
+
+  const generationConfig: Record<string, unknown> = {};
+  if (options?.temperature !== undefined) generationConfig.temperature = options.temperature;
+  if (options?.responseJsonSchema !== undefined) {
+    generationConfig.responseMimeType = "application/json";
+    generationConfig.responseJsonSchema = options.responseJsonSchema;
+  }
+
+  const body: Record<string, unknown> = {
+    contents: [{ parts: [{ text: prompt }] }],
+  };
+  if (Object.keys(generationConfig).length > 0) body.generationConfig = generationConfig;
+
+  let response: Response | undefined;
+  for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
+    try {
+      response = await fetchGeminiOnce(url, apiKey, body, signal);
+      break;
+    } catch (err) {
+      const canRetry = attempt < MAX_RETRY_ATTEMPTS && shouldRetryGeminiError(err);
+      if (!canRetry) throw err;
+      await abortableSleep(getRetryDelayMs(attempt), signal);
+    }
+  }
+
+  // Unreachable in practice — the loop either assigns response or throws —
+  // but TS narrows better with this guard than with a non-null assertion.
+  if (!response) throw new Error("GEMINI_REQUEST_FAILED");
 
   const apiData = GeminiApiResponseSchema.parse(await response.json());
   const raw = apiData.candidates[0]?.content.parts[0]?.text ?? "";
