@@ -40,7 +40,7 @@ After the PR is opened, the Raycast team reviews it and may request changes. Onc
 
 # Evals
 
-A Promptfoo-driven LLM-rubric harness over the production `translateWord` path.
+A Promptfoo-driven end-to-end harness over the production `translateWord` path. The eval target is the processed application behavior users rely on: a parsed, schema-validated, de-duplicated translation result, or a mapped domain error. It is not a raw Gemini-output eval.
 
 ## Layout
 
@@ -54,7 +54,9 @@ A Promptfoo-driven LLM-rubric harness over the production `translateWord` path.
 - **Import Promptfoo's exported types, don't reinvent them.** `ApiProvider`, `ProviderOptions`, `ProviderResponse`, and `CallApiContextParams` are exported from `promptfoo`. Hand-rolled equivalents drift from the library's contract and silently lose updates.
 - **Validate every YAML-sourced input through a Zod schema.** Both provider config (`ProviderConfigSchema`) and per-case vars (`EvalVarsSchema`) go through the shared `parseOrThrow(schema, data, prefix, hint)` helper. Promptfoo types `ProviderOptions.config` as `any` by design — that's the boundary the schema is meant to fill. Do not paper over missing fields with `?? defaults`; fail loud at the boundary.
 - **Schemas first, types from schemas.** Declare the Zod schema, then derive TS types via `z.infer<>` when needed. Mirrors the `src/lib/types.ts` pattern; never duplicate a schema's shape into a hand-written interface.
-- **Semantic invariants belong in the LLM rubric, not in deterministic code.** Morphology, synonymy, regional variants, and idiomatic acceptability are judged by the rubric. Per-case `expect` fields (`forbiddenTranslations`, `correctedWord`, `status`, `error`) are passed to the rubric verbatim through `{{expectJson}}` — they are inputs to the judge, not separate deterministic gates.
+- **Evaluate the production result, not raw Gemini output.** The custom provider calls `translateWord` and projects the app-level success/error output for Promptfoo. Use this harness for release/regression confidence in the user-visible translation behavior. If raw model drift or prompt internals need diagnosis, add separate metadata or component-level checks instead of making the default judge score hidden pipeline details.
+- **Keep schema validation outside the judge.** `translateWord` already requests structured Gemini JSON and validates it with `GeminiWordResponseSchema`; malformed or schema-invalid model output becomes `GEMINI_INVALID_RESPONSE` before the rubric sees it. Do not ask the LLM judge to re-check JSON shape or Zod-level type constraints.
+- **Use the judge for semantic and contract quality.** Morphology, synonymy, regional variants, idiomatic acceptability, target-language quality, examples, and per-case `expect` behavior are rubric concerns. Per-case `expect` fields (`forbiddenTranslations`, `correctedWord`, `status`, `error`) are passed to the rubric verbatim through `{{expectJson}}` — they are inputs to the judge, not separate deterministic gates.
 - **Address language drift at the prompt layer, not via regex.** When the model returns Russian where Ukrainian is expected, the fix lives in the production prompt, not in `forbiddenTranslations` lists.
 - **Pass-rate threshold sits at 85%** in `npm run eval` and `eval:smoke` because `gemini-2.5-pro` returns 503 UNAVAILABLE under load and one flake should not fail the whole run. Tighten back toward 100% once the judge layer is reliable.
 - **Do not write tests that assert literal strings appear in config files** (`package.json`, YAML, etc.). They have no oracle: editing the config means editing the test, no bug ever caught. Promptfoo's loader catches broken file references when the eval actually runs.
