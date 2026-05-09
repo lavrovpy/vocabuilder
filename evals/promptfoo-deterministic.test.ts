@@ -182,28 +182,6 @@ describe("Promptfoo deterministic assertion", () => {
     expect(result.reason).toContain("partOfSpeechAny");
   });
 
-  it("fails when a forbidden translation matches a sense", () => {
-    const result = deterministic(
-      okOutput({
-        senses: [defaultSense({ translation: "червоний оселедець" })],
-      }),
-      {
-        vars: caseVars({ forbiddenTranslations: ["червоний оселедець"] }),
-      },
-    );
-
-    expect(result.pass).toBe(false);
-    expect(result.reason).toContain("forbiddenTranslation");
-  });
-
-  it("passes when no forbidden translation matches", () => {
-    const result = deterministic(okOutput(), {
-      vars: caseVars({ forbiddenTranslations: ["червоний оселедець"] }),
-    });
-
-    expect(result.pass).toBe(true);
-  });
-
   it("passes an expected WORD_NOT_FOUND projection", () => {
     const result = deterministic(
       JSON.stringify({

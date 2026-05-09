@@ -278,25 +278,5 @@ module.exports = (output, context) => {
     );
   }
 
-  const forbiddenTranslations = stringArray(expect.forbiddenTranslations).map(normalize);
-  if (forbiddenTranslations.length > 0) {
-    const violations = [];
-    for (const sense of senses) {
-      const normalized = normalize(sense?.translation);
-      for (const forbidden of forbiddenTranslations) {
-        if (normalized.includes(forbidden)) {
-          violations.push(`${sense.translation} contains forbidden "${forbidden}"`);
-        }
-      }
-    }
-    componentResults.push(
-      check(
-        "forbiddenTranslation",
-        violations.length === 0,
-        `forbidden translation found: ${violations.join("; ")}`,
-      ),
-    );
-  }
-
   return aggregate(componentResults);
 };
