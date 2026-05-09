@@ -4,6 +4,7 @@ import {
   GeminiTextResponseJsonSchema,
   GeminiWordResponseJsonSchema,
   GeminiWordResponseSchema,
+  PART_OF_SPEECH_VALUES,
   TranslationSchema,
   WordSenseSchema,
 } from "./types";
@@ -24,6 +25,16 @@ describe("WordSenseSchema", () => {
     const incomplete: Record<string, unknown> = { ...valid };
     delete incomplete.translation;
     expect(() => WordSenseSchema.parse(incomplete)).toThrow();
+  });
+
+  it("rejects partOfSpeech values outside the enum", () => {
+    expect(() => WordSenseSchema.parse({ ...valid, partOfSpeech: "thingymabob" })).toThrow();
+  });
+
+  it("accepts every value declared in PART_OF_SPEECH_VALUES", () => {
+    for (const partOfSpeech of PART_OF_SPEECH_VALUES) {
+      expect(() => WordSenseSchema.parse({ ...valid, partOfSpeech })).not.toThrow();
+    }
   });
 });
 
@@ -76,6 +87,12 @@ describe("Gemini structured output JSON schemas", () => {
         },
       },
     });
+  });
+
+  it("constrains partOfSpeech to the shared enum so Gemini cannot return arbitrary labels", () => {
+    expect(GeminiWordResponseJsonSchema.properties.senses.items.properties.partOfSpeech.enum).toEqual(
+      PART_OF_SPEECH_VALUES,
+    );
   });
 
   it("keeps text response JSON schema aligned with the translation payload", () => {

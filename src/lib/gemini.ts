@@ -6,6 +6,7 @@ import {
   GeminiTextResponse,
   GeminiTextResponseJsonSchema,
   GeminiTextResponseSchema,
+  PART_OF_SPEECH_VALUES,
   WordSense,
 } from "./types";
 import { asJsonStringLiteral, normalizeWordInput, normalizeTextInput } from "./input";
@@ -108,6 +109,7 @@ function dedupeSenses(senses: WordSense[]): WordSense[] {
 
 function buildWordPrompt(normalizedWord: string, languagePair: LanguagePair): string {
   const { source, target } = languagePair;
+  const partsOfSpeech = PART_OF_SPEECH_VALUES.map((value) => `"${value}"`).join(", ");
   return `Translate the ${source.name} vocabulary item ${asJsonStringLiteral(normalizedWord)} to ${target.name}.
 The vocabulary item may be a single word, a phrasal verb (e.g. "give up", "break down"), or an idiom / fixed expression (e.g. "red herring", "kick the bucket").
 
@@ -115,7 +117,7 @@ CRITICAL RULES:
 1. If the input is a misspelling or typo of a REAL word or expression, correct it and translate the corrected form. Put the corrected form in "correctedWord". This applies to phrases too — e.g. "red hering" → "red herring", "kik the bucket" → "kick the bucket", "runing" → "running". Prefer correction over rejection whenever a plausible correction exists.
 2. Only if NO plausible correction exists and the input is truly gibberish / random letters / not in any dictionary or idiom reference, respond with: { "senses": [], "notAWord": true }
 3. For phrasal verbs and idioms, translate the IDIOMATIC meaning, NOT the literal word-by-word meaning. For example, "red herring" means a misleading clue (Ukrainian: "оманлива підказка"), NOT "червоний оселедець". "Kick the bucket" means to die, NOT to literally kick a bucket.
-4. Use an appropriate "partOfSpeech" label: use standard labels ("noun", "verb", "adjective", "adverb", etc.) for single words, and use "phrasal verb", "idiom", or "expression" for multi-word vocabulary items as appropriate.
+4. The "partOfSpeech" field MUST be one of: ${partsOfSpeech}. Use "phrasal verb", "idiom", or "expression" for multi-word vocabulary items; "expression" is a catch-all for borderline cases. Never invent a label outside this list.
 5. The "exampleTranslation" (${source.name} sentence) MUST contain the EXACT phrase ${asJsonStringLiteral(normalizedWord)} (or the corrected form if misspelled) as a contiguous substring. NEVER substitute it with a synonym or paraphrase. For example, if the input is "red herring", write "That clue turned out to be a red herring." — NOT "That clue turned out to be misleading."
 6. The "example" (${target.name} sentence) must be a natural idiomatic translation of the exampleTranslation.
 7. Target-language purity: every word in "translation" and "example" must be standard ${target.name} as used by educated native speakers, in standard ${target.name} orthography and morphology. Do NOT substitute words from a related or neighbouring language, and do NOT use calques, hybrid forms, or russisms / anglicisms / other foreign-influenced shapes built on a ${target.name} stem with a foreign affix when a native ${target.name} word exists. Established loanwords that are part of the standard ${target.name} lexicon are fine; the rule forbids substitutions and contaminations from other languages, not legitimate borrowings.
@@ -128,7 +130,7 @@ Respond ONLY with valid JSON:
   "senses": [
     {
       "translation": "${target.name} gloss for this sense",
-      "partOfSpeech": "noun / verb / adjective / phrasal verb / idiom / expression / etc",
+      "partOfSpeech": "one of the allowed labels listed above",
       "example": "${target.name} example sentence",
       "exampleTranslation": "${source.name} sentence that MUST contain ${asJsonStringLiteral(normalizedWord)} verbatim"
     }

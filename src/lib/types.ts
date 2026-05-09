@@ -1,8 +1,29 @@
 import { z } from "zod";
 
+export const PART_OF_SPEECH_VALUES = [
+  "noun",
+  "verb",
+  "adjective",
+  "adverb",
+  "pronoun",
+  "preposition",
+  "conjunction",
+  "interjection",
+  "determiner",
+  "numeral",
+  "particle",
+  "auxiliary verb",
+  "phrasal verb",
+  "idiom",
+  "expression",
+] as const;
+
+export const PartOfSpeechSchema = z.enum(PART_OF_SPEECH_VALUES);
+export type PartOfSpeech = z.infer<typeof PartOfSpeechSchema>;
+
 export const WordSenseSchema = z.object({
   translation: z.string(),
-  partOfSpeech: z.string(),
+  partOfSpeech: PartOfSpeechSchema,
   example: z.string(),
   exampleTranslation: z.string(),
 });
@@ -42,7 +63,9 @@ export const GeminiWordResponseJsonSchema = {
           },
           partOfSpeech: {
             type: "string",
-            description: 'Part of speech label such as "noun", "verb", "phrasal verb", "idiom", or "expression".',
+            enum: PART_OF_SPEECH_VALUES,
+            description:
+              'Part of speech label. Use "phrasal verb", "idiom", or "expression" for multi-word items; "expression" is a catch-all for borderline cases.',
           },
           example: {
             type: "string",
