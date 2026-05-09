@@ -21,6 +21,13 @@ const KNOWN_DOMAIN_ERRORS = new Set([
   "GEMINI_INVALID_RESPONSE",
 ]);
 
+export function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown, prefix: string, hint: string): T {
+  const parsed = schema.safeParse(data);
+  if (parsed.success) return parsed.data;
+  const fields = parsed.error.issues.map((i) => i.path.join(".")).join(", ");
+  throw new Error(`${prefix} (${fields}) — ${hint}`);
+}
+
 export const EvalVarsSchema = z
   .object({
     sourceLanguageCode: z.string().trim().min(1),
@@ -65,14 +72,12 @@ export default class VocabuilderTranslateWordProvider {
   private temperature: number;
 
   constructor(options: ProviderOptions = {}) {
-    const parsed = ProviderConfigSchema.safeParse(options.config ?? {});
-    if (!parsed.success) {
-      const fields = parsed.error.issues.map((i) => i.path.join(".")).join(", ");
-      throw new Error(
-        `Invalid provider config (${fields}) — promptfooconfig.yaml must set provider config.temperature.`,
-      );
-    }
-    this.temperature = parsed.data.temperature;
+    this.temperature = parseOrThrow(
+      ProviderConfigSchema,
+      options.config ?? {},
+      "Invalid provider config",
+      "promptfooconfig.yaml must set provider config.temperature.",
+    ).temperature;
   }
 
   id(): string {
@@ -80,14 +85,12 @@ export default class VocabuilderTranslateWordProvider {
   }
 
   async callApi(prompt: string, context?: PromptfooContext): Promise<{ output?: string; error?: string }> {
-    const parsed = EvalVarsSchema.safeParse(context?.vars ?? {});
-    if (!parsed.success) {
-      const fields = parsed.error.issues.map((i) => i.path.join(".")).join(", ");
-      throw new Error(
-        `Invalid eval vars (${fields}) — every test case in promptfooconfig.yaml must declare its language pair.`,
-      );
-    }
-    const { pair, input: inputVar } = parsed.data;
+    const { pair, input: inputVar } = parseOrThrow(
+      EvalVarsSchema,
+      context?.vars ?? {},
+      "Invalid eval vars",
+      "every test case in promptfooconfig.yaml must declare its language pair.",
+    );
     const input = inputVar ?? prompt.trim();
     const apiKey = process.env.GEMINI_API_KEY;
 

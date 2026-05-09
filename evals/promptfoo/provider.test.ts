@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import VocabuilderTranslateWordProvider, { EvalVarsSchema, ProviderConfigSchema } from "./provider";
+import { z } from "zod";
+import VocabuilderTranslateWordProvider, {
+  EvalVarsSchema,
+  ProviderConfigSchema,
+  parseOrThrow,
+} from "./provider";
 
 describe("EvalVarsSchema", () => {
   const validVars = {
@@ -72,6 +77,20 @@ describe("ProviderConfigSchema", () => {
 
   it("rejects non-numeric temperature", () => {
     expect(ProviderConfigSchema.safeParse({ temperature: "0" }).success).toBe(false);
+  });
+});
+
+describe("parseOrThrow", () => {
+  const schema = z.object({ a: z.string(), b: z.number() });
+
+  it("returns parsed data on success", () => {
+    expect(parseOrThrow(schema, { a: "x", b: 1 }, "Bad", "fix it")).toEqual({ a: "x", b: 1 });
+  });
+
+  it("throws with prefix, dotted field paths, and hint on failure", () => {
+    expect(() => parseOrThrow(schema, { a: 1 }, "Bad input", "set a and b in the config.")).toThrow(
+      /^Bad input \(a, b\) — set a and b in the config\.$/,
+    );
   });
 });
 
