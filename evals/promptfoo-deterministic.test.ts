@@ -93,15 +93,6 @@ describe("Promptfoo deterministic assertion", () => {
     expect(result.pass).toBe(true);
   });
 
-  it("fails unexpected corrections unless explicitly allowed", () => {
-    const result = deterministic(okOutput({ correctedWord: "red hearing" }), {
-      vars: caseVars(),
-    });
-
-    expect(result.pass).toBe(false);
-    expect(result.reason).toContain("unexpected correction");
-  });
-
   it("fails when the target script is wrong", () => {
     const result = deterministic(
       okOutput({

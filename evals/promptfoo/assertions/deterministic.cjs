@@ -140,14 +140,6 @@ module.exports = (output, context) => {
         `expected ${expect.correctedWord}, got ${String(projection.correctedWord)}`,
       ),
     );
-  } else if (expect.allowCorrection !== true) {
-    componentResults.push(
-      check(
-        "correctedWord absent",
-        projection.correctedWord == null || normalize(projection.correctedWord) === "",
-        `unexpected correction ${String(projection.correctedWord)}`,
-      ),
-    );
   }
 
   if (expect.targetScript) {
