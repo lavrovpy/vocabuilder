@@ -1,15 +1,6 @@
 import { translateWord } from "../../src/lib/gemini";
+import type { LanguagePair } from "../../src/lib/languages";
 import type { GeminiWordResponse } from "../../src/lib/types";
-
-type Language = {
-  code: string;
-  name: string;
-};
-
-type LanguagePair = {
-  source: Language;
-  target: Language;
-};
 
 type ProviderOptions = {
   id?: string;
@@ -67,12 +58,7 @@ function projectSuccess(
     languagePair: pair,
     correctedWord: response.correctedWord ?? null,
     notAWord: response.notAWord === true,
-    senses: response.senses.map((sense) => ({
-      translation: sense.translation,
-      partOfSpeech: sense.partOfSpeech,
-      example: sense.example,
-      exampleTranslation: sense.exampleTranslation,
-    })),
+    senses: response.senses,
   };
 }
 
