@@ -4,7 +4,6 @@ import type { LanguagePair } from "../../src/lib/languages";
 import type { GeminiWordResponse } from "../../src/lib/types";
 
 type ProviderOptions = {
-  id?: string;
   config?: {
     temperature?: number;
   };
@@ -61,16 +60,14 @@ function projectKnownError(input: string, pair: LanguagePair, error: string): Re
 }
 
 export default class VocabuilderTranslateWordProvider {
-  private providerId: string;
   private temperature: number;
 
   constructor(options: ProviderOptions = {}) {
-    this.providerId = options.id ?? "vocabuilder-production";
     this.temperature = options.config?.temperature ?? 0;
   }
 
   id(): string {
-    return this.providerId;
+    return "vocabuilder-production";
   }
 
   async callApi(prompt: string, context?: PromptfooContext): Promise<{ output?: string; error?: string }> {
