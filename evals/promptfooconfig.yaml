@@ -1,3 +1,7 @@
+# Pass-rate threshold lives at 85% in the npm `eval` / `eval:smoke` scripts because
+# the gemini-2.5-pro judge returns 503 UNAVAILABLE under demand and one flake
+# shouldn't fail the whole run. Tighten back toward 100% once the judge layer is
+# reliable.
 description: Vocabuilder translateWord LLM-judged evals
 
 prompts:
