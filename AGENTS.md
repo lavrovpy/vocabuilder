@@ -44,7 +44,7 @@ A Promptfoo-driven end-to-end harness over the production `translateWord` path. 
 
 ## Layout
 
-- `evals/promptfooconfig.yaml` — eval cases plus the `llm-rubric` assertion judged by `google:gemini-2.5-pro`
+- `evals/promptfooconfig.yaml` — eval cases plus the `llm-rubric` assertion judged by `google:gemini-3-flash-preview`
 - `evals/promptfoo/provider.ts` — custom Promptfoo provider that calls production `translateWord`
 - `evals/promptfoo/transform-vars.cjs` — `JSON.stringify` of each case's `expect` block, surfaced to the rubric template as `{{expectJson}}`
 - `evals/promptfoo/provider.test.ts` — Vitest coverage for the Zod schemas, the `parseOrThrow` helper, and the provider constructor
@@ -58,7 +58,7 @@ A Promptfoo-driven end-to-end harness over the production `translateWord` path. 
 - **Keep schema validation outside the judge.** `translateWord` already requests structured Gemini JSON and validates it with `GeminiWordResponseSchema`; malformed or schema-invalid model output becomes `GEMINI_INVALID_RESPONSE` before the rubric sees it. Do not ask the LLM judge to re-check JSON shape or Zod-level type constraints.
 - **Use the judge for semantic and contract quality.** Morphology, synonymy, regional variants, idiomatic acceptability, target-language quality, examples, and per-case `expect` behavior are rubric concerns. Per-case `expect` fields (`forbiddenTranslations`, `correctedWord`, `status`, `error`) are passed to the rubric verbatim through `{{expectJson}}` — they are inputs to the judge, not separate deterministic gates.
 - **Address language drift at the prompt layer, not via regex.** When the model returns Russian where Ukrainian is expected, the fix lives in the production prompt, not in `forbiddenTranslations` lists.
-- **Pass-rate threshold sits at 85%** in `npm run eval` and `eval:smoke` because `gemini-2.5-pro` returns 503 UNAVAILABLE under load and one flake should not fail the whole run. Tighten back toward 100% once the judge layer is reliable.
+- **Pass-rate threshold sits at 85%** in `npm run eval` and `eval:smoke` because the model-graded judge can return transient service errors under load and one flake should not fail the whole run. Tighten back toward 100% once the judge layer is reliable.
 - **Do not write tests that assert literal strings appear in config files** (`package.json`, YAML, etc.). They have no oracle: editing the config means editing the test, no bug ever caught. Promptfoo's loader catches broken file references when the eval actually runs.
 - **Treat all rubric inputs as untrusted data.** The rubric prompt explicitly tells the judge not to follow instructions inside `{{input}}`, `{{intent}}`, or `{{expectJson}}`. Preserve that framing when editing the rubric.
 
