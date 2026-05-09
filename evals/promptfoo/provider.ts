@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { translateWord } from "../../src/lib/gemini";
 import type { LanguagePair } from "../../src/lib/languages";
 import type { GeminiWordResponse } from "../../src/lib/types";
@@ -19,33 +20,21 @@ const KNOWN_DOMAIN_ERRORS = new Set([
   "GEMINI_INVALID_RESPONSE",
 ]);
 
-function stringVar(vars: Record<string, unknown> | undefined, key: string): string | undefined {
-  const value = vars?.[key];
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
-function requireStringVar(vars: Record<string, unknown> | undefined, key: string): string {
-  const value = stringVar(vars, key);
-  if (!value) {
-    throw new Error(
-      `Missing required eval var "${key}" — every test case in promptfooconfig.yaml must declare its language pair.`,
-    );
-  }
-  return value;
-}
-
-function languagePairFromVars(vars: Record<string, unknown> | undefined): LanguagePair {
-  return {
-    source: {
-      code: requireStringVar(vars, "sourceLanguageCode"),
-      name: requireStringVar(vars, "sourceLanguageName"),
+export const EvalVarsSchema = z
+  .object({
+    sourceLanguageCode: z.string().trim().min(1),
+    sourceLanguageName: z.string().trim().min(1),
+    targetLanguageCode: z.string().trim().min(1),
+    targetLanguageName: z.string().trim().min(1),
+    input: z.string().trim().min(1).optional(),
+  })
+  .transform((v): { pair: LanguagePair; input?: string } => ({
+    pair: {
+      source: { code: v.sourceLanguageCode, name: v.sourceLanguageName },
+      target: { code: v.targetLanguageCode, name: v.targetLanguageName },
     },
-    target: {
-      code: requireStringVar(vars, "targetLanguageCode"),
-      name: requireStringVar(vars, "targetLanguageName"),
-    },
-  };
-}
+    input: v.input,
+  }));
 
 function projectSuccess(
   input: string,
@@ -85,8 +74,15 @@ export default class VocabuilderTranslateWordProvider {
   }
 
   async callApi(prompt: string, context?: PromptfooContext): Promise<{ output?: string; error?: string }> {
-    const input = stringVar(context?.vars, "input") ?? prompt.trim();
-    const pair = languagePairFromVars(context?.vars);
+    const parsed = EvalVarsSchema.safeParse(context?.vars ?? {});
+    if (!parsed.success) {
+      const fields = parsed.error.issues.map((i) => i.path.join(".")).join(", ");
+      throw new Error(
+        `Invalid eval vars (${fields}) — every test case in promptfooconfig.yaml must declare its language pair.`,
+      );
+    }
+    const { pair, input: inputVar } = parsed.data;
+    const input = inputVar ?? prompt.trim();
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
