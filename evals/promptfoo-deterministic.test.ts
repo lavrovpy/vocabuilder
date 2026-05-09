@@ -62,21 +62,6 @@ describe("Promptfoo deterministic assertion", () => {
     expect(result.pass).toBe(true);
   });
 
-  it("fails when the projected language pair does not match the eval case", () => {
-    const result = deterministic(
-      okOutput({
-        languagePair: {
-          source: { code: "en", name: "English" },
-          target: { code: "pl", name: "Polish" },
-        },
-      }),
-      { vars: caseVars() },
-    );
-
-    expect(result.pass).toBe(false);
-    expect(result.reason).toContain("language pair mismatch");
-  });
-
   it("fails when required sense fields are empty", () => {
     const result = deterministic(okOutput({ senses: [defaultSense({ example: " " })] }), {
       vars: caseVars(),

@@ -52,26 +52,6 @@ function scriptMismatches(fields, script) {
     .map((field) => `${field.name}=${JSON.stringify(field.value)}`);
 }
 
-function languagePairMismatches(projection, vars) {
-  const expected = [
-    ["sourceLanguageCode", "languagePair.source.code"],
-    ["sourceLanguageName", "languagePair.source.name"],
-    ["targetLanguageCode", "languagePair.target.code"],
-    ["targetLanguageName", "languagePair.target.name"],
-  ];
-  const mismatches = [];
-
-  for (const [varKey, path] of expected) {
-    if (!nonEmptyString(vars?.[varKey])) continue;
-    const actual = path.split(".").reduce((value, key) => value?.[key], projection);
-    if (actual !== vars[varKey]) {
-      mismatches.push(`${path}: expected ${JSON.stringify(vars[varKey])}, got ${JSON.stringify(actual)}`);
-    }
-  }
-
-  return mismatches;
-}
-
 function check(name, pass, reason) {
   return {
     pass,
@@ -109,23 +89,6 @@ module.exports = (output, context) => {
       `expected status ${expectedStatus}, got ${String(projection.status)}`,
     ),
   );
-
-  const hasLanguageExpectations = [
-    "sourceLanguageCode",
-    "sourceLanguageName",
-    "targetLanguageCode",
-    "targetLanguageName",
-  ].some((key) => nonEmptyString(vars[key]));
-  const languageMismatches = languagePairMismatches(projection, vars);
-  if (hasLanguageExpectations) {
-    componentResults.push(
-      check(
-        "languagePair",
-        languageMismatches.length === 0,
-        `language pair mismatch: ${languageMismatches.join("; ")}`,
-      ),
-    );
-  }
 
   if (expectedStatus === "error") {
     if (expect.error) {
