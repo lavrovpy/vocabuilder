@@ -33,12 +33,26 @@ function stringVar(vars: Record<string, unknown> | undefined, key: string): stri
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+function requireStringVar(vars: Record<string, unknown> | undefined, key: string): string {
+  const value = stringVar(vars, key);
+  if (!value) {
+    throw new Error(
+      `Missing required eval var "${key}" — every test case in promptfooconfig.yaml must declare its language pair.`,
+    );
+  }
+  return value;
+}
+
 function languagePairFromVars(vars: Record<string, unknown> | undefined): LanguagePair {
-  const sourceCode = stringVar(vars, "sourceLanguageCode") ?? "en";
-  const targetCode = stringVar(vars, "targetLanguageCode") ?? "uk";
   return {
-    source: { code: sourceCode, name: stringVar(vars, "sourceLanguageName") ?? sourceCode },
-    target: { code: targetCode, name: stringVar(vars, "targetLanguageName") ?? targetCode },
+    source: {
+      code: requireStringVar(vars, "sourceLanguageCode"),
+      name: requireStringVar(vars, "sourceLanguageName"),
+    },
+    target: {
+      code: requireStringVar(vars, "targetLanguageCode"),
+      name: requireStringVar(vars, "targetLanguageName"),
+    },
   };
 }
 
