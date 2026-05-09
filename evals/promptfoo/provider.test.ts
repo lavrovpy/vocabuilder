@@ -102,7 +102,6 @@ describe("VocabuilderTranslateWordProvider constructor", () => {
   });
 
   it("throws when promptfoo passes a config without temperature", () => {
-    // @ts-expect-error — exercising the runtime guard against a YAML that omits temperature.
     expect(() => new VocabuilderTranslateWordProvider({ config: {} })).toThrow(/temperature/);
   });
 

@@ -1,4 +1,10 @@
 import { z } from "zod";
+import type {
+  ApiProvider,
+  CallApiContextParams,
+  ProviderOptions,
+  ProviderResponse,
+} from "promptfoo";
 import { translateWord } from "../../src/lib/gemini";
 import type { LanguagePair } from "../../src/lib/languages";
 import type { GeminiWordResponse } from "../../src/lib/types";
@@ -36,17 +42,6 @@ export const EvalVarsSchema = z
     input: v.input,
   }));
 
-type ProviderOptions = {
-  config?: z.infer<typeof ProviderConfigSchema>;
-};
-
-// Promptfoo passes the full vars bag for each test case, including fields the
-// schema doesn't parse (intent, expect, metadata). Typing as Record keeps the
-// extras visible at the boundary; the schema picks out what we actually need.
-type PromptfooContext = {
-  vars?: Record<string, unknown>;
-};
-
 function projectSuccess(
   input: string,
   pair: LanguagePair,
@@ -71,7 +66,7 @@ function projectKnownError(input: string, pair: LanguagePair, error: string): Re
   };
 }
 
-export default class VocabuilderTranslateWordProvider {
+export default class VocabuilderTranslateWordProvider implements ApiProvider {
   private temperature: number;
 
   constructor(options: ProviderOptions = {}) {
@@ -87,7 +82,7 @@ export default class VocabuilderTranslateWordProvider {
     return "vocabuilder-production";
   }
 
-  async callApi(prompt: string, context?: PromptfooContext): Promise<{ output?: string; error?: string }> {
+  async callApi(prompt: string, context?: CallApiContextParams): Promise<ProviderResponse> {
     const { pair, input: inputVar } = parseOrThrow(
       EvalVarsSchema,
       context?.vars ?? {},
