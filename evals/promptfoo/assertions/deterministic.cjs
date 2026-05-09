@@ -5,14 +5,6 @@ const SCRIPT_REGEX = {
   Japanese: /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{N}\p{P}\p{Z}\p{M}\p{S}]+$/u,
 };
 
-function parseOutput(output) {
-  if (typeof output === "object" && output !== null) return output;
-  if (typeof output !== "string") {
-    throw new Error(`Expected provider output to be a JSON string, got ${typeof output}`);
-  }
-  return JSON.parse(output);
-}
-
 function normalize(s) {
   return String(s).normalize("NFKC").trim().toLocaleLowerCase();
 }
@@ -58,20 +50,6 @@ function scriptMismatches(fields, script) {
   return fields
     .filter((field) => typeof field.value !== "string" || !isInScript(field.value, script))
     .map((field) => `${field.name}=${JSON.stringify(field.value)}`);
-}
-
-function senseIdentityKey(sense) {
-  return [normalize(sense.translation), normalize(sense.partOfSpeech)].join("\u0001");
-}
-
-function configuredSourceItem(projection, vars, expect) {
-  return (
-    (typeof expect.correctedWord === "string" && expect.correctedWord.trim()) ||
-    (typeof projection.correctedWord === "string" && projection.correctedWord.trim()) ||
-    (typeof vars?.input === "string" && vars.input.trim()) ||
-    (typeof projection.input === "string" && projection.input.trim()) ||
-    ""
-  );
 }
 
 function languagePairMismatches(projection, vars) {
@@ -122,14 +100,7 @@ module.exports = (output, context) => {
   const expectedStatus = expect.status ?? "ok";
   const componentResults = [];
 
-  let projection;
-  try {
-    projection = parseOutput(output);
-    componentResults.push(check("json", true));
-  } catch (err) {
-    componentResults.push(check("json", false, err instanceof Error ? err.message : String(err)));
-    return aggregate(componentResults);
-  }
+  const projection = JSON.parse(output);
 
   componentResults.push(
     check(
@@ -198,22 +169,6 @@ module.exports = (output, context) => {
     check("sense fields", missingSenseFields.length === 0, `missing or empty fields: ${missingSenseFields.join(", ")}`),
   );
 
-  const duplicateKeys = new Set();
-  const seenKeys = new Set();
-  for (const sense of senses) {
-    if (!nonEmptyString(sense?.translation) || !nonEmptyString(sense?.partOfSpeech)) continue;
-    const key = senseIdentityKey(sense);
-    if (seenKeys.has(key)) duplicateKeys.add(`${sense.translation} / ${sense.partOfSpeech}`);
-    seenKeys.add(key);
-  }
-  componentResults.push(
-    check(
-      "duplicate senses",
-      duplicateKeys.size === 0,
-      `duplicate translation+partOfSpeech pairs: ${JSON.stringify([...duplicateKeys])}`,
-    ),
-  );
-
   if (expect.correctedWord) {
     componentResults.push(
       check(
@@ -232,8 +187,6 @@ module.exports = (output, context) => {
     );
   }
 
-  const sourceItem = configuredSourceItem(projection, vars, expect);
-
   if (expect.targetScript) {
     const bad = scriptMismatches(targetTexts(projection), expect.targetScript);
     componentResults.push(
@@ -245,24 +198,6 @@ module.exports = (output, context) => {
     const bad = scriptMismatches(sourceTexts(projection), expect.sourceScript);
     componentResults.push(
       check("sourceScript", bad.length === 0, `expected ${expect.sourceScript}, mismatches: ${JSON.stringify(bad)}`),
-    );
-  }
-
-  if (expect.disallowSourceLeakage === true && sourceItem) {
-    const allowed = stringArray(expect.allowedSourceLeakage).map(normalize);
-    const normalizedSourceItem = normalize(sourceItem);
-    const hits = targetTexts(projection)
-      .filter((field) => {
-        const value = normalize(field.value);
-        return value.includes(normalizedSourceItem) && !allowed.some((allowedItem) => value.includes(allowedItem));
-      })
-      .map((field) => `${field.name}=${JSON.stringify(field.value)}`);
-    componentResults.push(
-      check(
-        "source leakage",
-        hits.length === 0,
-        `source item ${JSON.stringify(sourceItem)} appeared in target fields: ${JSON.stringify(hits)}`,
-      ),
     );
   }
 

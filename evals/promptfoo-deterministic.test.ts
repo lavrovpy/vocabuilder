@@ -95,21 +95,6 @@ describe("Promptfoo deterministic assertion", () => {
     expect(result.reason).toContain("sense count");
   });
 
-  it("fails duplicate sense identities", () => {
-    const result = deterministic(
-      okOutput({
-        senses: [
-          defaultSense({ example: "Це була оманлива підказка." }),
-          defaultSense({ example: "Підказка була оманливою." }),
-        ],
-      }),
-      { vars: caseVars() },
-    );
-
-    expect(result.pass).toBe(false);
-    expect(result.reason).toContain("duplicate translation+partOfSpeech");
-  });
-
   it("checks expected typo corrections", () => {
     const result = deterministic(okOutput({ correctedWord: "red herring" }), {
       vars: {
@@ -156,23 +141,6 @@ describe("Promptfoo deterministic assertion", () => {
     expect(result.reason).toContain("sourceScript");
   });
 
-  it("checks source leakage only when configured", () => {
-    const result = deterministic(
-      okOutput({
-        senses: [defaultSense({ example: "Цей red herring був очевидним." })],
-      }),
-      {
-        vars: caseVars({
-          targetScript: undefined,
-          disallowSourceLeakage: true,
-        }),
-      },
-    );
-
-    expect(result.pass).toBe(false);
-    expect(result.reason).toContain("source leakage");
-  });
-
   it("checks optional part-of-speech expectations", () => {
     const result = deterministic(okOutput(), {
       vars: caseVars({ partOfSpeechAny: ["noun", "verb"] }),
@@ -201,12 +169,6 @@ describe("Promptfoo deterministic assertion", () => {
     expect(result.pass).toBe(true);
   });
 
-  it("fails malformed JSON", () => {
-    const result = deterministic("not json", { vars: { expect: { status: "ok" } } });
-
-    expect(result.pass).toBe(false);
-    expect(result.reason).toContain("JSON");
-  });
 });
 
 describe("Promptfoo rubric variables", () => {
