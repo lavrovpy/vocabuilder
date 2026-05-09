@@ -36,6 +36,7 @@ After the PR is opened, the Raycast team reviews it and may request changes. Onc
 - Every code change must include corresponding tests. When adding new behavior, add tests that cover it. When modifying existing behavior, update existing tests and add new ones for the changed logic. Do not defer test writing to a separate step — tests are part of the implementation.
 - Use Vitest's in-source testing (`if (import.meta.vitest)`) to test private code without exporting it. Tests live inside the source file, sharing the same closure. They are tree-shaken out of production builds.
 - Do not export functions, constants, or types solely for testing purposes.
+- Prefer tests that encode project behavior or contracts over tests that mirror declarations. For Zod schemas, do not add parse/not-parse cases merely proving required fields, enum rejection, or primitive types; test app-level invariants, hand-written schema drift, migration/storage boundaries, and behavior that would fail in production.
 
 # Evals
 
