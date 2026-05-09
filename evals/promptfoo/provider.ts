@@ -4,14 +4,16 @@ import type { LanguagePair } from "../../src/lib/languages";
 import type { GeminiWordResponse } from "../../src/lib/types";
 
 type ProviderOptions = {
-  config?: {
-    temperature?: number;
-  };
+  config?: unknown;
 };
 
 type PromptfooContext = {
   vars?: Record<string, unknown>;
 };
+
+export const ProviderConfigSchema = z.object({
+  temperature: z.number(),
+});
 
 const KNOWN_DOMAIN_ERRORS = new Set([
   "WORD_NOT_FOUND",
@@ -63,7 +65,14 @@ export default class VocabuilderTranslateWordProvider {
   private temperature: number;
 
   constructor(options: ProviderOptions = {}) {
-    this.temperature = options.config?.temperature ?? 0;
+    const parsed = ProviderConfigSchema.safeParse(options.config ?? {});
+    if (!parsed.success) {
+      const fields = parsed.error.issues.map((i) => i.path.join(".")).join(", ");
+      throw new Error(
+        `Invalid provider config (${fields}) — promptfooconfig.yaml must set provider config.temperature.`,
+      );
+    }
+    this.temperature = parsed.data.temperature;
   }
 
   id(): string {
