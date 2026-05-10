@@ -137,6 +137,17 @@ tests:
       targetLanguageName: Ukrainian
       intent: Translate "rim" as an edge, lip, or wheel rim. Avoid ranking the Ukrainian word for lunch as the only useful result.
 
+  - description: "baseline: colon"
+    metadata:
+      category: baseline
+    vars:
+      input: colon
+      sourceLanguageCode: en
+      sourceLanguageName: English
+      targetLanguageCode: uk
+      targetLanguageName: Ukrainian
+      intent: Translate both the punctuation-mark sense and the anatomical sense of "colon" naturally. Accept either товста кишка or ободова кишка for the anatomical sense.
+
   - description: "idiom: red herring"
     metadata:
       category: idiom
