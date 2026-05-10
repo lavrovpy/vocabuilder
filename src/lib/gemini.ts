@@ -12,7 +12,7 @@ import {
 import { asJsonStringLiteral, normalizeWordInput, normalizeTextInput } from "./input";
 import type { LanguagePair } from "./languages";
 
-const MODEL = "gemini-2.5-flash-lite";
+const MODEL = "gemini-2.5-flash";
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 const MAX_RETRY_ATTEMPTS = 3;
