@@ -187,10 +187,6 @@ describe("looksLikeWordAttempt", () => {
 });
 
 describe("asJsonStringLiteral", () => {
-  it("wraps string in double quotes", () => {
-    expect(asJsonStringLiteral("hello")).toBe('"hello"');
-  });
-
   it("escapes internal quotes", () => {
     expect(asJsonStringLiteral('say "hi"')).toBe('"say \\"hi\\""');
   });

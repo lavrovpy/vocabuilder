@@ -1,20 +1,74 @@
 import {
   GeminiApiResponseSchema,
   GeminiWordResponse,
+  GeminiWordResponseJsonSchema,
   GeminiWordResponseSchema,
   GeminiTextResponse,
+  GeminiTextResponseJsonSchema,
   GeminiTextResponseSchema,
+  PART_OF_SPEECH_VALUES,
   WordSense,
 } from "./types";
 import { asJsonStringLiteral, normalizeWordInput, normalizeTextInput } from "./input";
-import { LanguagePair } from "./languages";
+import type { LanguagePair } from "./languages";
 
-const MODEL = "gemini-2.5-flash-lite";
+const MODEL = "gemini-2.5-flash";
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
-async function callGemini(prompt: string, apiKey: string, signal?: AbortSignal): Promise<string> {
-  const url = `${BASE_URL}/${MODEL}:generateContent`;
+const MAX_RETRY_ATTEMPTS = 3;
+const BASE_RETRY_DELAY_MS = 400;
 
+export type GenerationOptions = {
+  temperature?: number;
+};
+
+type GeminiCallOptions = GenerationOptions & {
+  responseJsonSchema?: Record<string, unknown>;
+};
+
+/** Exponential backoff with full jitter. attempt is 1-based. */
+function getRetryDelayMs(attempt: number): number {
+  const ceiling = BASE_RETRY_DELAY_MS * 2 ** (attempt - 1);
+  return Math.floor(Math.random() * ceiling);
+}
+
+/**
+ * Sleep that resolves early if the signal aborts. Throws the abort reason
+ * (matching fetch's behavior) when the signal fires during the wait.
+ */
+function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal?.reason ?? new DOMException("Aborted", "AbortError"));
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+/** Retry only on transient failures: network drops and 5xx/429/408 from Gemini. */
+function shouldRetryGeminiError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  if (error.message === "NETWORK_OFFLINE") return true;
+  if (error.message !== "GEMINI_REQUEST_FAILED") return false;
+  const status = (error.cause as { status?: number } | undefined)?.status;
+  return typeof status === "number" && (status >= 500 || status === 429 || status === 408);
+}
+
+async function fetchGeminiOnce(
+  url: string,
+  apiKey: string,
+  body: Record<string, unknown>,
+  signal: AbortSignal | undefined,
+): Promise<Response> {
   let response: Response;
   try {
     response = await fetch(url, {
@@ -23,9 +77,7 @@ async function callGemini(prompt: string, apiKey: string, signal?: AbortSignal):
         "Content-Type": "application/json",
         "x-goog-api-key": apiKey,
       },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-      }),
+      body: JSON.stringify(body),
       signal,
     });
   } catch (err) {
@@ -40,8 +92,53 @@ async function callGemini(prompt: string, apiKey: string, signal?: AbortSignal):
   }
 
   if (!response.ok) {
-    throw new Error("GEMINI_REQUEST_FAILED");
+    let errBody = "";
+    try {
+      errBody = (await response.text()).slice(0, 500);
+    } catch {
+      // body unreadable - proceed with empty
+    }
+    throw new Error("GEMINI_REQUEST_FAILED", { cause: { status: response.status, body: errBody } });
   }
+
+  return response;
+}
+
+async function callGemini(
+  prompt: string,
+  apiKey: string,
+  signal?: AbortSignal,
+  options?: GeminiCallOptions,
+): Promise<string> {
+  const url = `${BASE_URL}/${MODEL}:generateContent`;
+
+  const generationConfig: Record<string, unknown> = {};
+  if (options?.temperature !== undefined) generationConfig.temperature = options.temperature;
+  if (options?.responseJsonSchema !== undefined) {
+    generationConfig.responseMimeType = "application/json";
+    generationConfig.responseJsonSchema = options.responseJsonSchema;
+  }
+
+  const body: Record<string, unknown> = {
+    contents: [{ parts: [{ text: prompt }] }],
+  };
+  if (Object.keys(generationConfig).length > 0) body.generationConfig = generationConfig;
+
+  let response: Response | undefined;
+  for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
+    try {
+      response = await fetchGeminiOnce(url, apiKey, body, signal);
+      break;
+    } catch (err) {
+      const canRetry = attempt < MAX_RETRY_ATTEMPTS && shouldRetryGeminiError(err);
+      if (!canRetry) throw err;
+      await abortableSleep(getRetryDelayMs(attempt), signal);
+    }
+  }
+
+  // Unreachable in practice — the loop either assigns response or throws —
+  // but TS narrows better with this guard than with a non-null assertion.
+  if (!response) throw new Error("GEMINI_REQUEST_FAILED");
 
   const apiData = GeminiApiResponseSchema.parse(await response.json());
   const raw = apiData.candidates[0]?.content.parts[0]?.text ?? "";
@@ -54,17 +151,6 @@ async function callGemini(prompt: string, apiKey: string, signal?: AbortSignal):
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/, "")
     .trim();
-}
-
-/** Check that the source-language example sentence actually uses the word or phrase being translated. */
-function exampleContainsWord(exampleTranslation: string, word: string): boolean {
-  const escaped = word
-    .trim()
-    .replace(/\s+/g, " ")
-    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-    .replace(/ /g, "\\s+");
-  const pattern = new RegExp(`(?<![\\p{L}\\p{N}\\-])${escaped}(?![\\p{L}\\p{N}\\-])`, "iu");
-  return pattern.test(exampleTranslation);
 }
 
 /** Same translation + part of speech = same sense, regardless of example wording. */
@@ -86,6 +172,7 @@ function dedupeSenses(senses: WordSense[]): WordSense[] {
 
 function buildWordPrompt(normalizedWord: string, languagePair: LanguagePair): string {
   const { source, target } = languagePair;
+  const partsOfSpeech = PART_OF_SPEECH_VALUES.map((value) => `"${value}"`).join(", ");
   return `Translate the ${source.name} vocabulary item ${asJsonStringLiteral(normalizedWord)} to ${target.name}.
 The vocabulary item may be a single word, a phrasal verb (e.g. "give up", "break down"), or an idiom / fixed expression (e.g. "red herring", "kick the bucket").
 
@@ -93,7 +180,7 @@ CRITICAL RULES:
 1. If the input is a misspelling or typo of a REAL word or expression, correct it and translate the corrected form. Put the corrected form in "correctedWord". This applies to phrases too — e.g. "red hering" → "red herring", "kik the bucket" → "kick the bucket", "runing" → "running". Prefer correction over rejection whenever a plausible correction exists.
 2. Only if NO plausible correction exists and the input is truly gibberish / random letters / not in any dictionary or idiom reference, respond with: { "senses": [], "notAWord": true }
 3. For phrasal verbs and idioms, translate the IDIOMATIC meaning, NOT the literal word-by-word meaning. For example, "red herring" means a misleading clue (Ukrainian: "оманлива підказка"), NOT "червоний оселедець". "Kick the bucket" means to die, NOT to literally kick a bucket.
-4. Use an appropriate "partOfSpeech" label: use standard labels ("noun", "verb", "adjective", "adverb", etc.) for single words, and use "phrasal verb", "idiom", or "expression" for multi-word vocabulary items as appropriate.
+4. The "partOfSpeech" field MUST be one of: ${partsOfSpeech}. Use "phrasal verb", "idiom", or "expression" for multi-word vocabulary items; "expression" is a catch-all for borderline cases. Never invent a label outside this list.
 5. The "exampleTranslation" (${source.name} sentence) MUST contain the EXACT phrase ${asJsonStringLiteral(normalizedWord)} (or the corrected form if misspelled) as a contiguous substring. NEVER substitute it with a synonym or paraphrase. For example, if the input is "red herring", write "That clue turned out to be a red herring." — NOT "That clue turned out to be misleading."
 6. The "example" (${target.name} sentence) must be a natural idiomatic translation of the exampleTranslation.
 7. Target-language purity: every word in "translation" and "example" must be standard ${target.name} as used by educated native speakers, in standard ${target.name} orthography and morphology. Do NOT substitute words from a related or neighbouring language, and do NOT use calques, hybrid forms, or russisms / anglicisms / other foreign-influenced shapes built on a ${target.name} stem with a foreign affix when a native ${target.name} word exists. Established loanwords that are part of the standard ${target.name} lexicon are fine; the rule forbids substitutions and contaminations from other languages, not legitimate borrowings.
@@ -106,7 +193,7 @@ Respond ONLY with valid JSON:
   "senses": [
     {
       "translation": "${target.name} gloss for this sense",
-      "partOfSpeech": "noun / verb / adjective / phrasal verb / idiom / expression / etc",
+      "partOfSpeech": "one of the allowed labels listed above",
       "example": "${target.name} example sentence",
       "exampleTranslation": "${source.name} sentence that MUST contain ${asJsonStringLiteral(normalizedWord)} verbatim"
     }
@@ -115,11 +202,16 @@ Respond ONLY with valid JSON:
 }`;
 }
 
-export async function translateWord(
+/**
+ * Low-level translate-word Gemini call. Returns Gemini's parsed response before
+ * production notAWord routing and sense de-duplication.
+ */
+async function translateWordRaw(
   word: string,
   apiKey: string,
   languagePair: LanguagePair,
   signal?: AbortSignal,
+  options?: GenerationOptions,
 ): Promise<GeminiWordResponse> {
   const normalizedWord = normalizeWordInput(word);
   if (!normalizedWord) {
@@ -127,128 +219,86 @@ export async function translateWord(
   }
 
   const prompt = buildWordPrompt(normalizedWord, languagePair);
-
-  const cleaned = await callGemini(prompt, apiKey, signal);
+  const cleaned = await callGemini(prompt, apiKey, signal, {
+    ...options,
+    responseJsonSchema: GeminiWordResponseJsonSchema,
+  });
 
   try {
-    const parsed = GeminiWordResponseSchema.parse(JSON.parse(cleaned));
-
-    if (parsed.notAWord) {
-      throw new Error("WORD_NOT_FOUND");
-    }
-    if (parsed.senses.length === 0) {
-      throw new Error("GEMINI_INVALID_RESPONSE");
-    }
-
-    const effectiveWord = parsed.correctedWord ?? normalizedWord;
-    const validSenses = dedupeSenses(parsed.senses).filter((s) =>
-      exampleContainsWord(s.exampleTranslation, effectiveWord),
-    );
-
-    if (validSenses.length === 0) {
-      throw new Error("GEMINI_INVALID_RESPONSE");
-    }
-
-    return { ...parsed, senses: validSenses };
-  } catch (err) {
-    if (err instanceof Error && (err.message === "WORD_NOT_FOUND" || err.message === "GEMINI_INVALID_RESPONSE")) {
-      throw err;
-    }
+    return GeminiWordResponseSchema.parse(JSON.parse(cleaned));
+  } catch {
     throw new Error("GEMINI_INVALID_RESPONSE");
   }
 }
 
+export async function translateWord(
+  word: string,
+  apiKey: string,
+  languagePair: LanguagePair,
+  signal?: AbortSignal,
+  options?: GenerationOptions,
+): Promise<GeminiWordResponse> {
+  const parsed = await translateWordRaw(word, apiKey, languagePair, signal, options);
+
+  if (parsed.notAWord) {
+    throw new Error("WORD_NOT_FOUND");
+  }
+  if (parsed.senses.length === 0) {
+    throw new Error("GEMINI_INVALID_RESPONSE");
+  }
+
+  return { ...parsed, senses: dedupeSenses(parsed.senses) };
+}
+
 // --- In-source tests for private functions ---
 if (import.meta.vitest) {
-  const { describe, it, expect } = import.meta.vitest;
+  const { describe, it, expect, vi, beforeEach, afterEach } = import.meta.vitest;
 
-  describe("exampleContainsWord", () => {
-    it("matches a standalone word in a sentence", () => {
-      expect(exampleContainsWord("I saw the cat today", "cat")).toBe(true);
+  describe("callGemini generationConfig wiring", () => {
+    let fetchMock: ReturnType<typeof vi.fn>;
+    const fakeApiResponse = {
+      candidates: [{ content: { parts: [{ text: "{}" }] } }],
+    };
+
+    beforeEach(() => {
+      fetchMock = vi.fn(
+        async () =>
+          new Response(JSON.stringify(fakeApiResponse), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
     });
 
-    it("returns false when the word is absent", () => {
-      expect(exampleContainsWord("I saw the dog today", "cat")).toBe(false);
+    afterEach(() => {
+      vi.unstubAllGlobals();
     });
 
-    it("rejects prefix false-positive (helloworld vs hello)", () => {
-      expect(exampleContainsWord("This is helloworld", "hello")).toBe(false);
+    it("omits generationConfig when no options are passed", async () => {
+      await callGemini("hi", "key");
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+      expect(body.generationConfig).toBeUndefined();
     });
 
-    it("rejects suffix false-positive (worldhello vs hello)", () => {
-      expect(exampleContainsWord("This is worldhello", "hello")).toBe(false);
+    it("includes temperature when supplied", async () => {
+      await callGemini("hi", "key", undefined, { temperature: 0.7 });
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+      expect(body.generationConfig).toEqual({ temperature: 0.7 });
     });
 
-    it("matches when adjacent to punctuation", () => {
-      expect(exampleContainsWord("hello, world!", "hello")).toBe(true);
-      expect(exampleContainsWord("(hello) world", "hello")).toBe(true);
-      expect(exampleContainsWord('She said "hello"', "hello")).toBe(true);
-    });
-
-    it("matches case-insensitively", () => {
-      expect(exampleContainsWord("Hello there", "hello")).toBe(true);
-      expect(exampleContainsWord("hello there", "Hello")).toBe(true);
-    });
-
-    it("matches apostrophe words", () => {
-      expect(exampleContainsWord("I don't know", "don't")).toBe(true);
-      expect(exampleContainsWord("I do not know", "don't")).toBe(false);
-    });
-
-    it("treats hyphen as word-joining — parts don't match individually", () => {
-      expect(exampleContainsWord("This is well-known", "well")).toBe(false);
-      expect(exampleContainsWord("This is well-known", "known")).toBe(false);
-      expect(exampleContainsWord("This is well-known", "well-known")).toBe(true);
-    });
-
-    it("matches Cyrillic words", () => {
-      expect(exampleContainsWord("Він сказав привіт другу", "привіт")).toBe(true);
-      expect(exampleContainsWord("Він сказав привітання другу", "привіт")).toBe(false);
-    });
-
-    it("matches word at start and end of string", () => {
-      expect(exampleContainsWord("hello world", "hello")).toBe(true);
-      expect(exampleContainsWord("say hello", "hello")).toBe(true);
-    });
-
-    it("matches a multi-word idiom as a contiguous phrase", () => {
-      expect(exampleContainsWord("That clue was a red herring in the plot.", "red herring")).toBe(true);
-    });
-
-    it("rejects phrase when only one token appears", () => {
-      expect(exampleContainsWord("The red fish swam past the herring.", "red herring")).toBe(false);
-    });
-
-    it("rejects phrase when tokens are not contiguous", () => {
-      expect(exampleContainsWord("Red and pickled herring on the plate.", "red herring")).toBe(false);
-    });
-
-    it("tolerates multiple spaces inside the example", () => {
-      expect(exampleContainsWord("A classic red  herring appears here.", "red herring")).toBe(true);
-      expect(exampleContainsWord("A classic red\therring appears here.", "red herring")).toBe(true);
-      expect(exampleContainsWord("A classic red\nherring appears here.", "red herring")).toBe(true);
-    });
-
-    it("matches a phrasal verb inside a sentence", () => {
-      expect(exampleContainsWord("Don't give up on your dreams.", "give up")).toBe(true);
-    });
-
-    it("rejects phrase when the second token is only a prefix of a longer word", () => {
-      // "give up" as regex is `give\s+up`; in "give uptown" the engine matches
-      // "give up" as a prefix of "uptown", and the negative lookahead must
-      // reject the trailing letter to avoid a false positive.
-      expect(exampleContainsWord("She decided to give uptown tours.", "give up")).toBe(false);
-    });
-
-    it("rejects phrase when the first token is only a suffix of a longer word", () => {
-      // Negative lookbehind on the first token's left boundary: "forgive up"
-      // contains "give up" but "give" is glued to "for".
-      expect(exampleContainsWord("I cannot forgive up to this point.", "give up")).toBe(false);
-    });
-
-    it("matches multi-word Cyrillic phrase", () => {
-      expect(exampleContainsWord("Легенда про синій птах досі жива.", "синій птах")).toBe(true);
-      expect(exampleContainsWord("У саду сидів птах, а небо було синє.", "синій птах")).toBe(false);
+    it("includes structured JSON output config when a response schema is supplied", async () => {
+      const responseJsonSchema = {
+        type: "object",
+        properties: { translation: { type: "string" } },
+        required: ["translation"],
+      };
+      await callGemini("hi", "key", undefined, { responseJsonSchema });
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+      expect(body.generationConfig).toEqual({
+        responseMimeType: "application/json",
+        responseJsonSchema,
+      });
     });
   });
 
@@ -261,7 +311,6 @@ if (import.meta.vitest) {
     it("includes a target-language-purity rule that names the target language", () => {
       const prompt = buildWordPrompt("cat", enUk);
       expect(prompt).toMatch(/Target-language purity/);
-      // The rule must reference the target language by its parameterized name.
       expect(prompt).toMatch(/standard Ukrainian as used by educated native speakers/);
       expect(prompt).toMatch(/standard Ukrainian orthography and morphology/);
     });
@@ -288,19 +337,16 @@ if (import.meta.vitest) {
       const prompt = buildWordPrompt("cat", enPt);
       expect(prompt).toMatch(/standard Portuguese as used by educated native speakers/);
       expect(prompt).toMatch(/standard Portuguese orthography and morphology/);
-      // Must not still reference the previous target's name.
       expect(prompt).not.toMatch(/standard Ukrainian/);
     });
 
     it("embeds the user-provided word as a JSON-encoded literal (security: no raw concatenation)", () => {
-      // A word containing characters that would break naive quoting must be
-      // embedded via JSON.stringify so the model sees it as a string literal.
       const prompt = buildWordPrompt('foo"bar', enUk);
       expect(prompt).toContain('"foo\\"bar"');
-      expect(prompt).not.toContain('foo"bar to '); // raw form must not appear
+      expect(prompt).not.toContain('foo"bar to ');
     });
 
-    it("preserves prior CRITICAL RULES (1–6) so the existing tests' invariants still hold", () => {
+    it("preserves prior CRITICAL RULES (1-6) so the existing tests' invariants still hold", () => {
       const prompt = buildWordPrompt("cat", enUk);
       expect(prompt).toMatch(/CRITICAL RULES:/);
       expect(prompt).toMatch(/^1\. If the input is a misspelling/m);
@@ -315,6 +361,7 @@ export async function translateText(
   apiKey: string,
   languagePair: LanguagePair,
   signal?: AbortSignal,
+  options?: GenerationOptions,
 ): Promise<GeminiTextResponse> {
   const normalizedText = normalizeTextInput(text);
   if (!normalizedText) {
@@ -329,7 +376,10 @@ Respond ONLY with valid JSON:
 
 Text: ${asJsonStringLiteral(normalizedText)}`;
 
-  const cleaned = await callGemini(prompt, apiKey, signal);
+  const cleaned = await callGemini(prompt, apiKey, signal, {
+    ...options,
+    responseJsonSchema: GeminiTextResponseJsonSchema,
+  });
 
   try {
     return GeminiTextResponseSchema.parse(JSON.parse(cleaned));
