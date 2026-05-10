@@ -52,7 +52,6 @@ function projectSuccess(
     input,
     languagePair: pair,
     correctedWord: response.correctedWord ?? null,
-    notAWord: response.notAWord === true,
     senses: response.senses,
   };
 }
