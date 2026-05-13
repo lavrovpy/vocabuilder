@@ -3,9 +3,9 @@ import { execFile } from "child_process";
 import { createHash } from "crypto";
 import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from "fs";
 import path from "path";
+import { DEFAULT_TTS_MODEL, resolveModel } from "./gemini";
 import { GeminiTtsResponseSchema } from "./types";
 
-const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 const DEFAULT_VOICE = "Kore";
 const SAMPLE_RATE = 24000;
@@ -96,9 +96,10 @@ function getCacheDir(): string {
   return dir;
 }
 
-function cacheKey(word: string, langCode: string): string {
-  const hash = createHash("sha256").update(word.toLowerCase()).digest("hex").slice(0, 32);
-  return `${langCode}-${hash}.wav`;
+function cacheKey(word: string, langCode: string, model: string): string {
+  const modelHash = createHash("sha256").update(model).digest("hex").slice(0, 8);
+  const wordHash = createHash("sha256").update(word.toLowerCase()).digest("hex").slice(0, 32);
+  return `${langCode}-${modelHash}-${wordHash}.wav`;
 }
 
 function evictOldestCacheFiles(dir: string, maxFiles: number): void {
@@ -130,8 +131,13 @@ function playAudio(filePath: string): Promise<void> {
   });
 }
 
-async function generateSpeechGemini(text: string, apiKey: string, signal?: AbortSignal): Promise<Buffer> {
-  const url = `${BASE_URL}/${TTS_MODEL}:generateContent`;
+async function generateSpeechGemini(
+  text: string,
+  apiKey: string,
+  signal?: AbortSignal,
+  model: string = DEFAULT_TTS_MODEL,
+): Promise<Buffer> {
+  const url = `${BASE_URL}/${model}:generateContent`;
 
   let response: Response;
   try {
@@ -165,6 +171,10 @@ async function generateSpeechGemini(text: string, apiKey: string, signal?: Abort
     throw new Error("INVALID_API_KEY");
   }
 
+  if (response.status === 404) {
+    throw new Error("TTS_MODEL_NOT_FOUND", { cause: { model } });
+  }
+
   if (!response.ok) {
     throw new Error("TTS_REQUEST_FAILED");
   }
@@ -185,9 +195,11 @@ export async function pronounce(
   apiKey: string,
   langCode: string,
   signal?: AbortSignal,
+  model?: string,
 ): Promise<{ cached: boolean }> {
+  const resolvedModel = resolveModel(model, DEFAULT_TTS_MODEL);
   const dir = getCacheDir();
-  const fileName = cacheKey(word, langCode);
+  const fileName = cacheKey(word, langCode, resolvedModel);
   const filePath = path.join(dir, fileName);
 
   signal?.throwIfAborted();
@@ -195,7 +207,7 @@ export async function pronounce(
   let cached = true;
   if (!existsSync(filePath)) {
     cached = false;
-    const wavBuffer = await generateSpeechGemini(word, apiKey, signal);
+    const wavBuffer = await generateSpeechGemini(word, apiKey, signal, resolvedModel);
     writeFileSync(filePath, wavBuffer);
     evictOldestCacheFiles(dir, MAX_CACHE_FILES);
   }
@@ -256,26 +268,34 @@ if (import.meta.vitest) {
   });
 
   describe("cacheKey", () => {
+    const MODEL = "gemini-3.1-flash-tts-preview";
+
     it("produces deterministic filesystem-safe names with fixed length", () => {
-      const key = cacheKey("hello", "en");
-      // lang(2) + dash(1) + sha256-prefix(32) + .wav(4) = 39 chars
-      expect(key).toMatch(/^en-[0-9a-f]{32}\.wav$/);
-      expect(key.length).toBe(39);
+      const key = cacheKey("hello", "en", MODEL);
+      // lang(2) + dash(1) + model-prefix(8) + dash(1) + word-prefix(32) + .wav(4) = 48 chars
+      expect(key).toMatch(/^en-[0-9a-f]{8}-[0-9a-f]{32}\.wav$/);
+      expect(key.length).toBe(48);
     });
 
-    it("is case-insensitive", () => {
-      expect(cacheKey("Hello", "en")).toBe(cacheKey("hello", "en"));
+    it("is case-insensitive on the word", () => {
+      expect(cacheKey("Hello", "en", MODEL)).toBe(cacheKey("hello", "en", MODEL));
     });
 
     it("handles unicode words", () => {
-      const key = cacheKey("привіт", "uk");
-      expect(key).toMatch(/^uk-[0-9a-f]{32}\.wav$/);
+      const key = cacheKey("привіт", "uk", MODEL);
+      expect(key).toMatch(/^uk-[0-9a-f]{8}-[0-9a-f]{32}\.wav$/);
     });
 
     it("keeps filenames short even for long text", () => {
       const longText = "a".repeat(1000);
-      const key = cacheKey(longText, "en");
-      expect(key.length).toBe(39);
+      const key = cacheKey(longText, "en", MODEL);
+      expect(key.length).toBe(48);
+    });
+
+    it("changes when the model changes — switching models invalidates cache", () => {
+      const a = cacheKey("hello", "en", "gemini-2.5-flash-preview-tts");
+      const b = cacheKey("hello", "en", "gemini-3.1-flash-tts-preview");
+      expect(a).not.toBe(b);
     });
   });
 

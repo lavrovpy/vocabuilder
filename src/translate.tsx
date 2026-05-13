@@ -59,10 +59,18 @@ function isSafeClipboardSuggestion(raw: string): boolean {
   return normalizeWordInput(text) !== null;
 }
 
-function getUserFacingErrorMessage(errorCode: string): string {
+function modelFromCause(err: unknown): string {
+  const cause = err instanceof Error ? (err.cause as { model?: string } | undefined) : undefined;
+  return cause?.model ?? "the configured model";
+}
+
+function getUserFacingErrorMessage(err: unknown): string {
+  const errorCode = err instanceof Error ? err.message : "UNKNOWN_ERROR";
   switch (errorCode) {
     case "INVALID_API_KEY":
       return "Invalid API key. Please check your Gemini API key in preferences.";
+    case "GEMINI_MODEL_NOT_FOUND":
+      return `Translation model "${modelFromCause(err)}" was not found or is deprecated. Update "Translation Model" in extension preferences.`;
     case "GEMINI_REQUEST_FAILED":
       return "Gemini request failed. Please try again.";
     case "GEMINI_EMPTY_RESPONSE":
@@ -98,7 +106,7 @@ function relativeTime(timestamp: number): string {
 }
 
 export default function Translate() {
-  const { geminiApiKey, readClipboardOnOpen } = getPreferenceValues<Preferences.Translate>();
+  const { geminiApiKey, readClipboardOnOpen, translationModel } = getPreferenceValues<Preferences.Translate>();
   const langResult = useLanguagePair();
   const { push } = useNavigation();
 
@@ -215,7 +223,7 @@ export default function Translate() {
       setPendingWord(null);
       setIsLoading(false);
       setErrorCode("INVALID_WORD_INPUT");
-      setError(getUserFacingErrorMessage("INVALID_WORD_INPUT"));
+      setError(getUserFacingErrorMessage(new Error("INVALID_WORD_INPUT")));
       return;
     }
 
@@ -229,7 +237,7 @@ export default function Translate() {
     setPendingWord(null);
     setIsLoading(false);
     setErrorCode("INVALID_TEXT_INPUT");
-    setError(getUserFacingErrorMessage("INVALID_TEXT_INPUT"));
+    setError(getUserFacingErrorMessage(new Error("INVALID_TEXT_INPUT")));
   }
 
   async function readClipboardSuggestion(): Promise<string | null> {
@@ -342,7 +350,9 @@ export default function Translate() {
     setPendingWord(null);
 
     try {
-      const geminiResult = await translateWord(word, geminiApiKey, languagePair, controller.signal);
+      const geminiResult = await translateWord(word, geminiApiKey, languagePair, controller.signal, {
+        model: translationModel,
+      });
 
       if (controller.signal.aborted) return;
 
@@ -358,7 +368,7 @@ export default function Translate() {
       if (controller.signal.aborted) return;
 
       const rawCode = err instanceof Error ? err.message : "UNKNOWN_ERROR";
-      const userMessage = getUserFacingErrorMessage(rawCode);
+      const userMessage = getUserFacingErrorMessage(err);
       setErrorCode(rawCode);
       setError(userMessage);
 
@@ -387,7 +397,9 @@ export default function Translate() {
     setPendingWord(null);
 
     try {
-      const geminiResult = await translateText(text, geminiApiKey, languagePair, controller.signal);
+      const geminiResult = await translateText(text, geminiApiKey, languagePair, controller.signal, {
+        model: translationModel,
+      });
 
       if (controller.signal.aborted) return;
 
@@ -418,7 +430,7 @@ export default function Translate() {
       if (controller.signal.aborted) return;
 
       const rawCode = err instanceof Error ? err.message : "UNKNOWN_ERROR";
-      const userMessage = getUserFacingErrorMessage(rawCode);
+      const userMessage = getUserFacingErrorMessage(err);
       setErrorCode(rawCode);
       setError(userMessage);
 
@@ -460,7 +472,7 @@ export default function Translate() {
           icon={errorCode === "NETWORK_OFFLINE" ? Icon.WifiDisabled : Icon.ExclamationMark}
           actions={
             <ActionPanel>
-              {errorCode === "INVALID_API_KEY" && (
+              {(errorCode === "INVALID_API_KEY" || errorCode === "GEMINI_MODEL_NOT_FOUND") && (
                 <Action title="Open Preferences" onAction={openExtensionPreferences} icon={Icon.Gear} />
               )}
               {RETRYABLE_ERRORS.includes(errorCode ?? "") && searchText.trim() && (

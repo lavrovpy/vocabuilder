@@ -451,11 +451,33 @@ describe("translateWord retry behavior", () => {
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
   });
 
-  it("does NOT retry 404 (transient-looking but permanent for our endpoint)", async () => {
+  it("throws GEMINI_MODEL_NOT_FOUND on 404 without retrying, carrying the model name in cause", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Not Found", { status: 404 }));
+    const customModel = "gemini-bogus-model";
 
-    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("GEMINI_REQUEST_FAILED");
+    let caught: unknown;
+    try {
+      await translateWord("hello", API_KEY, pair, undefined, { model: customModel });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).message).toBe("GEMINI_MODEL_NOT_FOUND");
+    expect((caught as Error).cause).toEqual({ model: customModel });
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to the default translation model when no model is passed", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response("Not Found", { status: 404 }));
+    let caught: unknown;
+    try {
+      await translateWord("hello", API_KEY, pair);
+    } catch (err) {
+      caught = err;
+    }
+    const cause = (caught as Error).cause as { model?: string };
+    expect(cause.model).toBeTruthy();
+    expect(cause.model).not.toBe("");
   });
 
   it("aborts cleanly during retry backoff without making more fetch calls", async () => {

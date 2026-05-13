@@ -12,14 +12,21 @@ import {
 import { asJsonStringLiteral, normalizeWordInput, normalizeTextInput } from "./input";
 import type { LanguagePair } from "./languages";
 
-const MODEL = "gemini-2.5-flash";
+export const DEFAULT_TRANSLATION_MODEL = "gemini-3-flash-preview";
+export const DEFAULT_TTS_MODEL = "gemini-3.1-flash-tts-preview";
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 const MAX_RETRY_ATTEMPTS = 3;
 const BASE_RETRY_DELAY_MS = 400;
 
+export function resolveModel(pref: string | undefined, fallback: string): string {
+  const trimmed = pref?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : fallback;
+}
+
 export type GenerationOptions = {
   temperature?: number;
+  model?: string;
 };
 
 type GeminiCallOptions = GenerationOptions & {
@@ -68,6 +75,7 @@ async function fetchGeminiOnce(
   apiKey: string,
   body: Record<string, unknown>,
   signal: AbortSignal | undefined,
+  model: string,
 ): Promise<Response> {
   let response: Response;
   try {
@@ -91,6 +99,10 @@ async function fetchGeminiOnce(
     throw new Error("INVALID_API_KEY");
   }
 
+  if (response.status === 404) {
+    throw new Error("GEMINI_MODEL_NOT_FOUND", { cause: { model } });
+  }
+
   if (!response.ok) {
     let errBody = "";
     try {
@@ -110,7 +122,8 @@ async function callGemini(
   signal?: AbortSignal,
   options?: GeminiCallOptions,
 ): Promise<string> {
-  const url = `${BASE_URL}/${MODEL}:generateContent`;
+  const model = resolveModel(options?.model, DEFAULT_TRANSLATION_MODEL);
+  const url = `${BASE_URL}/${model}:generateContent`;
 
   const generationConfig: Record<string, unknown> = {};
   if (options?.temperature !== undefined) generationConfig.temperature = options.temperature;
@@ -127,7 +140,7 @@ async function callGemini(
   let response: Response | undefined;
   for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
     try {
-      response = await fetchGeminiOnce(url, apiKey, body, signal);
+      response = await fetchGeminiOnce(url, apiKey, body, signal, model);
       break;
     } catch (err) {
       const canRetry = attempt < MAX_RETRY_ATTEMPTS && shouldRetryGeminiError(err);

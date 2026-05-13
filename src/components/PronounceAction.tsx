@@ -27,13 +27,33 @@ export default function PronounceAction({ word, languageCode, title, shortcut }:
 
     const toast = await showToast({ style: Toast.Style.Animated, title: "Playing pronunciation…" });
     try {
-      const { geminiApiKey } = getPreferenceValues<Preferences.Translate>();
-      const { cached } = await pronounce(word, geminiApiKey, languageCode, controller.signal);
+      const { geminiApiKey, ttsModel } = getPreferenceValues<Preferences.Translate>();
+      const { cached } = await pronounce(word, geminiApiKey, languageCode, controller.signal, ttsModel);
       if (!cached) toast.title = "Generated pronunciation";
       toast.hide();
     } catch (err) {
       if (controller.signal.aborted) return;
       const reason = err instanceof Error ? err.message : String(err);
+      const causeModel = err instanceof Error ? (err.cause as { model?: string } | undefined)?.model : undefined;
+
+      if (reason === "TTS_MODEL_NOT_FOUND") {
+        const modelLabel = causeModel ?? "the configured model";
+        await showToast({
+          style: Toast.Style.Failure,
+          title: "Text-to-speech model not found",
+          message: `Model "${modelLabel}" is unavailable or deprecated. Update "Text-to-Speech Model" in extension preferences.`,
+        });
+        toast.hide();
+        if (hasMacOsFallback(languageCode)) {
+          try {
+            await pronounceFallback(word, languageCode);
+          } catch {
+            // ignore — the main toast already surfaced the config problem
+          }
+        }
+        return;
+      }
+
       if (!hasMacOsFallback(languageCode)) {
         toast.style = Toast.Style.Failure;
         toast.title = "Pronunciation failed";

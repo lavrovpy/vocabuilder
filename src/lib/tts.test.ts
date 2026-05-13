@@ -67,12 +67,46 @@ describe("pronounce", () => {
     expect(result.cached).toBe(false);
     expect(fetch).toHaveBeenCalledOnce();
     const fetchCall = vi.mocked(fetch).mock.calls[0];
-    expect(fetchCall[0]).toContain("gemini-2.5-flash-preview-tts");
+    // URL targets the Gemini TTS endpoint without snapshotting a specific model name —
+    // the default may change over time as preview models are retired.
+    expect(fetchCall[0]).toMatch(
+      /^https:\/\/generativelanguage\.googleapis\.com\/v1beta\/models\/[^:]+:generateContent$/,
+    );
 
     const body = JSON.parse((fetchCall[1] as RequestInit).body as string);
     expect(body.contents[0].parts[0].text).toBe("hello");
     expect(body.generationConfig.responseModalities).toEqual(["AUDIO"]);
     expect(body.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName).toBe("Kore");
+  });
+
+  it("uses the model passed via parameter (not a hardcoded default)", async () => {
+    const fakePcm = Buffer.alloc(48).toString("base64");
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(ttsResponseBody(fakePcm)), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const customModel = "custom-tts-model-xyz";
+    await pronounce("hello", API_KEY, "en", undefined, customModel);
+
+    const fetchCall = vi.mocked(fetch).mock.calls[0];
+    expect(fetchCall[0]).toContain(`/${customModel}:generateContent`);
+  });
+
+  it("throws TTS_MODEL_NOT_FOUND on 404 and carries the model name in cause", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response('{"error":{"code":404,"status":"NOT_FOUND"}}', { status: 404 }));
+    const customModel = "gemini-2.5-flash-preview-tts";
+    let caught: unknown;
+    try {
+      await pronounce("hello", API_KEY, "en", undefined, customModel);
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).message).toBe("TTS_MODEL_NOT_FOUND");
+    expect((caught as Error).cause).toEqual({ model: customModel });
   });
 
   it("skips API call when cache exists", async () => {
