@@ -61,10 +61,12 @@ describe("pronounce", () => {
     expect(fetch).toHaveBeenCalledOnce();
     const fetchCall = vi.mocked(fetch).mock.calls[0];
     // URL targets the Gemini TTS endpoint without snapshotting a specific model name —
-    // the default may change over time as preview models are retired.
-    expect(fetchCall[0]).toMatch(
-      /^https:\/\/generativelanguage\.googleapis\.com\/v1beta\/models\/[^:]+:generateContent$/,
-    );
+    // the default may change over time as preview models are retired. It must also
+    // keep credentials out of the query string.
+    const url = new URL(fetchCall[0] as string);
+    expect(url.origin).toBe("https://generativelanguage.googleapis.com");
+    expect(url.pathname).toMatch(/^\/v1beta\/models\/[^/?#:]+:generateContent$/);
+    expect(url.search).toBe("");
 
     const body = JSON.parse((fetchCall[1] as RequestInit).body as string);
     expect(body.contents[0].parts[0].text).toBe("hello");
