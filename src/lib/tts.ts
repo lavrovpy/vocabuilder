@@ -3,6 +3,7 @@ import { execFile } from "child_process";
 import { createHash } from "crypto";
 import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from "fs";
 import path from "path";
+import { z } from "zod";
 import { DEFAULT_TTS_MODEL, resolveModel } from "./gemini";
 import { GeminiTtsResponseSchema } from "./types";
 
@@ -176,10 +177,22 @@ async function generateSpeechGemini(
   }
 
   if (!response.ok) {
-    throw new Error("TTS_REQUEST_FAILED");
+    let errBody = "";
+    try {
+      errBody = (await response.text()).slice(0, 500);
+    } catch {
+      // body unreadable - proceed with empty
+    }
+    throw new Error("TTS_REQUEST_FAILED", { cause: { status: response.status, body: errBody } });
   }
 
-  const apiData = GeminiTtsResponseSchema.parse(await response.json());
+  const rawJson = await response.text();
+  let apiData: z.infer<typeof GeminiTtsResponseSchema>;
+  try {
+    apiData = GeminiTtsResponseSchema.parse(JSON.parse(rawJson));
+  } catch {
+    throw new Error("TTS_INVALID_RESPONSE", { cause: { body: rawJson.slice(0, 500) } });
+  }
   const base64Audio = apiData.candidates[0]?.content.parts[0]?.inlineData.data;
 
   if (!base64Audio) {

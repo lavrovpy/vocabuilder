@@ -29,14 +29,7 @@ function ttsResponseBody(base64Audio: string): object {
     candidates: [
       {
         content: {
-          parts: [
-            {
-              inlineData: {
-                mimeType: "audio/L16;rate=24000" as const,
-                data: base64Audio,
-              },
-            },
-          ],
+          parts: [{ inlineData: { data: base64Audio } }],
         },
       },
     ],
@@ -136,14 +129,40 @@ describe("pronounce", () => {
     await expect(pronounce("hello", API_KEY, "en")).rejects.toThrow("NETWORK_OFFLINE");
   });
 
-  it("throws TTS_REQUEST_FAILED on non-ok response", async () => {
+  it("throws TTS_REQUEST_FAILED on non-ok response and carries status + body in cause", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Server Error", { status: 500 }));
-    await expect(pronounce("hello", API_KEY, "en")).rejects.toThrow("TTS_REQUEST_FAILED");
+    let caught: unknown;
+    try {
+      await pronounce("hello", API_KEY, "en");
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).message).toBe("TTS_REQUEST_FAILED");
+    expect((caught as Error).cause).toEqual({ status: 500, body: "Server Error" });
+  });
+
+  it("throws TTS_INVALID_RESPONSE when body does not match the schema", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response('{"unexpected":"shape"}', {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    let caught: unknown;
+    try {
+      await pronounce("hello", API_KEY, "en");
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).message).toBe("TTS_INVALID_RESPONSE");
+    expect((caught as Error).cause).toHaveProperty("body");
   });
 
   it("throws TTS_EMPTY_RESPONSE when no audio data", async () => {
     const emptyResponse = {
-      candidates: [{ content: { parts: [{ inlineData: { mimeType: "audio/L16;rate=24000", data: "" } }] } }],
+      candidates: [{ content: { parts: [{ inlineData: { data: "" } }] } }],
     };
     vi.mocked(fetch).mockResolvedValue(
       new Response(JSON.stringify(emptyResponse), {
