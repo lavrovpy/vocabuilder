@@ -31,3 +31,14 @@ export function getUserFacingErrorMessage(err: string | Error): string {
       return "Translation failed. Please try again.";
   }
 }
+
+export function getTranslationErrorToastTitle(errorCode: string): string {
+  switch (errorCode) {
+    case "NETWORK_OFFLINE":
+      return "No Internet Connection";
+    case "GEMINI_MODEL_NOT_FOUND":
+      return "Model not found";
+    default:
+      return "Translation failed";
+  }
+}

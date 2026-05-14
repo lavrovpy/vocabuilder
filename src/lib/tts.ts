@@ -135,8 +135,8 @@ function playAudio(filePath: string): Promise<void> {
 async function generateSpeechGemini(
   text: string,
   apiKey: string,
-  signal?: AbortSignal,
-  model: string = DEFAULT_TTS_MODEL,
+  signal: AbortSignal | undefined,
+  model: string,
 ): Promise<Buffer> {
   const url = `${BASE_URL}/${model}:generateContent`;
 
@@ -201,11 +201,7 @@ async function generateSpeechGemini(
     });
   }
   const apiData: z.infer<typeof GeminiTtsResponseSchema> = parsedApiData.data;
-  const base64Audio = apiData.candidates[0]?.content.parts[0]?.inlineData.data;
-
-  if (!base64Audio) {
-    throw new Error("TTS_EMPTY_RESPONSE");
-  }
+  const base64Audio = apiData.candidates[0].content.parts[0].inlineData.data;
 
   const pcm = Buffer.from(base64Audio, "base64");
   return prependWavHeader(pcm, SAMPLE_RATE, NUM_CHANNELS, BITS_PER_SAMPLE);

@@ -163,7 +163,7 @@ describe("pronounce", () => {
     expect((caught as Error).cause).toHaveProperty("zodError");
   });
 
-  it("throws TTS_EMPTY_RESPONSE when no audio data", async () => {
+  it("throws TTS_INVALID_RESPONSE when audio data is empty", async () => {
     const emptyResponse = {
       candidates: [{ content: { parts: [{ inlineData: { data: "" } }] } }],
     };
@@ -173,7 +173,15 @@ describe("pronounce", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
-    await expect(pronounce("hello", API_KEY, "en")).rejects.toThrow("TTS_EMPTY_RESPONSE");
+    let caught: unknown;
+    try {
+      await pronounce("hello", API_KEY, "en");
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).message).toBe("TTS_INVALID_RESPONSE");
+    expect((caught as Error).cause).toHaveProperty("zodError");
   });
 
   it("evicts oldest files when cache exceeds MAX_CACHE_FILES", async () => {
@@ -185,20 +193,24 @@ describe("pronounce", () => {
       }),
     );
 
-    // Simulate 51 cached .wav files (exceeds MAX_CACHE_FILES=50)
-    const fileNames = Array.from({ length: 51 }, (_, i) => `en-${String(i).padStart(3, "0")}.wav`);
+    // Simulate 51 cached files using the current {lang}-{modelHash8}-{wordHash32}.wav format.
+    const fileNames = Array.from(
+      { length: 51 },
+      (_, i) => `en-deadbeef-${String(i).padStart(2, "0")}${"0".repeat(30)}.wav`,
+    );
     vi.mocked(readdirSync).mockReturnValue(fileNames as unknown as ReturnType<typeof readdirSync>);
     vi.mocked(statSync).mockImplementation(
       (p) =>
         ({
-          mtimeMs: parseInt(String(p).match(/(\d{3})\.wav/)?.[1] ?? "0"),
+          mtimeMs: Number(String(p).match(/-([0-9]{2})0{30}\.wav/)?.[1] ?? "0"),
         }) as ReturnType<typeof statSync>,
     );
 
     await pronounce("hello", API_KEY, "en");
 
-    // Oldest file (000) should be evicted
-    expect(unlinkSync).toHaveBeenCalledWith(expect.stringContaining("en-000.wav"));
+    expect(unlinkSync).toHaveBeenCalledWith(
+      expect.stringContaining("en-deadbeef-00000000000000000000000000000000.wav"),
+    );
   });
 
   it("does not call fetch when signal is already aborted", async () => {

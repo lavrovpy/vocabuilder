@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { MAX_PHRASE_TOKENS, MAX_VOCAB_LENGTH } from "./input";
-import { getUserFacingErrorMessage } from "./translation-errors";
+import { getTranslationErrorToastTitle, getUserFacingErrorMessage } from "./translation-errors";
 
 describe("getUserFacingErrorMessage", () => {
   it("formats literal validation error codes without requiring Error objects", () => {
@@ -20,5 +20,16 @@ describe("getUserFacingErrorMessage", () => {
     expect(getUserFacingErrorMessage("GEMINI_MODEL_NOT_FOUND")).toBe(
       'Translation model "the configured model" was not found or is deprecated. Update "Translation Model" in extension preferences.',
     );
+  });
+});
+
+describe("getTranslationErrorToastTitle", () => {
+  it("uses precise titles for offline and missing-model errors", () => {
+    expect(getTranslationErrorToastTitle("NETWORK_OFFLINE")).toBe("No Internet Connection");
+    expect(getTranslationErrorToastTitle("GEMINI_MODEL_NOT_FOUND")).toBe("Model not found");
+  });
+
+  it("uses the generic title for other translation failures", () => {
+    expect(getTranslationErrorToastTitle("GEMINI_REQUEST_FAILED")).toBe("Translation failed");
   });
 });

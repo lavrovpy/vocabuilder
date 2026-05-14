@@ -23,7 +23,7 @@ import { LanguagePair, storageKeyPrefix, swapLanguagePair } from "./lib/language
 import { posColor } from "./lib/colors";
 import { buildTranslationDetailMarkdown, buildTextTranslationDetailMarkdown } from "./lib/markdown";
 import { getHistory, saveTranslation } from "./lib/storage";
-import { getUserFacingErrorMessage } from "./lib/translation-errors";
+import { getTranslationErrorToastTitle, getUserFacingErrorMessage } from "./lib/translation-errors";
 import { Translation, WordSense } from "./lib/types";
 
 interface PendingWordTranslation {
@@ -339,7 +339,7 @@ export default function Translate() {
 
       await showToast({
         style: Toast.Style.Failure,
-        title: rawCode === "NETWORK_OFFLINE" ? "No Internet Connection" : "Translation failed",
+        title: getTranslationErrorToastTitle(rawCode),
         message: userMessage,
       });
     } finally {
@@ -401,7 +401,7 @@ export default function Translate() {
 
       await showToast({
         style: Toast.Style.Failure,
-        title: rawCode === "NETWORK_OFFLINE" ? "No Internet Connection" : "Translation failed",
+        title: getTranslationErrorToastTitle(rawCode),
         message: userMessage,
       });
     } finally {
