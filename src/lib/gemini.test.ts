@@ -155,7 +155,7 @@ describe("translateWord", () => {
     await expect(translateWord("xqzptl", API_KEY, pair)).rejects.toThrow("WORD_NOT_FOUND");
   });
 
-  it("throws GEMINI_INVALID_RESPONSE when senses array is empty without notAWord", async () => {
+  it("throws invalid-response when senses array is empty without notAWord", async () => {
     const payload = { senses: [] };
     vi.mocked(fetch).mockResolvedValue(
       new Response(JSON.stringify(geminiJsonBody(payload)), {
@@ -163,7 +163,7 @@ describe("translateWord", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
-    await expect(translateWord("zzzqqq", API_KEY, pair)).rejects.toThrow("GEMINI_INVALID_RESPONSE");
+    await expect(translateWord("zzzqqq", API_KEY, pair)).rejects.toThrow("invalid-response");
   });
 
   it("keeps senses even when exampleTranslation does not contain the exact input", async () => {
@@ -295,15 +295,15 @@ describe("translateWord", () => {
 
   it("throws INVALID_API_KEY on 401", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Unauthorized", { status: 401 }));
-    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("INVALID_API_KEY");
+    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("invalid-api-key");
   });
 
   it("throws INVALID_API_KEY on 403", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Forbidden", { status: 403 }));
-    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("INVALID_API_KEY");
+    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("invalid-api-key");
   });
 
-  it("throws GEMINI_REQUEST_FAILED with cause carrying status and body on non-401/403 failures", async () => {
+  it("throws request-failed with cause carrying status and body on non-401/403 failures", async () => {
     // Pin the retry sleep to 0 so this test stays fast.
     vi.spyOn(Math, "random").mockReturnValue(0);
     const body = '{"error":{"code":429,"message":"Resource has been exhausted"}}';
@@ -313,10 +313,12 @@ describe("translateWord", () => {
       throw new Error("expected rejection");
     } catch (err) {
       expect(err).toBeInstanceOf(Error);
-      expect((err as Error).message).toBe("GEMINI_REQUEST_FAILED");
-      const cause = (err as Error).cause as { status?: number; body?: string } | undefined;
-      expect(cause?.status).toBe(429);
-      expect(cause?.body).toContain("Resource has been exhausted");
+      expect((err as Error).message).toBe("request-failed");
+      const cause = (err as Error).cause as { kind?: string; surface?: string; status?: number; body?: string };
+      expect(cause.kind).toBe("request-failed");
+      expect(cause.surface).toBe("translate");
+      expect(cause.status).toBe(429);
+      expect(cause.body).toContain("Resource has been exhausted");
     }
   });
 
@@ -334,7 +336,7 @@ describe("translateWord", () => {
     }
   });
 
-  it("throws GEMINI_EMPTY_RESPONSE when response text is empty", async () => {
+  it("throws empty-response when response text is empty", async () => {
     const body = {
       candidates: [{ content: { parts: [{ text: "" }] } }],
     };
@@ -344,10 +346,10 @@ describe("translateWord", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
-    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("GEMINI_EMPTY_RESPONSE");
+    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("empty-response");
   });
 
-  it("throws GEMINI_INVALID_RESPONSE when JSON is malformed", async () => {
+  it("throws invalid-response when JSON is malformed", async () => {
     const body = {
       candidates: [{ content: { parts: [{ text: "not json at all" }] } }],
     };
@@ -357,7 +359,7 @@ describe("translateWord", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
-    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("GEMINI_INVALID_RESPONSE");
+    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("invalid-response");
   });
 
   it("throws INVALID_WORD_INPUT for empty input", async () => {
@@ -367,7 +369,7 @@ describe("translateWord", () => {
   it("throws NETWORK_OFFLINE when fetch fails with a network TypeError", async () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     vi.mocked(fetch).mockRejectedValue(new TypeError("fetch failed"));
-    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("NETWORK_OFFLINE");
+    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("network-offline");
   });
 });
 
@@ -422,7 +424,7 @@ describe("translateWord retry behavior", () => {
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
   });
 
-  it("gives up after MAX_RETRY_ATTEMPTS and surfaces GEMINI_REQUEST_FAILED", async () => {
+  it("gives up after MAX_RETRY_ATTEMPTS and surfaces request-failed", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Service Unavailable", { status: 503 }));
 
     try {
@@ -430,7 +432,7 @@ describe("translateWord retry behavior", () => {
       throw new Error("expected rejection");
     } catch (err) {
       expect(err).toBeInstanceOf(Error);
-      expect((err as Error).message).toBe("GEMINI_REQUEST_FAILED");
+      expect((err as Error).message).toBe("request-failed");
       const cause = (err as Error).cause as { status?: number };
       expect(cause?.status).toBe(503);
     }
@@ -440,18 +442,18 @@ describe("translateWord retry behavior", () => {
   it("does NOT retry 400 — fails fast on the first attempt", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Bad Request", { status: 400 }));
 
-    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("GEMINI_REQUEST_FAILED");
+    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("request-failed");
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
   });
 
-  it("does NOT retry 401 — fails fast with INVALID_API_KEY", async () => {
+  it("does NOT retry 401 — fails fast with invalid-api-key", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Unauthorized", { status: 401 }));
 
-    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("INVALID_API_KEY");
+    await expect(translateWord("hello", API_KEY, pair)).rejects.toThrow("invalid-api-key");
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
   });
 
-  it("throws GEMINI_MODEL_NOT_FOUND on 404 without retrying, carrying the model name in cause", async () => {
+  it("throws model-not-found on 404 without retrying, carrying the model name in cause", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Not Found", { status: 404 }));
     const customModel = "gemini-bogus-model";
 
@@ -462,8 +464,12 @@ describe("translateWord retry behavior", () => {
       caught = err;
     }
     expect(caught).toBeInstanceOf(Error);
-    expect((caught as Error).message).toBe("GEMINI_MODEL_NOT_FOUND");
-    expect((caught as Error).cause).toEqual({ model: customModel });
+    expect((caught as Error).message).toBe("model-not-found");
+    expect((caught as Error).cause).toMatchObject({
+      kind: "model-not-found",
+      surface: "translate",
+      model: customModel,
+    });
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
   });
 
@@ -536,6 +542,6 @@ describe("translateText", () => {
   it("throws NETWORK_OFFLINE when fetch fails with a network TypeError", async () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     vi.mocked(fetch).mockRejectedValue(new TypeError("fetch failed"));
-    await expect(translateText("Hello world", API_KEY, pair)).rejects.toThrow("NETWORK_OFFLINE");
+    await expect(translateText("Hello world", API_KEY, pair)).rejects.toThrow("network-offline");
   });
 });

@@ -1,5 +1,7 @@
 import { Action, Icon, Keyboard, Toast, getPreferenceValues, showToast } from "@raycast/api";
 import { useEffect, useRef } from "react";
+import { defaultToastFor } from "../lib/errorToast";
+import { isGeminiError, isTransient } from "../lib/geminiError";
 import { hasMacOsFallback, isTtsSupported, pronounce, pronounceFallback } from "../lib/tts";
 
 interface PronounceActionProps {
@@ -56,54 +58,19 @@ export default function PronounceAction({ word, languageCode, title, shortcut }:
 type TtsErrorRouting = { title: string; message: string; fallback: boolean };
 
 function routeTtsError(err: unknown, languageCode: string): TtsErrorRouting {
-  const error = err instanceof Error ? err : new Error(String(err));
-  const cause = (error.cause ?? {}) as { model?: string; status?: number; body?: string };
-
-  switch (error.message) {
-    case "NETWORK_OFFLINE":
-      return { title: "No internet connection", message: "Using system voice for now.", fallback: true };
-    case "INVALID_API_KEY":
-      return {
-        title: "Invalid Gemini API key",
-        message: "Update your key in extension preferences.",
-        fallback: false,
-      };
-    case "TTS_MODEL_NOT_FOUND": {
-      const model = cause.model ?? "configured model";
-      return {
-        title: "TTS model not found",
-        message: `Model "${model}" is unavailable. Update "Text-to-Speech Model" in preferences.`,
-        fallback: false,
-      };
+  if (isGeminiError(err)) {
+    const base = defaultToastFor(err.cause);
+    // TTS-specific overlay: when offline, foreshadow the say(1) fallback.
+    if (err.cause.kind === "network-offline") {
+      return { ...base, message: "Using system voice for now.", fallback: true };
     }
-    case "TTS_REQUEST_FAILED": {
-      const status = cause.status;
-      const is5xx = typeof status === "number" && status >= 500 && status < 600;
-      return {
-        title: "Pronunciation request failed",
-        message: status
-          ? `Gemini returned ${status}. Check your TTS model in preferences.`
-          : "Check your TTS model in preferences.",
-        fallback: is5xx,
-      };
-    }
-    case "TTS_INVALID_RESPONSE":
-      return {
-        title: "Unexpected response from Gemini",
-        message: "The TTS model returned an unrecognized format. Try another model in preferences.",
-        fallback: false,
-      };
-    case "TTS_EMPTY_RESPONSE":
-      return {
-        title: "No audio returned",
-        message: "Try again or pick a different model.",
-        fallback: false,
-      };
-    default:
-      return {
-        title: "Pronunciation failed",
-        message: error.message || "Unknown error.",
-        fallback: hasMacOsFallback(languageCode),
-      };
+    return { ...base, fallback: isTransient(err) };
   }
+  // Unknown error: keep the previous default — try the system voice if available.
+  const error = err instanceof Error ? err : new Error(String(err));
+  return {
+    title: "Pronunciation failed",
+    message: error.message || "Unknown error.",
+    fallback: hasMacOsFallback(languageCode),
+  };
 }

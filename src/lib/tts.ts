@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync
 import path from "path";
 import { z } from "zod";
 import { DEFAULT_TTS_MODEL, resolveModel } from "./gemini";
+import { geminiError } from "./geminiError";
 import { GeminiTtsResponseSchema } from "./types";
 
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
@@ -163,17 +164,17 @@ async function generateSpeechGemini(
     });
   } catch (err) {
     if (err instanceof TypeError) {
-      throw new Error("NETWORK_OFFLINE");
+      throw geminiError({ kind: "network-offline", surface: "tts" });
     }
     throw err;
   }
 
   if (response.status === 401 || response.status === 403) {
-    throw new Error("INVALID_API_KEY");
+    throw geminiError({ kind: "invalid-api-key", surface: "tts" });
   }
 
   if (response.status === 404) {
-    throw new Error("TTS_MODEL_NOT_FOUND", { cause: { model } });
+    throw geminiError({ kind: "model-not-found", surface: "tts", model });
   }
 
   if (!response.ok) {
@@ -183,7 +184,7 @@ async function generateSpeechGemini(
     } catch {
       // body unreadable - proceed with empty
     }
-    throw new Error("TTS_REQUEST_FAILED", { cause: { status: response.status, body: errBody } });
+    throw geminiError({ kind: "request-failed", surface: "tts", status: response.status, body: errBody });
   }
 
   const rawJson = await response.text();
@@ -191,12 +192,12 @@ async function generateSpeechGemini(
   try {
     apiData = GeminiTtsResponseSchema.parse(JSON.parse(rawJson));
   } catch {
-    throw new Error("TTS_INVALID_RESPONSE", { cause: { body: rawJson.slice(0, 500) } });
+    throw geminiError({ kind: "invalid-response", surface: "tts", body: rawJson.slice(0, 500) });
   }
   const base64Audio = apiData.candidates[0]?.content.parts[0]?.inlineData.data;
 
   if (!base64Audio) {
-    throw new Error("TTS_EMPTY_RESPONSE");
+    throw geminiError({ kind: "empty-response", surface: "tts" });
   }
 
   const pcm = Buffer.from(base64Audio, "base64");

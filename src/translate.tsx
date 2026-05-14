@@ -18,6 +18,8 @@ import LanguageConfigError from "./components/LanguageConfigError";
 import { useLanguagePair } from "./hooks/useLanguagePair";
 import History from "./history";
 import { translateWord, translateText } from "./lib/gemini";
+import { defaultToastFor } from "./lib/errorToast";
+import { isGeminiError } from "./lib/geminiError";
 import {
   MAX_PHRASE_TOKENS,
   MAX_VOCAB_LENGTH,
@@ -43,12 +45,18 @@ function pickSenseShortcut(index: number): { modifiers: "cmd"[]; key: "1" | "2" 
   return { modifiers: ["cmd"], key: keys[index] };
 }
 
-const RETRYABLE_ERRORS = [
-  "NETWORK_OFFLINE",
-  "GEMINI_REQUEST_FAILED",
-  "GEMINI_EMPTY_RESPONSE",
-  "GEMINI_INVALID_RESPONSE",
-];
+/**
+ * Codes for which the UI should offer a Retry button. Includes every Gemini
+ * transport kind that *might* succeed on retry, plus the app-level UNKNOWN_ERROR
+ * (which could be a one-off). Excludes invalid-api-key and model-not-found —
+ * those need a preferences change first.
+ */
+const RETRYABLE_ERROR_CODES = new Set<string>([
+  "network-offline",
+  "request-failed",
+  "empty-response",
+  "invalid-response",
+]);
 
 const SECRET_PREFIX_RE = /^(sk-|ghp_|github_pat_|xox[baprs]-|AKIA|ASIA|AIza)/i;
 
@@ -59,33 +67,32 @@ function isSafeClipboardSuggestion(raw: string): boolean {
   return normalizeWordInput(text) !== null;
 }
 
-function modelFromCause(err: unknown): string {
-  const cause = err instanceof Error ? (err.cause as { model?: string } | undefined) : undefined;
-  return cause?.model ?? "the configured model";
-}
+type ErrorDescription = { code: string; title: string; message: string };
 
-function getUserFacingErrorMessage(err: unknown): string {
-  const errorCode = err instanceof Error ? err.message : "UNKNOWN_ERROR";
-  switch (errorCode) {
-    case "INVALID_API_KEY":
-      return "Invalid API key. Please check your Gemini API key in preferences.";
-    case "GEMINI_MODEL_NOT_FOUND":
-      return `Translation model "${modelFromCause(err)}" was not found or is deprecated. Update "Translation Model" in extension preferences.`;
-    case "GEMINI_REQUEST_FAILED":
-      return "Gemini request failed. Please try again.";
-    case "GEMINI_EMPTY_RESPONSE":
-    case "GEMINI_INVALID_RESPONSE":
-      return "Gemini returned an unexpected response. Please try again.";
-    case "NETWORK_OFFLINE":
-      return "You appear to be offline. Check your connection and try again.";
+function describeError(err: unknown): ErrorDescription {
+  if (isGeminiError(err)) {
+    const { title, message } = defaultToastFor(err.cause);
+    return { code: err.cause.kind, title, message };
+  }
+  const code = err instanceof Error ? err.message : "UNKNOWN_ERROR";
+  const title = "Translation failed";
+  switch (code) {
     case "WORD_NOT_FOUND":
-      return "This word or phrase was not recognized. Check the spelling or try something else.";
+      return {
+        code,
+        title: "Word not recognized",
+        message: "This word or phrase was not recognized. Check the spelling or try something else.",
+      };
     case "INVALID_WORD_INPUT":
-      return `Enter a word or short phrase (letters, apostrophe, hyphen; up to ${MAX_PHRASE_TOKENS} words, ${MAX_VOCAB_LENGTH} chars).`;
+      return {
+        code,
+        title,
+        message: `Enter a word or short phrase (letters, apostrophe, hyphen; up to ${MAX_PHRASE_TOKENS} words, ${MAX_VOCAB_LENGTH} chars).`,
+      };
     case "INVALID_TEXT_INPUT":
-      return "Text is empty or too long.";
+      return { code, title, message: "Text is empty or too long." };
     default:
-      return "Translation failed. Please try again.";
+      return { code, title, message: "Translation failed. Please try again." };
   }
 }
 
@@ -222,8 +229,9 @@ export default function Translate() {
       setResult(null);
       setPendingWord(null);
       setIsLoading(false);
-      setErrorCode("INVALID_WORD_INPUT");
-      setError(getUserFacingErrorMessage(new Error("INVALID_WORD_INPUT")));
+      const desc = describeError(new Error("INVALID_WORD_INPUT"));
+      setErrorCode(desc.code);
+      setError(desc.message);
       return;
     }
 
@@ -236,8 +244,9 @@ export default function Translate() {
     setResult(null);
     setPendingWord(null);
     setIsLoading(false);
-    setErrorCode("INVALID_TEXT_INPUT");
-    setError(getUserFacingErrorMessage(new Error("INVALID_TEXT_INPUT")));
+    const desc = describeError(new Error("INVALID_TEXT_INPUT"));
+    setErrorCode(desc.code);
+    setError(desc.message);
   }
 
   async function readClipboardSuggestion(): Promise<string | null> {
@@ -367,16 +376,11 @@ export default function Translate() {
     } catch (err) {
       if (controller.signal.aborted) return;
 
-      const rawCode = err instanceof Error ? err.message : "UNKNOWN_ERROR";
-      const userMessage = getUserFacingErrorMessage(err);
-      setErrorCode(rawCode);
-      setError(userMessage);
+      const { code, title, message } = describeError(err);
+      setErrorCode(code);
+      setError(message);
 
-      await showToast({
-        style: Toast.Style.Failure,
-        title: rawCode === "NETWORK_OFFLINE" ? "No Internet Connection" : "Translation failed",
-        message: userMessage,
-      });
+      await showToast({ style: Toast.Style.Failure, title, message });
     } finally {
       if (!controller.signal.aborted) {
         setIsLoading(false);
@@ -429,16 +433,11 @@ export default function Translate() {
     } catch (err) {
       if (controller.signal.aborted) return;
 
-      const rawCode = err instanceof Error ? err.message : "UNKNOWN_ERROR";
-      const userMessage = getUserFacingErrorMessage(err);
-      setErrorCode(rawCode);
-      setError(userMessage);
+      const { code, title, message } = describeError(err);
+      setErrorCode(code);
+      setError(message);
 
-      await showToast({
-        style: Toast.Style.Failure,
-        title: rawCode === "NETWORK_OFFLINE" ? "No Internet Connection" : "Translation failed",
-        message: userMessage,
-      });
+      await showToast({ style: Toast.Style.Failure, title, message });
     } finally {
       if (!controller.signal.aborted) {
         setIsLoading(false);
@@ -467,15 +466,15 @@ export default function Translate() {
     >
       {error ? (
         <List.EmptyView
-          title={errorCode === "NETWORK_OFFLINE" ? "No Internet Connection" : "Translation Error"}
+          title={errorCode === "network-offline" ? "No Internet Connection" : "Translation Error"}
           description={error}
-          icon={errorCode === "NETWORK_OFFLINE" ? Icon.WifiDisabled : Icon.ExclamationMark}
+          icon={errorCode === "network-offline" ? Icon.WifiDisabled : Icon.ExclamationMark}
           actions={
             <ActionPanel>
-              {(errorCode === "INVALID_API_KEY" || errorCode === "GEMINI_MODEL_NOT_FOUND") && (
+              {(errorCode === "invalid-api-key" || errorCode === "model-not-found") && (
                 <Action title="Open Preferences" onAction={openExtensionPreferences} icon={Icon.Gear} />
               )}
-              {RETRYABLE_ERRORS.includes(errorCode ?? "") && searchText.trim() && (
+              {RETRYABLE_ERROR_CODES.has(errorCode ?? "") && searchText.trim() && (
                 <Action title="Retry" icon={Icon.ArrowClockwise} onAction={() => submitTranslation(searchText)} />
               )}
               <ToggleLanguagesAction />
