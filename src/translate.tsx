@@ -18,17 +18,12 @@ import LanguageConfigError from "./components/LanguageConfigError";
 import { useLanguagePair } from "./hooks/useLanguagePair";
 import History from "./history";
 import { translateWord, translateText } from "./lib/gemini";
-import {
-  MAX_PHRASE_TOKENS,
-  MAX_VOCAB_LENGTH,
-  looksLikeWordAttempt,
-  normalizeWordInput,
-  normalizeTextInput,
-} from "./lib/input";
+import { looksLikeWordAttempt, normalizeWordInput, normalizeTextInput } from "./lib/input";
 import { LanguagePair, storageKeyPrefix, swapLanguagePair } from "./lib/languages";
 import { posColor } from "./lib/colors";
 import { buildTranslationDetailMarkdown, buildTextTranslationDetailMarkdown } from "./lib/markdown";
 import { getHistory, saveTranslation } from "./lib/storage";
+import { getUserFacingErrorMessage } from "./lib/translation-errors";
 import { Translation, WordSense } from "./lib/types";
 
 interface PendingWordTranslation {
@@ -57,36 +52,6 @@ function isSafeClipboardSuggestion(raw: string): boolean {
   if (!text || text.includes("\n")) return false;
   if (SECRET_PREFIX_RE.test(text)) return false;
   return normalizeWordInput(text) !== null;
-}
-
-function modelFromCause(err: unknown): string {
-  const cause = err instanceof Error ? (err.cause as { model?: string } | undefined) : undefined;
-  return cause?.model ?? "the configured model";
-}
-
-function getUserFacingErrorMessage(err: unknown): string {
-  const errorCode = err instanceof Error ? err.message : "UNKNOWN_ERROR";
-  switch (errorCode) {
-    case "INVALID_API_KEY":
-      return "Invalid API key. Please check your Gemini API key in preferences.";
-    case "GEMINI_MODEL_NOT_FOUND":
-      return `Translation model "${modelFromCause(err)}" was not found or is deprecated. Update "Translation Model" in extension preferences.`;
-    case "GEMINI_REQUEST_FAILED":
-      return "Gemini request failed. Please try again.";
-    case "GEMINI_EMPTY_RESPONSE":
-    case "GEMINI_INVALID_RESPONSE":
-      return "Gemini returned an unexpected response. Please try again.";
-    case "NETWORK_OFFLINE":
-      return "You appear to be offline. Check your connection and try again.";
-    case "WORD_NOT_FOUND":
-      return "This word or phrase was not recognized. Check the spelling or try something else.";
-    case "INVALID_WORD_INPUT":
-      return `Enter a word or short phrase (letters, apostrophe, hyphen; up to ${MAX_PHRASE_TOKENS} words, ${MAX_VOCAB_LENGTH} chars).`;
-    case "INVALID_TEXT_INPUT":
-      return "Text is empty or too long.";
-    default:
-      return "Translation failed. Please try again.";
-  }
 }
 
 function truncate(text: string, maxLen: number): string {
@@ -223,7 +188,7 @@ export default function Translate() {
       setPendingWord(null);
       setIsLoading(false);
       setErrorCode("INVALID_WORD_INPUT");
-      setError(getUserFacingErrorMessage(new Error("INVALID_WORD_INPUT")));
+      setError(getUserFacingErrorMessage("INVALID_WORD_INPUT"));
       return;
     }
 
@@ -237,7 +202,7 @@ export default function Translate() {
     setPendingWord(null);
     setIsLoading(false);
     setErrorCode("INVALID_TEXT_INPUT");
-    setError(getUserFacingErrorMessage(new Error("INVALID_TEXT_INPUT")));
+    setError(getUserFacingErrorMessage("INVALID_TEXT_INPUT"));
   }
 
   async function readClipboardSuggestion(): Promise<string | null> {
@@ -368,7 +333,7 @@ export default function Translate() {
       if (controller.signal.aborted) return;
 
       const rawCode = err instanceof Error ? err.message : "UNKNOWN_ERROR";
-      const userMessage = getUserFacingErrorMessage(err);
+      const userMessage = getUserFacingErrorMessage(err instanceof Error ? err : "UNKNOWN_ERROR");
       setErrorCode(rawCode);
       setError(userMessage);
 
@@ -430,7 +395,7 @@ export default function Translate() {
       if (controller.signal.aborted) return;
 
       const rawCode = err instanceof Error ? err.message : "UNKNOWN_ERROR";
-      const userMessage = getUserFacingErrorMessage(err);
+      const userMessage = getUserFacingErrorMessage(err instanceof Error ? err : "UNKNOWN_ERROR");
       setErrorCode(rawCode);
       setError(userMessage);
 

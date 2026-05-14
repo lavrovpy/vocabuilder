@@ -20,8 +20,7 @@ const MAX_RETRY_ATTEMPTS = 3;
 const BASE_RETRY_DELAY_MS = 400;
 
 export function resolveModel(pref: string | undefined, fallback: string): string {
-  const trimmed = pref?.trim();
-  return trimmed && trimmed.length > 0 ? trimmed : fallback;
+  return pref?.trim() || fallback;
 }
 
 export type GenerationOptions = {
@@ -266,6 +265,17 @@ export async function translateWord(
 // --- In-source tests for private functions ---
 if (import.meta.vitest) {
   const { describe, it, expect, vi, beforeEach, afterEach } = import.meta.vitest;
+
+  describe("resolveModel", () => {
+    it("uses a trimmed configured model when present", () => {
+      expect(resolveModel("  gemini-custom  ", DEFAULT_TRANSLATION_MODEL)).toBe("gemini-custom");
+    });
+
+    it("falls back for missing or blank preferences", () => {
+      expect(resolveModel(undefined, DEFAULT_TRANSLATION_MODEL)).toBe(DEFAULT_TRANSLATION_MODEL);
+      expect(resolveModel("   ", DEFAULT_TRANSLATION_MODEL)).toBe(DEFAULT_TRANSLATION_MODEL);
+    });
+  });
 
   describe("callGemini generationConfig wiring", () => {
     let fetchMock: ReturnType<typeof vi.fn>;

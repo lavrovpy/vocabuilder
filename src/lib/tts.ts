@@ -187,12 +187,20 @@ async function generateSpeechGemini(
   }
 
   const rawJson = await response.text();
-  let apiData: z.infer<typeof GeminiTtsResponseSchema>;
+  let parsedJson: unknown;
   try {
-    apiData = GeminiTtsResponseSchema.parse(JSON.parse(rawJson));
-  } catch {
-    throw new Error("TTS_INVALID_RESPONSE", { cause: { body: rawJson.slice(0, 500) } });
+    parsedJson = JSON.parse(rawJson);
+  } catch (err) {
+    throw new Error("TTS_INVALID_RESPONSE", { cause: { body: rawJson.slice(0, 500), parseError: err } });
   }
+
+  const parsedApiData = GeminiTtsResponseSchema.safeParse(parsedJson);
+  if (!parsedApiData.success) {
+    throw new Error("TTS_INVALID_RESPONSE", {
+      cause: { body: rawJson.slice(0, 500), zodError: parsedApiData.error },
+    });
+  }
+  const apiData: z.infer<typeof GeminiTtsResponseSchema> = parsedApiData.data;
   const base64Audio = apiData.candidates[0]?.content.parts[0]?.inlineData.data;
 
   if (!base64Audio) {

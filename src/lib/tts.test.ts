@@ -160,6 +160,7 @@ describe("pronounce", () => {
     expect(caught).toBeInstanceOf(Error);
     expect((caught as Error).message).toBe("TTS_INVALID_RESPONSE");
     expect((caught as Error).cause).toHaveProperty("body");
+    expect((caught as Error).cause).toHaveProperty("zodError");
   });
 
   it("throws TTS_EMPTY_RESPONSE when no audio data", async () => {
