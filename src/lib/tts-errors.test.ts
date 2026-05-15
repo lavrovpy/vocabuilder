@@ -16,8 +16,16 @@ describe("routeTtsError", () => {
     });
   });
 
-  it("uses a service-error message for Gemini 5xx TTS failures", () => {
+  it("mentions system voice for Gemini 5xx TTS failures when fallback is available", () => {
     expect(routeTtsError(new Error("TTS_REQUEST_FAILED", { cause: { status: 500 } }), true)).toEqual({
+      title: "Pronunciation request failed",
+      message: "Gemini service error. Using system voice for now.",
+      fallback: true,
+    });
+  });
+
+  it("does not promise system voice for Gemini 5xx TTS failures without fallback", () => {
+    expect(routeTtsError(new Error("TTS_REQUEST_FAILED", { cause: { status: 500 } }), false)).toEqual({
       title: "Pronunciation request failed",
       message: "Gemini service error. Please try again.",
       fallback: true,

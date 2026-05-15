@@ -31,7 +31,9 @@ export function routeTtsError(err: unknown, canUseFallback: boolean): TtsErrorRo
       return {
         title: "Pronunciation request failed",
         message: is5xx
-          ? "Gemini service error. Please try again."
+          ? canUseFallback
+            ? "Gemini service error. Using system voice for now."
+            : "Gemini service error. Please try again."
           : status
             ? `Gemini returned ${status}. Check your TTS model in preferences.`
             : "Check your TTS model in preferences.",
@@ -42,12 +44,6 @@ export function routeTtsError(err: unknown, canUseFallback: boolean): TtsErrorRo
       return {
         title: "Unexpected response from Gemini",
         message: "The TTS model returned an unrecognized format. Try another model in preferences.",
-        fallback: false,
-      };
-    case "TTS_EMPTY_RESPONSE":
-      return {
-        title: "No audio returned",
-        message: "Try again or pick a different model.",
         fallback: false,
       };
     default:
