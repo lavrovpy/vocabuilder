@@ -91,7 +91,7 @@ describe("pronounce", () => {
     expect(fetchCall[0]).toContain(`/${customModel}:generateContent`);
   });
 
-  it("throws TTS_MODEL_NOT_FOUND on 404 and carries the model name in cause", async () => {
+  it("throws model-not-found on 404 and carries the model name in cause", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response('{"error":{"code":404,"status":"NOT_FOUND"}}', { status: 404 }));
     const customModel = "gemini-2.5-flash-preview-tts";
     let caught: unknown;
@@ -101,8 +101,12 @@ describe("pronounce", () => {
       caught = err;
     }
     expect(caught).toBeInstanceOf(Error);
-    expect((caught as Error).message).toBe("TTS_MODEL_NOT_FOUND");
-    expect((caught as Error).cause).toEqual({ model: customModel });
+    expect((caught as Error).message).toBe("model-not-found");
+    expect((caught as Error).cause).toMatchObject({
+      kind: "model-not-found",
+      surface: "tts",
+      model: customModel,
+    });
   });
 
   it("skips API call when cache exists", async () => {
@@ -117,22 +121,22 @@ describe("pronounce", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("throws INVALID_API_KEY on 401", async () => {
+  it("throws invalid-api-key on 401", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Unauthorized", { status: 401 }));
-    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toThrow("INVALID_API_KEY");
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toThrow("invalid-api-key");
   });
 
-  it("throws INVALID_API_KEY on 403", async () => {
+  it("throws invalid-api-key on 403", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Forbidden", { status: 403 }));
-    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toThrow("INVALID_API_KEY");
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toThrow("invalid-api-key");
   });
 
-  it("throws NETWORK_OFFLINE on network TypeError", async () => {
+  it("throws network-offline on network TypeError", async () => {
     vi.mocked(fetch).mockRejectedValue(new TypeError("fetch failed"));
-    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toThrow("NETWORK_OFFLINE");
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toThrow("network-offline");
   });
 
-  it("throws TTS_REQUEST_FAILED on non-ok response and carries status + body in cause", async () => {
+  it("throws request-failed on non-ok response and carries status + body in cause", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Server Error", { status: 500 }));
     let caught: unknown;
     try {
@@ -141,11 +145,16 @@ describe("pronounce", () => {
       caught = err;
     }
     expect(caught).toBeInstanceOf(Error);
-    expect((caught as Error).message).toBe("TTS_REQUEST_FAILED");
-    expect((caught as Error).cause).toEqual({ status: 500, body: "Server Error" });
+    expect((caught as Error).message).toBe("request-failed");
+    expect((caught as Error).cause).toMatchObject({
+      kind: "request-failed",
+      surface: "tts",
+      status: 500,
+      body: "Server Error",
+    });
   });
 
-  it("throws TTS_INVALID_RESPONSE when body does not match the schema", async () => {
+  it("throws invalid-response when body does not match the schema", async () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response('{"unexpected":"shape"}', {
         status: 200,
@@ -159,12 +168,11 @@ describe("pronounce", () => {
       caught = err;
     }
     expect(caught).toBeInstanceOf(Error);
-    expect((caught as Error).message).toBe("TTS_INVALID_RESPONSE");
+    expect((caught as Error).message).toBe("invalid-response");
     expect((caught as Error).cause).toHaveProperty("body");
-    expect((caught as Error).cause).toHaveProperty("zodError");
   });
 
-  it("throws TTS_INVALID_RESPONSE when audio data is empty", async () => {
+  it("throws empty-response when no audio data", async () => {
     const emptyResponse = {
       candidates: [{ content: { parts: [{ inlineData: { data: "" } }] } }],
     };
@@ -174,15 +182,7 @@ describe("pronounce", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
-    let caught: unknown;
-    try {
-      await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL);
-    } catch (err) {
-      caught = err;
-    }
-    expect(caught).toBeInstanceOf(Error);
-    expect((caught as Error).message).toBe("TTS_INVALID_RESPONSE");
-    expect((caught as Error).cause).toHaveProperty("zodError");
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toThrow("empty-response");
   });
 
   it("evicts oldest files when cache exceeds MAX_CACHE_FILES", async () => {

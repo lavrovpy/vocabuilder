@@ -5,6 +5,8 @@ import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync
 import path from "path";
 import { z } from "zod";
 import { BASE_URL, TTS_BITS_PER_SAMPLE, TTS_DEFAULT_VOICE, TTS_NUM_CHANNELS, TTS_SAMPLE_RATE } from "./gemini-config";
+import { geminiError } from "./geminiError";
+import { throwForHttpError } from "./geminiHttp";
 import { GeminiTtsResponseSchema } from "./types";
 
 const MAX_CACHE_FILES = 50;
@@ -158,45 +160,33 @@ async function generateSpeechGemini(
     });
   } catch (err) {
     if (err instanceof TypeError) {
-      throw new Error("NETWORK_OFFLINE");
+      throw geminiError({ domain: "infrastructure", kind: "network-offline", surface: "tts" });
     }
     throw err;
   }
 
-  if (response.status === 401 || response.status === 403) {
-    throw new Error("INVALID_API_KEY");
-  }
-
-  if (response.status === 404) {
-    throw new Error("TTS_MODEL_NOT_FOUND", { cause: { model } });
-  }
-
-  if (!response.ok) {
-    let errBody = "";
-    try {
-      errBody = (await response.text()).slice(0, 500);
-    } catch {
-      // body unreadable - proceed with empty
-    }
-    throw new Error("TTS_REQUEST_FAILED", { cause: { status: response.status, body: errBody } });
-  }
+  await throwForHttpError(response, "tts", model);
 
   const rawJson = await response.text();
-  let parsedJson: unknown;
+  let apiData: z.infer<typeof GeminiTtsResponseSchema>;
   try {
-    parsedJson = JSON.parse(rawJson);
-  } catch (err) {
-    throw new Error("TTS_INVALID_RESPONSE", { cause: { body: rawJson.slice(0, 500), parseError: err } });
-  }
-
-  const parsedApiData = GeminiTtsResponseSchema.safeParse(parsedJson);
-  if (!parsedApiData.success) {
-    throw new Error("TTS_INVALID_RESPONSE", {
-      cause: { body: rawJson.slice(0, 500), zodError: parsedApiData.error },
+    apiData = GeminiTtsResponseSchema.parse(JSON.parse(rawJson));
+  } catch {
+    throw geminiError({
+      domain: "infrastructure",
+      kind: "invalid-response",
+      surface: "tts",
+      body: rawJson.slice(0, 500),
     });
   }
-  const apiData: z.infer<typeof GeminiTtsResponseSchema> = parsedApiData.data;
+  // Schema guarantees structural shape; `data` is allowed to be empty string,
+  // which we surface separately as `empty-response` rather than rolling it
+  // into invalid-response.
   const base64Audio = apiData.candidates[0].content.parts[0].inlineData.data;
+
+  if (!base64Audio) {
+    throw geminiError({ domain: "infrastructure", kind: "empty-response", surface: "tts" });
+  }
 
   const pcm = Buffer.from(base64Audio, "base64");
   return prependWavHeader(pcm, TTS_SAMPLE_RATE, TTS_NUM_CHANNELS, TTS_BITS_PER_SAMPLE);

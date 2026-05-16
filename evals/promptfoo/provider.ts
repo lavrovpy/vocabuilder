@@ -6,15 +6,10 @@ import type {
   ProviderResponse,
 } from "promptfoo";
 import { translateWord } from "../../src/lib/gemini";
+import { isOutcome } from "../../src/lib/geminiError";
 import { getPreferenceDefault } from "../../src/lib/manifest";
 import type { LanguagePair } from "../../src/lib/languages";
 import type { GeminiWordResponse } from "../../src/lib/types";
-
-const KNOWN_DOMAIN_ERRORS = new Set([
-  "WORD_NOT_FOUND",
-  "INVALID_WORD_INPUT",
-  "GEMINI_INVALID_RESPONSE",
-]);
 
 export function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown, prefix: string, hint: string): T {
   const parsed = schema.safeParse(data);
@@ -66,6 +61,21 @@ function projectKnownError(input: string, pair: LanguagePair, error: string): Re
   };
 }
 
+/**
+ * Project outcome-domain Gemini errors into app-level eval JSON; return null for
+ * infrastructure errors so the caller surfaces them as provider failures.
+ * See AGENTS.md → Error Handling (Eval provider mapping) for the invalid-response
+ * classification and how to add a future infrastructure→outcome promotion.
+ */
+export function projectKnownErrorOrNull(
+  err: unknown,
+  input: string,
+  pair: LanguagePair,
+): Record<string, unknown> | null {
+  if (!isOutcome(err)) return null;
+  return projectKnownError(input, pair, err.cause.kind);
+}
+
 export default class VocabuilderTranslateWordProvider implements ApiProvider {
   private temperature: number;
 
@@ -103,11 +113,9 @@ export default class VocabuilderTranslateWordProvider implements ApiProvider {
       });
       return { output: JSON.stringify(projectSuccess(input, pair, response), null, 2) };
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (KNOWN_DOMAIN_ERRORS.has(message)) {
-        return { output: JSON.stringify(projectKnownError(input, pair, message), null, 2) };
-      }
-      return { error: message };
+      const projected = projectKnownErrorOrNull(err, input, pair);
+      if (projected) return { output: JSON.stringify(projected, null, 2) };
+      return { error: err instanceof Error ? err.message : String(err) };
     }
   }
 }

@@ -3,7 +3,10 @@ import { z } from "zod";
 import VocabuilderTranslateWordProvider, {
   EvalVarsSchema,
   parseOrThrow,
+  projectKnownErrorOrNull,
 } from "./provider";
+import { geminiError } from "../../src/lib/geminiError";
+import type { LanguagePair } from "../../src/lib/languages";
 
 describe("EvalVarsSchema", () => {
   const validVars = {
@@ -67,6 +70,53 @@ describe("parseOrThrow", () => {
     expect(() => parseOrThrow(schema, { a: 1 }, "Bad input", "set a and b in the config.")).toThrow(
       /^Bad input \(a, b\) — set a and b in the config\.$/,
     );
+  });
+});
+
+describe("projectKnownErrorOrNull", () => {
+  const pair: LanguagePair = {
+    source: { code: "en", name: "English" },
+    target: { code: "uk", name: "Ukrainian" },
+  };
+
+  it("projects word-not-found outcome (Gemini said notAWord) as an app-level eval error", () => {
+    const err = geminiError({ domain: "outcome", kind: "word-not-found", surface: "translate" });
+    expect(projectKnownErrorOrNull(err, "xqfjvbn", pair)).toEqual({
+      status: "error",
+      input: "xqfjvbn",
+      languagePair: pair,
+      error: "word-not-found",
+    });
+  });
+
+  it("projects invalid-word-input outcome (failed normalizeWordInput) as an app-level eval error", () => {
+    const err = geminiError({ domain: "outcome", kind: "invalid-word-input", surface: "translate" });
+    expect(projectKnownErrorOrNull(err, "", pair)).toMatchObject({
+      status: "error",
+      error: "invalid-word-input",
+    });
+  });
+
+  // Infrastructure errors — including invalid-response — should NOT be projected
+  // as app-level outputs. The schema failure means Gemini misbehaved, not that
+  // the input was deterministically rejected; the eval should error/skip the
+  // case, not pass an assertion against it.
+  it("returns null for infrastructure-domain errors so the caller surfaces them as provider failures", () => {
+    const cases = [
+      geminiError({ domain: "infrastructure", kind: "network-offline", surface: "translate" }),
+      geminiError({ domain: "infrastructure", kind: "invalid-response", surface: "translate" }),
+      geminiError({ domain: "infrastructure", kind: "request-failed", surface: "translate", status: 500 }),
+      geminiError({ domain: "infrastructure", kind: "invalid-api-key", surface: "translate" }),
+    ];
+    for (const err of cases) {
+      expect(projectKnownErrorOrNull(err, "hello", pair)).toBeNull();
+    }
+  });
+
+  it("returns null for non-Gemini errors (legacy SCREAMING_SNAKE strings, plain Error, etc.)", () => {
+    expect(projectKnownErrorOrNull(new Error("WORD_NOT_FOUND"), "x", pair)).toBeNull();
+    expect(projectKnownErrorOrNull(new Error("anything-else"), "x", pair)).toBeNull();
+    expect(projectKnownErrorOrNull("not even an error", "x", pair)).toBeNull();
   });
 });
 

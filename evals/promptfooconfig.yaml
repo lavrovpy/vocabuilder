@@ -64,7 +64,7 @@ defaultTest:
         5. Expected contract behavior: honor every field in Deterministic expectations JSON,
            including correctedWord, status, error, and forbiddenTranslations.
 
-        If the case expects an error such as WORD_NOT_FOUND, pass only when the output reports
+        If the case expects an error such as word-not-found, pass only when the output reports
         that expected error and does not invent a translation.
 
         Return pass=true only when every criterion above is met. Return pass=false if any
@@ -299,7 +299,7 @@ tests:
       intent: Reject random letters as not a word instead of inventing a translation.
       expect:
         status: error
-        error: WORD_NOT_FOUND
+        error: word-not-found
 
   - description: "junk: zzqpplx"
     metadata:
@@ -313,4 +313,4 @@ tests:
       intent: Reject random letters as not a word instead of inventing a translation.
       expect:
         status: error
-        error: WORD_NOT_FOUND
+        error: word-not-found

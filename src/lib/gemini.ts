@@ -10,6 +10,8 @@ import {
   WordSense,
 } from "./types";
 import { asJsonStringLiteral, normalizeWordInput, normalizeTextInput } from "./input";
+import { geminiError, isGeminiError, isTransient } from "./geminiError";
+import { throwForHttpError } from "./geminiHttp";
 import type { LanguagePair } from "./languages";
 import { BASE_URL, BASE_RETRY_DELAY_MS, MAX_RETRY_ATTEMPTS } from "./gemini-config";
 
@@ -50,15 +52,6 @@ function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-/** Retry only on transient failures: network drops and 5xx/429/408 from Gemini. */
-function shouldRetryGeminiError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  if (error.message === "NETWORK_OFFLINE") return true;
-  if (error.message !== "GEMINI_REQUEST_FAILED") return false;
-  const status = (error.cause as { status?: number } | undefined)?.status;
-  return typeof status === "number" && (status >= 500 || status === 429 || status === 408);
-}
-
 async function fetchGeminiOnce(
   url: string,
   apiKey: string,
@@ -79,29 +72,12 @@ async function fetchGeminiOnce(
     });
   } catch (err) {
     if (err instanceof TypeError) {
-      throw new Error("NETWORK_OFFLINE");
+      throw geminiError({ domain: "infrastructure", kind: "network-offline", surface: "translate" });
     }
     throw err;
   }
 
-  if (response.status === 401 || response.status === 403) {
-    throw new Error("INVALID_API_KEY");
-  }
-
-  if (response.status === 404) {
-    throw new Error("GEMINI_MODEL_NOT_FOUND", { cause: { model } });
-  }
-
-  if (!response.ok) {
-    let errBody = "";
-    try {
-      errBody = (await response.text()).slice(0, 500);
-    } catch {
-      // body unreadable - proceed with empty
-    }
-    throw new Error("GEMINI_REQUEST_FAILED", { cause: { status: response.status, body: errBody } });
-  }
-
+  await throwForHttpError(response, "translate", model);
   return response;
 }
 
@@ -132,7 +108,7 @@ async function callGemini(
       response = await fetchGeminiOnce(url, apiKey, body, signal, model);
       break;
     } catch (err) {
-      const canRetry = attempt < MAX_RETRY_ATTEMPTS && shouldRetryGeminiError(err);
+      const canRetry = attempt < MAX_RETRY_ATTEMPTS && isGeminiError(err) && isTransient(err);
       if (!canRetry) throw err;
       await abortableSleep(getRetryDelayMs(attempt), signal);
     }
@@ -140,13 +116,13 @@ async function callGemini(
 
   // Unreachable in practice — the loop either assigns response or throws —
   // but TS narrows better with this guard than with a non-null assertion.
-  if (!response) throw new Error("GEMINI_REQUEST_FAILED");
+  if (!response) throw geminiError({ domain: "infrastructure", kind: "request-failed", surface: "translate" });
 
   const apiData = GeminiApiResponseSchema.parse(await response.json());
   const raw = apiData.candidates[0]?.content.parts[0]?.text ?? "";
 
   if (!raw) {
-    throw new Error("GEMINI_EMPTY_RESPONSE");
+    throw geminiError({ domain: "infrastructure", kind: "empty-response", surface: "translate" });
   }
 
   return raw
@@ -217,7 +193,7 @@ async function translateWordRaw(
 ): Promise<GeminiWordResponse> {
   const normalizedWord = normalizeWordInput(word);
   if (!normalizedWord) {
-    throw new Error("INVALID_WORD_INPUT");
+    throw geminiError({ domain: "outcome", kind: "invalid-word-input", surface: "translate" });
   }
 
   const prompt = buildWordPrompt(normalizedWord, languagePair);
@@ -229,7 +205,7 @@ async function translateWordRaw(
   try {
     return GeminiWordResponseSchema.parse(JSON.parse(cleaned));
   } catch {
-    throw new Error("GEMINI_INVALID_RESPONSE");
+    throw geminiError({ domain: "infrastructure", kind: "invalid-response", surface: "translate" });
   }
 }
 
@@ -243,10 +219,10 @@ export async function translateWord(
   const parsed = await translateWordRaw(word, apiKey, languagePair, signal, options);
 
   if (parsed.notAWord) {
-    throw new Error("WORD_NOT_FOUND");
+    throw geminiError({ domain: "outcome", kind: "word-not-found", surface: "translate" });
   }
   if (parsed.senses.length === 0) {
-    throw new Error("GEMINI_INVALID_RESPONSE");
+    throw geminiError({ domain: "infrastructure", kind: "invalid-response", surface: "translate" });
   }
 
   return { ...parsed, senses: dedupeSenses(parsed.senses) };
@@ -367,7 +343,7 @@ export async function translateText(
 ): Promise<GeminiTextResponse> {
   const normalizedText = normalizeTextInput(text);
   if (!normalizedText) {
-    throw new Error("INVALID_TEXT_INPUT");
+    throw geminiError({ domain: "outcome", kind: "invalid-text-input", surface: "translate" });
   }
 
   const { source, target } = languagePair;
@@ -386,6 +362,6 @@ Text: ${asJsonStringLiteral(normalizedText)}`;
   try {
     return GeminiTextResponseSchema.parse(JSON.parse(cleaned));
   } catch {
-    throw new Error("GEMINI_INVALID_RESPONSE");
+    throw geminiError({ domain: "infrastructure", kind: "invalid-response", surface: "translate" });
   }
 }
