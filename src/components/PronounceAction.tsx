@@ -4,6 +4,7 @@ import { defaultToastFor } from "../lib/errorToast";
 import { isGeminiError, isTransient } from "../lib/geminiError";
 import { hasMacOsFallback, isTtsSupported, pronounce, pronounceFallback } from "../lib/tts";
 import { getPreferenceDefault } from "../lib/manifest";
+import { runPronounceWithFallback } from "../lib/pronounceFlow";
 
 interface PronounceActionProps {
   word: string;
@@ -29,26 +30,32 @@ export default function PronounceAction({ word, languageCode, title, shortcut }:
     abortRef.current = controller;
 
     const toast = await showToast({ style: Toast.Style.Animated, title: "Playing pronunciation…" });
-    try {
-      const { geminiApiKey, ttsModel } = getPreferenceValues<Preferences.Translate>();
-      const model = ttsModel.trim() || getPreferenceDefault("ttsModel");
-      const { cached } = await pronounce(word, geminiApiKey, languageCode, controller.signal, model);
-      if (!cached) toast.title = "Generated pronunciation";
-      toast.hide();
-    } catch (err) {
-      if (controller.signal.aborted) return;
-      toast.hide();
+    const { geminiApiKey, ttsModel } = getPreferenceValues<Preferences.Translate>();
+    const model = ttsModel.trim() || getPreferenceDefault("ttsModel");
 
-      const { title, message, fallback } = routeTtsError(err, languageCode);
-      await showToast({ style: Toast.Style.Failure, title, message });
+    const outcome = await runPronounceWithFallback({
+      signal: controller.signal,
+      attemptPrimary: () => pronounce(word, geminiApiKey, languageCode, controller.signal, model),
+      attemptFallback: hasMacOsFallback(languageCode) ? () => pronounceFallback(word, languageCode) : null,
+      routeError: (err) => routeTtsError(err, languageCode),
+    });
 
-      if (fallback && hasMacOsFallback(languageCode)) {
-        try {
-          await pronounceFallback(word, languageCode);
-        } catch {
-          // user already saw the Failure toast — swallowing the say(1) error is fine
-        }
-      }
+    switch (outcome.kind) {
+      case "primary":
+        if (!outcome.cached) toast.title = "Generated pronunciation";
+        await toast.hide();
+        return;
+      case "aborted":
+        await toast.hide();
+        return;
+      case "fallback-ok":
+        await toast.hide();
+        await showToast({ style: Toast.Style.Success, title: "Using system voice", message: outcome.message });
+        return;
+      case "failed":
+        await toast.hide();
+        await showToast({ style: Toast.Style.Failure, title: outcome.title, message: outcome.message });
+        return;
     }
   }
 

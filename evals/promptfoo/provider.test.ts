@@ -3,7 +3,10 @@ import { z } from "zod";
 import VocabuilderTranslateWordProvider, {
   EvalVarsSchema,
   parseOrThrow,
+  projectKnownErrorOrNull,
 } from "./provider";
+import { geminiError } from "../../src/lib/geminiError";
+import type { LanguagePair } from "../../src/lib/languages";
 
 describe("EvalVarsSchema", () => {
   const validVars = {
@@ -67,6 +70,40 @@ describe("parseOrThrow", () => {
     expect(() => parseOrThrow(schema, { a: 1 }, "Bad input", "set a and b in the config.")).toThrow(
       /^Bad input \(a, b\) — set a and b in the config\.$/,
     );
+  });
+});
+
+describe("projectKnownErrorOrNull", () => {
+  const pair: LanguagePair = {
+    source: { code: "en", name: "English" },
+    target: { code: "uk", name: "Ukrainian" },
+  };
+
+  // Regression: after the centralize-gemini-errors merge, gemini.ts throws
+  // geminiError({ kind: "invalid-response" }) instead of new Error("GEMINI_INVALID_RESPONSE").
+  // The provider must still recognize this as an app-level outcome the eval suite
+  // can assert against — otherwise it leaks out as a provider-level failure.
+  it("projects an invalid-response Gemini error into the known-error eval output", () => {
+    const err = geminiError({ kind: "invalid-response", surface: "translate" });
+    expect(projectKnownErrorOrNull(err, "hello", pair)).toEqual({
+      status: "error",
+      input: "hello",
+      languagePair: pair,
+      error: "invalid-response",
+    });
+  });
+
+  it("projects WORD_NOT_FOUND business-domain errors", () => {
+    expect(projectKnownErrorOrNull(new Error("WORD_NOT_FOUND"), "xqfjvbn", pair)).toMatchObject({
+      status: "error",
+      error: "WORD_NOT_FOUND",
+    });
+  });
+
+  it("returns null for unknown errors so the caller surfaces them as provider failures", () => {
+    expect(projectKnownErrorOrNull(new Error("network-offline"), "hello", pair)).toBeNull();
+    expect(projectKnownErrorOrNull(new Error("request-failed"), "hello", pair)).toBeNull();
+    expect(projectKnownErrorOrNull(new Error("anything-else"), "hello", pair)).toBeNull();
   });
 });
 

@@ -10,10 +10,15 @@ import { getPreferenceDefault } from "../../src/lib/manifest";
 import type { LanguagePair } from "../../src/lib/languages";
 import type { GeminiWordResponse } from "../../src/lib/types";
 
+// Errors that represent a valid app-level outcome the eval suite asserts against.
+// Anything outside this set bubbles up as a provider-level error and aborts the case.
+// "invalid-response" is the kebab-case kind thrown by geminiError(); the SCREAMING_SNAKE
+// entries are still throw new Error(...) sites in gemini.ts (business-domain errors
+// from the prompt's contract, distinct from infrastructure errors).
 const KNOWN_DOMAIN_ERRORS = new Set([
   "WORD_NOT_FOUND",
   "INVALID_WORD_INPUT",
-  "GEMINI_INVALID_RESPONSE",
+  "invalid-response",
 ]);
 
 export function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown, prefix: string, hint: string): T {
@@ -66,6 +71,21 @@ function projectKnownError(input: string, pair: LanguagePair, error: string): Re
   };
 }
 
+/**
+ * Return a known-domain projection if the error's message is a recognized app-level
+ * outcome (kebab-case Gemini kind or SCREAMING_SNAKE business error). Otherwise null —
+ * caller surfaces it as a provider-level error.
+ */
+export function projectKnownErrorOrNull(
+  err: unknown,
+  input: string,
+  pair: LanguagePair,
+): Record<string, unknown> | null {
+  const message = err instanceof Error ? err.message : String(err);
+  if (!KNOWN_DOMAIN_ERRORS.has(message)) return null;
+  return projectKnownError(input, pair, message);
+}
+
 export default class VocabuilderTranslateWordProvider implements ApiProvider {
   private temperature: number;
 
@@ -103,11 +123,9 @@ export default class VocabuilderTranslateWordProvider implements ApiProvider {
       });
       return { output: JSON.stringify(projectSuccess(input, pair, response), null, 2) };
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (KNOWN_DOMAIN_ERRORS.has(message)) {
-        return { output: JSON.stringify(projectKnownError(input, pair, message), null, 2) };
-      }
-      return { error: message };
+      const projected = projectKnownErrorOrNull(err, input, pair);
+      if (projected) return { output: JSON.stringify(projected, null, 2) };
+      return { error: err instanceof Error ? err.message : String(err) };
     }
   }
 }
