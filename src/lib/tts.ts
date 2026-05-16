@@ -6,6 +6,7 @@ import path from "path";
 import { z } from "zod";
 import { BASE_URL, TTS_BITS_PER_SAMPLE, TTS_DEFAULT_VOICE, TTS_NUM_CHANNELS, TTS_SAMPLE_RATE } from "./gemini-config";
 import { geminiError } from "./geminiError";
+import { throwForHttpError } from "./geminiHttp";
 import { GeminiTtsResponseSchema } from "./types";
 
 const MAX_CACHE_FILES = 50;
@@ -164,29 +165,7 @@ async function generateSpeechGemini(
     throw err;
   }
 
-  if (response.status === 401 || response.status === 403) {
-    throw geminiError({ domain: "infrastructure", kind: "invalid-api-key", surface: "tts" });
-  }
-
-  if (response.status === 404) {
-    throw geminiError({ domain: "infrastructure", kind: "model-not-found", surface: "tts", model });
-  }
-
-  if (!response.ok) {
-    let errBody = "";
-    try {
-      errBody = (await response.text()).slice(0, 500);
-    } catch {
-      // body unreadable - proceed with empty
-    }
-    throw geminiError({
-      domain: "infrastructure",
-      kind: "request-failed",
-      surface: "tts",
-      status: response.status,
-      body: errBody,
-    });
-  }
+  await throwForHttpError(response, "tts", model);
 
   const rawJson = await response.text();
   let apiData: z.infer<typeof GeminiTtsResponseSchema>;

@@ -11,6 +11,7 @@ import {
 } from "./types";
 import { asJsonStringLiteral, normalizeWordInput, normalizeTextInput } from "./input";
 import { geminiError, isGeminiError, isTransient } from "./geminiError";
+import { throwForHttpError } from "./geminiHttp";
 import type { LanguagePair } from "./languages";
 import { BASE_URL, BASE_RETRY_DELAY_MS, MAX_RETRY_ATTEMPTS } from "./gemini-config";
 
@@ -76,30 +77,7 @@ async function fetchGeminiOnce(
     throw err;
   }
 
-  if (response.status === 401 || response.status === 403) {
-    throw geminiError({ domain: "infrastructure", kind: "invalid-api-key", surface: "translate" });
-  }
-
-  if (response.status === 404) {
-    throw geminiError({ domain: "infrastructure", kind: "model-not-found", surface: "translate", model });
-  }
-
-  if (!response.ok) {
-    let errBody = "";
-    try {
-      errBody = (await response.text()).slice(0, 500);
-    } catch {
-      // body unreadable - proceed with empty
-    }
-    throw geminiError({
-      domain: "infrastructure",
-      kind: "request-failed",
-      surface: "translate",
-      status: response.status,
-      body: errBody,
-    });
-  }
-
+  await throwForHttpError(response, "translate", model);
   return response;
 }
 

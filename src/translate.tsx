@@ -41,6 +41,9 @@ function pickSenseShortcut(index: number): { modifiers: "cmd"[]; key: "1" | "2" 
 }
 
 // Codes that surface a Retry button. See AGENTS.md → Error Handling (Retry policy).
+// Wider than isTransient: empty-response and invalid-response are NOT auto-retried
+// (Gemini already responded, just badly) but a human-triggered retry is still worth
+// offering since the next call may produce a usable response.
 const RETRYABLE_ERROR_CODES = new Set<string>([
   "network-offline",
   "request-failed",

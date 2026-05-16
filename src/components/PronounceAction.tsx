@@ -69,10 +69,14 @@ type TtsErrorRouting = { title: string; message: string; fallback: boolean };
 function routeTtsError(err: unknown, languageCode: string): TtsErrorRouting {
   if (isGeminiError(err)) {
     const base = defaultToastFor(err.cause);
-    // TTS-specific overlay: when offline, foreshadow the say(1) fallback.
     if (err.cause.kind === "network-offline") {
-      return { ...base, message: "Using system voice for now.", fallback: true };
+      // Special-cased only to override the toast message; the fallback decision still
+      // comes from isTransient (which already includes network-offline).
+      return { ...base, message: "Using system voice for now.", fallback: isTransient(err) };
     }
+    // Intentionally broader than the pre-refactor 5xx-only check: isTransient also
+    // covers 429 (rate-limited) and 408 (timeout). Both are better served by say(1)
+    // than by a failure toast — narrowing this back would be a UX regression.
     return { ...base, fallback: isTransient(err) };
   }
   // Unknown error: keep the previous default — try the system voice if available.
