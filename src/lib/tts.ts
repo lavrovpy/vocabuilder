@@ -4,13 +4,9 @@ import { createHash } from "crypto";
 import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from "fs";
 import path from "path";
 import { z } from "zod";
-import { BASE_URL } from "./gemini-config";
+import { BASE_URL, TTS_BITS_PER_SAMPLE, TTS_DEFAULT_VOICE, TTS_NUM_CHANNELS, TTS_SAMPLE_RATE } from "./gemini-config";
 import { GeminiTtsResponseSchema } from "./types";
 
-const DEFAULT_VOICE = "Kore";
-const SAMPLE_RATE = 24000;
-const NUM_CHANNELS = 1;
-const BITS_PER_SAMPLE = 16;
 const MAX_CACHE_FILES = 50;
 
 const GEMINI_SUPPORTED_LANGS = new Set([
@@ -153,7 +149,7 @@ async function generateSpeechGemini(
           responseModalities: ["AUDIO"],
           speechConfig: {
             voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: DEFAULT_VOICE },
+              prebuiltVoiceConfig: { voiceName: TTS_DEFAULT_VOICE },
             },
           },
         },
@@ -203,7 +199,7 @@ async function generateSpeechGemini(
   const base64Audio = apiData.candidates[0].content.parts[0].inlineData.data;
 
   const pcm = Buffer.from(base64Audio, "base64");
-  return prependWavHeader(pcm, SAMPLE_RATE, NUM_CHANNELS, BITS_PER_SAMPLE);
+  return prependWavHeader(pcm, TTS_SAMPLE_RATE, TTS_NUM_CHANNELS, TTS_BITS_PER_SAMPLE);
 }
 
 export async function pronounce(
