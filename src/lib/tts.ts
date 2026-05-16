@@ -4,10 +4,9 @@ import { createHash } from "crypto";
 import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from "fs";
 import path from "path";
 import { z } from "zod";
-import { DEFAULT_TTS_MODEL, resolveModel } from "./gemini";
+import { BASE_URL } from "./gemini-config";
 import { GeminiTtsResponseSchema } from "./types";
 
-const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 const DEFAULT_VOICE = "Kore";
 const SAMPLE_RATE = 24000;
 const NUM_CHANNELS = 1;
@@ -211,12 +210,11 @@ export async function pronounce(
   word: string,
   apiKey: string,
   langCode: string,
-  signal?: AbortSignal,
-  model?: string,
+  signal: AbortSignal | undefined,
+  model: string,
 ): Promise<{ cached: boolean }> {
-  const resolvedModel = resolveModel(model, DEFAULT_TTS_MODEL);
   const dir = getCacheDir();
-  const fileName = cacheKey(word, langCode, resolvedModel);
+  const fileName = cacheKey(word, langCode, model);
   const filePath = path.join(dir, fileName);
 
   signal?.throwIfAborted();
@@ -224,7 +222,7 @@ export async function pronounce(
   let cached = true;
   if (!existsSync(filePath)) {
     cached = false;
-    const wavBuffer = await generateSpeechGemini(word, apiKey, signal, resolvedModel);
+    const wavBuffer = await generateSpeechGemini(word, apiKey, signal, model);
     writeFileSync(filePath, wavBuffer);
     evictOldestCacheFiles(dir, MAX_CACHE_FILES);
   }

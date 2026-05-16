@@ -11,21 +11,11 @@ import {
 } from "./types";
 import { asJsonStringLiteral, normalizeWordInput, normalizeTextInput } from "./input";
 import type { LanguagePair } from "./languages";
-
-export const DEFAULT_TRANSLATION_MODEL = "gemini-3-flash-preview";
-export const DEFAULT_TTS_MODEL = "gemini-3.1-flash-tts-preview";
-const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
-
-const MAX_RETRY_ATTEMPTS = 3;
-const BASE_RETRY_DELAY_MS = 400;
-
-export function resolveModel(pref: string | undefined, fallback: string): string {
-  return pref?.trim() || fallback;
-}
+import { BASE_URL, BASE_RETRY_DELAY_MS, MAX_RETRY_ATTEMPTS } from "./gemini-config";
 
 export type GenerationOptions = {
+  model: string;
   temperature?: number;
-  model?: string;
 };
 
 type GeminiCallOptions = GenerationOptions & {
@@ -118,15 +108,15 @@ async function fetchGeminiOnce(
 async function callGemini(
   prompt: string,
   apiKey: string,
-  signal?: AbortSignal,
-  options?: GeminiCallOptions,
+  signal: AbortSignal | undefined,
+  options: GeminiCallOptions,
 ): Promise<string> {
-  const model = resolveModel(options?.model, DEFAULT_TRANSLATION_MODEL);
+  const { model } = options;
   const url = `${BASE_URL}/${model}:generateContent`;
 
   const generationConfig: Record<string, unknown> = {};
-  if (options?.temperature !== undefined) generationConfig.temperature = options.temperature;
-  if (options?.responseJsonSchema !== undefined) {
+  if (options.temperature !== undefined) generationConfig.temperature = options.temperature;
+  if (options.responseJsonSchema !== undefined) {
     generationConfig.responseMimeType = "application/json";
     generationConfig.responseJsonSchema = options.responseJsonSchema;
   }
@@ -222,8 +212,8 @@ async function translateWordRaw(
   word: string,
   apiKey: string,
   languagePair: LanguagePair,
-  signal?: AbortSignal,
-  options?: GenerationOptions,
+  signal: AbortSignal | undefined,
+  options: GenerationOptions,
 ): Promise<GeminiWordResponse> {
   const normalizedWord = normalizeWordInput(word);
   if (!normalizedWord) {
@@ -247,8 +237,8 @@ export async function translateWord(
   word: string,
   apiKey: string,
   languagePair: LanguagePair,
-  signal?: AbortSignal,
-  options?: GenerationOptions,
+  signal: AbortSignal | undefined,
+  options: GenerationOptions,
 ): Promise<GeminiWordResponse> {
   const parsed = await translateWordRaw(word, apiKey, languagePair, signal, options);
 
@@ -265,17 +255,6 @@ export async function translateWord(
 // --- In-source tests for private functions ---
 if (import.meta.vitest) {
   const { describe, it, expect, vi, beforeEach, afterEach } = import.meta.vitest;
-
-  describe("resolveModel", () => {
-    it("uses a trimmed configured model when present", () => {
-      expect(resolveModel("  gemini-custom  ", DEFAULT_TRANSLATION_MODEL)).toBe("gemini-custom");
-    });
-
-    it("falls back for missing or blank preferences", () => {
-      expect(resolveModel(undefined, DEFAULT_TRANSLATION_MODEL)).toBe(DEFAULT_TRANSLATION_MODEL);
-      expect(resolveModel("   ", DEFAULT_TRANSLATION_MODEL)).toBe(DEFAULT_TRANSLATION_MODEL);
-    });
-  });
 
   describe("callGemini generationConfig wiring", () => {
     let fetchMock: ReturnType<typeof vi.fn>;
@@ -299,13 +278,13 @@ if (import.meta.vitest) {
     });
 
     it("omits generationConfig when no options are passed", async () => {
-      await callGemini("hi", "key");
+      await callGemini("hi", "key", undefined, { model: "test-model" });
       const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
       expect(body.generationConfig).toBeUndefined();
     });
 
     it("includes temperature when supplied", async () => {
-      await callGemini("hi", "key", undefined, { temperature: 0.7 });
+      await callGemini("hi", "key", undefined, { model: "test-model", temperature: 0.7 });
       const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
       expect(body.generationConfig).toEqual({ temperature: 0.7 });
     });
@@ -316,7 +295,7 @@ if (import.meta.vitest) {
         properties: { translation: { type: "string" } },
         required: ["translation"],
       };
-      await callGemini("hi", "key", undefined, { responseJsonSchema });
+      await callGemini("hi", "key", undefined, { model: "test-model", responseJsonSchema });
       const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
       expect(body.generationConfig).toEqual({
         responseMimeType: "application/json",
@@ -383,8 +362,8 @@ export async function translateText(
   text: string,
   apiKey: string,
   languagePair: LanguagePair,
-  signal?: AbortSignal,
-  options?: GenerationOptions,
+  signal: AbortSignal | undefined,
+  options: GenerationOptions,
 ): Promise<GeminiTextResponse> {
   const normalizedText = normalizeTextInput(text);
   if (!normalizedText) {

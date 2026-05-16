@@ -18,6 +18,7 @@ import LanguageConfigError from "./components/LanguageConfigError";
 import { useLanguagePair } from "./hooks/useLanguagePair";
 import History from "./history";
 import { translateWord, translateText } from "./lib/gemini";
+import { getPreferenceDefault } from "./lib/manifest";
 import { looksLikeWordAttempt, normalizeWordInput, normalizeTextInput } from "./lib/input";
 import { LanguagePair, storageKeyPrefix, swapLanguagePair } from "./lib/languages";
 import { posColor } from "./lib/colors";
@@ -72,6 +73,7 @@ function relativeTime(timestamp: number): string {
 
 export default function Translate() {
   const { geminiApiKey, readClipboardOnOpen, translationModel } = getPreferenceValues<Preferences.Translate>();
+  const model = translationModel.trim() || getPreferenceDefault("translationModel");
   const langResult = useLanguagePair();
   const { push } = useNavigation();
 
@@ -316,7 +318,7 @@ export default function Translate() {
 
     try {
       const geminiResult = await translateWord(word, geminiApiKey, languagePair, controller.signal, {
-        model: translationModel,
+        model,
       });
 
       if (controller.signal.aborted) return;
@@ -363,7 +365,7 @@ export default function Translate() {
 
     try {
       const geminiResult = await translateText(text, geminiApiKey, languagePair, controller.signal, {
-        model: translationModel,
+        model,
       });
 
       if (controller.signal.aborted) return;

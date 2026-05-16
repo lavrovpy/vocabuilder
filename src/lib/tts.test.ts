@@ -23,6 +23,7 @@ import { existsSync, readdirSync, statSync, unlinkSync } from "fs";
 import { pronounce, pronounceFallback } from "./tts";
 
 const API_KEY = "test-key";
+const TEST_MODEL = "test-tts-model";
 
 function ttsResponseBody(base64Audio: string): object {
   return {
@@ -55,7 +56,7 @@ describe("pronounce", () => {
       }),
     );
 
-    const result = await pronounce("hello", API_KEY, "en");
+    const result = await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL);
 
     expect(result.cached).toBe(false);
     expect(fetch).toHaveBeenCalledOnce();
@@ -110,7 +111,7 @@ describe("pronounce", () => {
       return String(p).endsWith(".wav");
     });
 
-    const result = await pronounce("hello", API_KEY, "en");
+    const result = await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL);
 
     expect(result.cached).toBe(true);
     expect(fetch).not.toHaveBeenCalled();
@@ -118,24 +119,24 @@ describe("pronounce", () => {
 
   it("throws INVALID_API_KEY on 401", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Unauthorized", { status: 401 }));
-    await expect(pronounce("hello", API_KEY, "en")).rejects.toThrow("INVALID_API_KEY");
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toThrow("INVALID_API_KEY");
   });
 
   it("throws INVALID_API_KEY on 403", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Forbidden", { status: 403 }));
-    await expect(pronounce("hello", API_KEY, "en")).rejects.toThrow("INVALID_API_KEY");
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toThrow("INVALID_API_KEY");
   });
 
   it("throws NETWORK_OFFLINE on network TypeError", async () => {
     vi.mocked(fetch).mockRejectedValue(new TypeError("fetch failed"));
-    await expect(pronounce("hello", API_KEY, "en")).rejects.toThrow("NETWORK_OFFLINE");
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toThrow("NETWORK_OFFLINE");
   });
 
   it("throws TTS_REQUEST_FAILED on non-ok response and carries status + body in cause", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Server Error", { status: 500 }));
     let caught: unknown;
     try {
-      await pronounce("hello", API_KEY, "en");
+      await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL);
     } catch (err) {
       caught = err;
     }
@@ -153,7 +154,7 @@ describe("pronounce", () => {
     );
     let caught: unknown;
     try {
-      await pronounce("hello", API_KEY, "en");
+      await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL);
     } catch (err) {
       caught = err;
     }
@@ -175,7 +176,7 @@ describe("pronounce", () => {
     );
     let caught: unknown;
     try {
-      await pronounce("hello", API_KEY, "en");
+      await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL);
     } catch (err) {
       caught = err;
     }
@@ -206,7 +207,7 @@ describe("pronounce", () => {
         }) as ReturnType<typeof statSync>,
     );
 
-    await pronounce("hello", API_KEY, "en");
+    await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL);
 
     expect(unlinkSync).toHaveBeenCalledWith(
       expect.stringContaining("en-deadbeef-00000000000000000000000000000000.wav"),
@@ -215,7 +216,7 @@ describe("pronounce", () => {
 
   it("does not call fetch when signal is already aborted", async () => {
     const signal = AbortSignal.abort();
-    await expect(pronounce("hello", API_KEY, "en", signal)).rejects.toThrow();
+    await expect(pronounce("hello", API_KEY, "en", signal, TEST_MODEL)).rejects.toThrow();
     expect(fetch).not.toHaveBeenCalled();
   });
 });
