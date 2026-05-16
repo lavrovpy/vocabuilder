@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   FlashcardProgressSchema,
   GeminiTextResponseJsonSchema,
+  GeminiTtsResponseSchema,
   GeminiWordResponseJsonSchema,
   PART_OF_SPEECH_VALUES,
 } from "./types";
@@ -36,6 +37,16 @@ describe("Gemini structured output JSON schemas", () => {
         translation: { type: "string" },
       },
     });
+  });
+});
+
+describe("GeminiTtsResponseSchema", () => {
+  it("rejects empty audio payloads at the schema boundary", () => {
+    expect(
+      GeminiTtsResponseSchema.safeParse({
+        candidates: [{ content: { parts: [{ inlineData: { data: "" } }] } }],
+      }).success,
+    ).toBe(false);
   });
 });
 

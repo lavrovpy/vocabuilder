@@ -6,6 +6,7 @@ import type {
   ProviderResponse,
 } from "promptfoo";
 import { translateWord } from "../../src/lib/gemini";
+import { getPreferenceDefault } from "../../src/lib/manifest";
 import type { LanguagePair } from "../../src/lib/languages";
 import type { GeminiWordResponse } from "../../src/lib/types";
 
@@ -97,6 +98,7 @@ export default class VocabuilderTranslateWordProvider implements ApiProvider {
 
     try {
       const response = await translateWord(input, apiKey, pair, undefined, {
+        model: getPreferenceDefault("translationModel"),
         temperature: this.temperature,
       });
       return { output: JSON.stringify(projectSuccess(input, pair, response), null, 2) };

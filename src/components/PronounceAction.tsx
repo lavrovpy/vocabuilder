@@ -1,6 +1,8 @@
 import { Action, Icon, Keyboard, Toast, getPreferenceValues, showToast } from "@raycast/api";
 import { useEffect, useRef } from "react";
 import { hasMacOsFallback, isTtsSupported, pronounce, pronounceFallback } from "../lib/tts";
+import { routeTtsError } from "../lib/tts-errors";
+import { getPreferenceDefault } from "../lib/manifest";
 
 interface PronounceActionProps {
   word: string;
@@ -27,27 +29,25 @@ export default function PronounceAction({ word, languageCode, title, shortcut }:
 
     const toast = await showToast({ style: Toast.Style.Animated, title: "Playing pronunciation…" });
     try {
-      const { geminiApiKey } = getPreferenceValues<Preferences.Translate>();
-      const { cached } = await pronounce(word, geminiApiKey, languageCode, controller.signal);
+      const { geminiApiKey, ttsModel } = getPreferenceValues<Preferences.Translate>();
+      const model = ttsModel.trim() || getPreferenceDefault("ttsModel");
+      const { cached } = await pronounce(word, geminiApiKey, languageCode, controller.signal, model);
       if (!cached) toast.title = "Generated pronunciation";
       toast.hide();
     } catch (err) {
       if (controller.signal.aborted) return;
-      const reason = err instanceof Error ? err.message : String(err);
-      if (!hasMacOsFallback(languageCode)) {
-        toast.style = Toast.Style.Failure;
-        toast.title = "Pronunciation failed";
-        toast.message = reason === "NETWORK_OFFLINE" ? "No internet connection" : "Could not generate audio";
-        return;
-      }
-      toast.title = "Using system voice…";
-      try {
-        await pronounceFallback(word, languageCode);
-        toast.hide();
-      } catch {
-        toast.style = Toast.Style.Failure;
-        toast.title = "Pronunciation failed";
-        toast.message = "Could not play audio";
+      toast.hide();
+
+      const canUseFallback = hasMacOsFallback(languageCode);
+      const { title, message, fallback } = routeTtsError(err, canUseFallback);
+      await showToast({ style: Toast.Style.Failure, title, message });
+
+      if (fallback && canUseFallback) {
+        try {
+          await pronounceFallback(word, languageCode);
+        } catch {
+          // user already saw the Failure toast — swallowing the say(1) error is fine
+        }
       }
     }
   }

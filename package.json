@@ -203,6 +203,24 @@
       "title": "Read Clipboard on Open",
       "label": "Enable",
       "description": "If enabled, prefill a suggestion only when clipboard content is a safe single word"
+    },
+    {
+      "name": "translationModel",
+      "type": "textfield",
+      "required": false,
+      "title": "Translation Model",
+      "description": "Gemini model ID for translation (e.g. gemini-2.5-flash, gemini-3-flash-preview). Leave blank to use the default. Override if your model is deprecated.",
+      "default": "gemini-3-flash-preview",
+      "placeholder": "gemini-3-flash-preview"
+    },
+    {
+      "name": "ttsModel",
+      "type": "textfield",
+      "required": false,
+      "title": "Text-to-Speech Model",
+      "description": "Gemini TTS model ID for word pronunciation. Leave blank to use the default. Override if your model is deprecated.",
+      "default": "gemini-3.1-flash-tts-preview",
+      "placeholder": "gemini-3.1-flash-tts-preview"
     }
   ],
   "dependencies": {
