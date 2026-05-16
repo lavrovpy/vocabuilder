@@ -23,6 +23,7 @@ import { existsSync, readdirSync, statSync, unlinkSync } from "fs";
 import { pronounce, pronounceFallback } from "./tts";
 
 const API_KEY = "test-key";
+const TEST_MODEL = "test-tts-model";
 
 function ttsResponseBody(base64Audio: string): object {
   return {
@@ -55,16 +56,18 @@ describe("pronounce", () => {
       }),
     );
 
-    const result = await pronounce("hello", API_KEY, "en");
+    const result = await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL);
 
     expect(result.cached).toBe(false);
     expect(fetch).toHaveBeenCalledOnce();
     const fetchCall = vi.mocked(fetch).mock.calls[0];
     // URL targets the Gemini TTS endpoint without snapshotting a specific model name —
-    // the default may change over time as preview models are retired.
-    expect(fetchCall[0]).toMatch(
-      /^https:\/\/generativelanguage\.googleapis\.com\/v1beta\/models\/[^:]+:generateContent$/,
-    );
+    // the default may change over time as preview models are retired. It must also
+    // keep credentials out of the query string.
+    const url = new URL(fetchCall[0] as string);
+    expect(url.origin).toBe("https://generativelanguage.googleapis.com");
+    expect(url.pathname).toMatch(/^\/v1beta\/models\/[^/?#:]+:generateContent$/);
+    expect(url.search).toBe("");
 
     const body = JSON.parse((fetchCall[1] as RequestInit).body as string);
     expect(body.contents[0].parts[0].text).toBe("hello");
@@ -112,32 +115,32 @@ describe("pronounce", () => {
       return String(p).endsWith(".wav");
     });
 
-    const result = await pronounce("hello", API_KEY, "en");
+    const result = await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL);
 
     expect(result.cached).toBe(true);
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("throws INVALID_API_KEY on 401", async () => {
+  it("throws invalid-api-key on 401", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Unauthorized", { status: 401 }));
-    await expect(pronounce("hello", API_KEY, "en")).rejects.toThrow("invalid-api-key");
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toThrow("invalid-api-key");
   });
 
-  it("throws INVALID_API_KEY on 403", async () => {
+  it("throws invalid-api-key on 403", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Forbidden", { status: 403 }));
-    await expect(pronounce("hello", API_KEY, "en")).rejects.toThrow("invalid-api-key");
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toThrow("invalid-api-key");
   });
 
   it("throws network-offline on network TypeError", async () => {
     vi.mocked(fetch).mockRejectedValue(new TypeError("fetch failed"));
-    await expect(pronounce("hello", API_KEY, "en")).rejects.toThrow("network-offline");
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toThrow("network-offline");
   });
 
   it("throws request-failed on non-ok response and carries status + body in cause", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Server Error", { status: 500 }));
     let caught: unknown;
     try {
-      await pronounce("hello", API_KEY, "en");
+      await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL);
     } catch (err) {
       caught = err;
     }
@@ -160,7 +163,7 @@ describe("pronounce", () => {
     );
     let caught: unknown;
     try {
-      await pronounce("hello", API_KEY, "en");
+      await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL);
     } catch (err) {
       caught = err;
     }
@@ -179,7 +182,7 @@ describe("pronounce", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
-    await expect(pronounce("hello", API_KEY, "en")).rejects.toThrow("empty-response");
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toThrow("empty-response");
   });
 
   it("evicts oldest files when cache exceeds MAX_CACHE_FILES", async () => {
@@ -191,25 +194,29 @@ describe("pronounce", () => {
       }),
     );
 
-    // Simulate 51 cached .wav files (exceeds MAX_CACHE_FILES=50)
-    const fileNames = Array.from({ length: 51 }, (_, i) => `en-${String(i).padStart(3, "0")}.wav`);
+    // Simulate 51 cached files using the current {lang}-{modelHash8}-{wordHash32}.wav format.
+    const fileNames = Array.from(
+      { length: 51 },
+      (_, i) => `en-deadbeef-${String(i).padStart(2, "0")}${"0".repeat(30)}.wav`,
+    );
     vi.mocked(readdirSync).mockReturnValue(fileNames as unknown as ReturnType<typeof readdirSync>);
     vi.mocked(statSync).mockImplementation(
       (p) =>
         ({
-          mtimeMs: parseInt(String(p).match(/(\d{3})\.wav/)?.[1] ?? "0"),
+          mtimeMs: Number(String(p).match(/-([0-9]{2})0{30}\.wav/)?.[1] ?? "0"),
         }) as ReturnType<typeof statSync>,
     );
 
-    await pronounce("hello", API_KEY, "en");
+    await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL);
 
-    // Oldest file (000) should be evicted
-    expect(unlinkSync).toHaveBeenCalledWith(expect.stringContaining("en-000.wav"));
+    expect(unlinkSync).toHaveBeenCalledWith(
+      expect.stringContaining("en-deadbeef-00000000000000000000000000000000.wav"),
+    );
   });
 
   it("does not call fetch when signal is already aborted", async () => {
     const signal = AbortSignal.abort();
-    await expect(pronounce("hello", API_KEY, "en", signal)).rejects.toThrow();
+    await expect(pronounce("hello", API_KEY, "en", signal, TEST_MODEL)).rejects.toThrow();
     expect(fetch).not.toHaveBeenCalled();
   });
 });

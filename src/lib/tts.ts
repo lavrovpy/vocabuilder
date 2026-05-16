@@ -4,15 +4,10 @@ import { createHash } from "crypto";
 import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from "fs";
 import path from "path";
 import { z } from "zod";
-import { DEFAULT_TTS_MODEL, resolveModel } from "./gemini";
+import { BASE_URL, TTS_BITS_PER_SAMPLE, TTS_DEFAULT_VOICE, TTS_NUM_CHANNELS, TTS_SAMPLE_RATE } from "./gemini-config";
 import { geminiError } from "./geminiError";
 import { GeminiTtsResponseSchema } from "./types";
 
-const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
-const DEFAULT_VOICE = "Kore";
-const SAMPLE_RATE = 24000;
-const NUM_CHANNELS = 1;
-const BITS_PER_SAMPLE = 16;
 const MAX_CACHE_FILES = 50;
 
 const GEMINI_SUPPORTED_LANGS = new Set([
@@ -136,8 +131,8 @@ function playAudio(filePath: string): Promise<void> {
 async function generateSpeechGemini(
   text: string,
   apiKey: string,
-  signal?: AbortSignal,
-  model: string = DEFAULT_TTS_MODEL,
+  signal: AbortSignal | undefined,
+  model: string,
 ): Promise<Buffer> {
   const url = `${BASE_URL}/${model}:generateContent`;
 
@@ -155,7 +150,7 @@ async function generateSpeechGemini(
           responseModalities: ["AUDIO"],
           speechConfig: {
             voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: DEFAULT_VOICE },
+              prebuiltVoiceConfig: { voiceName: TTS_DEFAULT_VOICE },
             },
           },
         },
@@ -194,26 +189,28 @@ async function generateSpeechGemini(
   } catch {
     throw geminiError({ kind: "invalid-response", surface: "tts", body: rawJson.slice(0, 500) });
   }
-  const base64Audio = apiData.candidates[0]?.content.parts[0]?.inlineData.data;
+  // Schema guarantees structural shape; `data` is allowed to be empty string,
+  // which we surface separately as `empty-response` rather than rolling it
+  // into invalid-response.
+  const base64Audio = apiData.candidates[0].content.parts[0].inlineData.data;
 
   if (!base64Audio) {
     throw geminiError({ kind: "empty-response", surface: "tts" });
   }
 
   const pcm = Buffer.from(base64Audio, "base64");
-  return prependWavHeader(pcm, SAMPLE_RATE, NUM_CHANNELS, BITS_PER_SAMPLE);
+  return prependWavHeader(pcm, TTS_SAMPLE_RATE, TTS_NUM_CHANNELS, TTS_BITS_PER_SAMPLE);
 }
 
 export async function pronounce(
   word: string,
   apiKey: string,
   langCode: string,
-  signal?: AbortSignal,
-  model?: string,
+  signal: AbortSignal | undefined,
+  model: string,
 ): Promise<{ cached: boolean }> {
-  const resolvedModel = resolveModel(model, DEFAULT_TTS_MODEL);
   const dir = getCacheDir();
-  const fileName = cacheKey(word, langCode, resolvedModel);
+  const fileName = cacheKey(word, langCode, model);
   const filePath = path.join(dir, fileName);
 
   signal?.throwIfAborted();
@@ -221,7 +218,7 @@ export async function pronounce(
   let cached = true;
   if (!existsSync(filePath)) {
     cached = false;
-    const wavBuffer = await generateSpeechGemini(word, apiKey, signal, resolvedModel);
+    const wavBuffer = await generateSpeechGemini(word, apiKey, signal, model);
     writeFileSync(filePath, wavBuffer);
     evictOldestCacheFiles(dir, MAX_CACHE_FILES);
   }

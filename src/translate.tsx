@@ -20,6 +20,7 @@ import History from "./history";
 import { translateWord, translateText } from "./lib/gemini";
 import { defaultToastFor } from "./lib/errorToast";
 import { isGeminiError } from "./lib/geminiError";
+import { getPreferenceDefault } from "./lib/manifest";
 import {
   MAX_PHRASE_TOKENS,
   MAX_VOCAB_LENGTH,
@@ -114,6 +115,7 @@ function relativeTime(timestamp: number): string {
 
 export default function Translate() {
   const { geminiApiKey, readClipboardOnOpen, translationModel } = getPreferenceValues<Preferences.Translate>();
+  const model = translationModel.trim() || getPreferenceDefault("translationModel");
   const langResult = useLanguagePair();
   const { push } = useNavigation();
 
@@ -360,7 +362,7 @@ export default function Translate() {
 
     try {
       const geminiResult = await translateWord(word, geminiApiKey, languagePair, controller.signal, {
-        model: translationModel,
+        model,
       });
 
       if (controller.signal.aborted) return;
@@ -402,7 +404,7 @@ export default function Translate() {
 
     try {
       const geminiResult = await translateText(text, geminiApiKey, languagePair, controller.signal, {
-        model: translationModel,
+        model,
       });
 
       if (controller.signal.aborted) return;

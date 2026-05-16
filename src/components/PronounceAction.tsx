@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { defaultToastFor } from "../lib/errorToast";
 import { isGeminiError, isTransient } from "../lib/geminiError";
 import { hasMacOsFallback, isTtsSupported, pronounce, pronounceFallback } from "../lib/tts";
+import { getPreferenceDefault } from "../lib/manifest";
 
 interface PronounceActionProps {
   word: string;
@@ -30,7 +31,8 @@ export default function PronounceAction({ word, languageCode, title, shortcut }:
     const toast = await showToast({ style: Toast.Style.Animated, title: "Playing pronunciation…" });
     try {
       const { geminiApiKey, ttsModel } = getPreferenceValues<Preferences.Translate>();
-      const { cached } = await pronounce(word, geminiApiKey, languageCode, controller.signal, ttsModel);
+      const model = ttsModel.trim() || getPreferenceDefault("ttsModel");
+      const { cached } = await pronounce(word, geminiApiKey, languageCode, controller.signal, model);
       if (!cached) toast.title = "Generated pronunciation";
       toast.hide();
     } catch (err) {

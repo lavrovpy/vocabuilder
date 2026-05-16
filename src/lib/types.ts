@@ -137,17 +137,24 @@ export type FlashcardProgress = z.infer<typeof FlashcardProgressSchema>;
 export type Rating = "again" | "good" | "easy";
 
 export const GeminiTtsResponseSchema = z.object({
-  candidates: z.array(
-    z.object({
-      content: z.object({
-        parts: z.array(
-          z.object({
-            inlineData: z.object({
-              data: z.string(),
-            }),
-          }),
-        ),
+  candidates: z
+    .array(
+      z.object({
+        content: z.object({
+          parts: z
+            .array(
+              z.object({
+                inlineData: z.object({
+                  // data may be empty in degenerate responses — surface that
+                  // as a distinct `empty-response` Gemini error in tts.ts,
+                  // not a generic `invalid-response`.
+                  data: z.string(),
+                }),
+              }),
+            )
+            .min(1),
+        }),
       }),
-    }),
-  ),
+    )
+    .min(1),
 });

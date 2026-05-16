@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   FlashcardProgressSchema,
   GeminiTextResponseJsonSchema,
+  GeminiTtsResponseSchema,
   GeminiWordResponseJsonSchema,
   PART_OF_SPEECH_VALUES,
 } from "./types";
@@ -36,6 +37,28 @@ describe("Gemini structured output JSON schemas", () => {
         translation: { type: "string" },
       },
     });
+  });
+});
+
+describe("GeminiTtsResponseSchema", () => {
+  // Empty `data` is intentionally allowed here so `tts.ts` can route it to a
+  // distinct `empty-response` Gemini error (separate from `invalid-response`).
+  // Structural shape must still pass — empty arrays do not.
+  it("accepts empty audio payloads at the schema boundary so tts.ts can route them as empty-response", () => {
+    expect(
+      GeminiTtsResponseSchema.safeParse({
+        candidates: [{ content: { parts: [{ inlineData: { data: "" } }] } }],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects structurally empty responses (no candidates, no parts)", () => {
+    expect(GeminiTtsResponseSchema.safeParse({ candidates: [] }).success).toBe(false);
+    expect(
+      GeminiTtsResponseSchema.safeParse({
+        candidates: [{ content: { parts: [] } }],
+      }).success,
+    ).toBe(false);
   });
 });
 
