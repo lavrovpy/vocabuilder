@@ -14,10 +14,10 @@ import { posColor } from "./lib/colors";
 import { useEffect, useState } from "react";
 import LanguageConfigError from "./components/LanguageConfigError";
 import PronounceAction from "./components/PronounceAction";
+import { TranslationDetail } from "./components/TranslationDetail";
 import { exportToFile, formatAnki, formatJson, formatQuizlet } from "./lib/export";
 import { useLanguagePair } from "./hooks/useLanguagePair";
 import { LanguagePair, storageKeyPrefix, swapLanguagePair } from "./lib/languages";
-import { buildTranslationDetailMarkdown, buildTextTranslationDetailMarkdown } from "./lib/markdown";
 import { clearHistory, deleteTranslation, getHistory } from "./lib/storage";
 import { Translation } from "./lib/types";
 
@@ -177,24 +177,7 @@ export default function History(props: { languagePair?: LanguagePair }) {
                 : { tag: { value: item.partOfSpeech, color: posColor(item.partOfSpeech) } },
               { text: relativeTime(item.timestamp) },
             ]}
-            detail={
-              <List.Item.Detail
-                markdown={
-                  item.type === "text"
-                    ? buildTextTranslationDetailMarkdown(item.word, item.translation)
-                    : buildTranslationDetailMarkdown(item)
-                }
-                metadata={
-                  <List.Item.Detail.Metadata>
-                    <List.Item.Detail.Metadata.Label
-                      title=""
-                      text="⌘O to pronounce · ⌘⇧O for translation"
-                      icon={Icon.SpeakerHigh}
-                    />
-                  </List.Item.Detail.Metadata>
-                }
-              />
-            }
+            detail={<TranslationDetail item={item} />}
             actions={
               <ActionPanel>
                 <Action
