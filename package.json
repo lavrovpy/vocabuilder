@@ -29,6 +29,13 @@
       "subtitle": "VocaBuilder",
       "description": "Review saved words with spaced repetition",
       "mode": "view"
+    },
+    {
+      "name": "import-flashcards",
+      "title": "Import Flashcards",
+      "subtitle": "VocaBuilder",
+      "description": "Import flashcards from Anki TSV or VocaBuilder JSON files",
+      "mode": "view"
     }
   ],
   "preferences": [
