@@ -18,13 +18,18 @@ export default function LanguagePairDropdown({ pair, defaultPair, onChange }: Pr
   const [searchText, setSearchText] = useState("");
   const [recentChoices, setRecentChoices] = useState<LanguagePairChoice[]>([]);
   const searchTextRef = useRef("");
+  const recentChoicesRef = useRef<LanguagePairChoice[]>([]);
+  const searchChoicesRef = useRef<LanguagePairChoice[]>([]);
   const pairValue = languagePairValue(pair);
   const defaultPairValue = languagePairValue(defaultPair);
 
   useEffect(() => {
     let stale = false;
     getRecentLanguagePairChoices(defaultPair, pair).then((choices) => {
-      if (!stale) setRecentChoices(choices);
+      if (!stale) {
+        recentChoicesRef.current = choices;
+        setRecentChoices(choices);
+      }
     });
     return () => {
       stale = true;
@@ -35,6 +40,9 @@ export default function LanguagePairDropdown({ pair, defaultPair, onChange }: Pr
     () => getSearchLanguagePairChoices(searchText, defaultPair),
     [defaultPairValue, searchText],
   );
+  useEffect(() => {
+    searchChoicesRef.current = searchChoices;
+  }, [searchChoices]);
   const isSearching = searchText.trim().length > 0;
   const choices = isSearching ? searchChoices : recentChoices;
 
@@ -51,9 +59,7 @@ export default function LanguagePairDropdown({ pair, defaultPair, onChange }: Pr
       }}
       onChange={(value) => {
         const currentSearch = searchTextRef.current;
-        const currentChoices = currentSearch.trim()
-          ? getSearchLanguagePairChoices(currentSearch, defaultPair)
-          : recentChoices;
+        const currentChoices = currentSearch.trim() ? searchChoicesRef.current : recentChoicesRef.current;
         if (!currentChoices.some((choice) => choice.value === value)) return;
 
         setSearchText("");

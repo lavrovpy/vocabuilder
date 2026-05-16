@@ -30,6 +30,8 @@ export function languagePairTitle(pair: LanguagePair): string {
 }
 
 export function parseLanguagePairValue(value: string): LanguagePair | null {
+  // Pair values use this app's simple language codes. If locale-style codes
+  // such as "pt-BR" are added later, update this serialization first.
   const [sourceCode, targetCode, extra] = value.split("-");
   if (!sourceCode || !targetCode || extra || sourceCode === targetCode) return null;
 

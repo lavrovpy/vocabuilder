@@ -2,21 +2,22 @@ import { useCallback, useEffect, useState } from "react";
 import { getLanguagePair, LanguagePair, storageKeyPrefix } from "../lib/languages";
 import { getActiveLanguagePair, parseLanguagePairValue, setActiveLanguagePairValue } from "../lib/languageSession";
 
-type Result =
+type Result = {
+  selectPairValue: (value: string) => Promise<LanguagePair | null>;
+} & (
   | {
       pair: LanguagePair;
       defaultPair: LanguagePair;
       isLoading: boolean;
       error: null;
-      selectPairValue: (value: string) => Promise<LanguagePair | null>;
     }
   | {
       pair: null;
       defaultPair: null;
       isLoading: false;
       error: string;
-      selectPairValue: (value: string) => Promise<LanguagePair | null>;
-    };
+    }
+);
 
 export function useLanguagePair(initialPair?: LanguagePair): Result {
   const preferenceResult = (() => {
@@ -53,14 +54,17 @@ export function useLanguagePair(initialPair?: LanguagePair): Result {
       };
     }
 
-    setIsLoading(true);
-    getActiveLanguagePair(fallback)
-      .then((activePair) => {
+    async function loadActivePair() {
+      try {
+        const activePair = await getActiveLanguagePair(fallback);
         if (!stale) setPair(activePair);
-      })
-      .finally(() => {
+      } finally {
         if (!stale) setIsLoading(false);
-      });
+      }
+    }
+
+    setIsLoading(true);
+    void loadActivePair();
 
     return () => {
       stale = true;

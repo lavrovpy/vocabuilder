@@ -39,6 +39,17 @@ function relativeTime(timestamp: number): string {
   return `${days}d ago`;
 }
 
+function ToggleLanguagesAction({ onAction }: { onAction: () => void }) {
+  return (
+    <Action
+      title="Toggle Languages"
+      icon={Icon.Switch}
+      shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
+      onAction={onAction}
+    />
+  );
+}
+
 export default function History(props: { languagePair?: LanguagePair }) {
   const langResult = useLanguagePair(props.languagePair);
 
@@ -83,6 +94,7 @@ export default function History(props: { languagePair?: LanguagePair }) {
 
     const selected = await langResult.selectPairValue(value);
     if (!selected) {
+      setIsLoading(false);
       await showToast({
         style: Toast.Style.Failure,
         title: "Invalid language pair",
@@ -100,17 +112,6 @@ export default function History(props: { languagePair?: LanguagePair }) {
   function handleToggleLanguages() {
     const swapped = swapLanguagePair(activePair);
     void handleLanguagePairChange(languagePairValue(swapped));
-  }
-
-  function ToggleLanguagesAction() {
-    return (
-      <Action
-        title="Toggle Languages"
-        icon={Icon.Switch}
-        shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
-        onAction={handleToggleLanguages}
-      />
-    );
   }
 
   const filtered = searchText
@@ -179,7 +180,7 @@ export default function History(props: { languagePair?: LanguagePair }) {
           description="Use Translate to get started"
           actions={
             <ActionPanel>
-              <ToggleLanguagesAction />
+              <ToggleLanguagesAction onAction={handleToggleLanguages} />
             </ActionPanel>
           }
         />
@@ -229,7 +230,7 @@ export default function History(props: { languagePair?: LanguagePair }) {
                   shortcut={{ modifiers: ["cmd"], key: "d" }}
                   onAction={() => handleDelete(item.id)}
                 />
-                <ToggleLanguagesAction />
+                <ToggleLanguagesAction onAction={handleToggleLanguages} />
                 <ActionPanel.Section title="Export">
                   <Action
                     title="Export as JSON"

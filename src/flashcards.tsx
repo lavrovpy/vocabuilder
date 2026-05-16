@@ -125,6 +125,17 @@ const initialState: StudyState = {
   easyCount: 0,
 };
 
+function ToggleLanguagesAction({ onAction }: { onAction: () => void }) {
+  return (
+    <Action
+      title="Toggle Languages"
+      icon={Icon.Switch}
+      shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
+      onAction={onAction}
+    />
+  );
+}
+
 /** Flashcard review command view. */
 export default function Flashcards(props: { languagePair?: LanguagePair }) {
   const langResult = useLanguagePair(props.languagePair);
@@ -159,6 +170,7 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
     dispatch({ type: "reset" });
     const selected = await langResult.selectPairValue(value);
     if (!selected) {
+      dispatch({ type: "loaded", cards: [], progressMap: new Map() });
       await showToast({
         style: Toast.Style.Failure,
         title: "Invalid language pair",
@@ -176,17 +188,6 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
   function handleToggleLanguages() {
     const swapped = swapLanguagePair(activePair);
     void handleLanguagePairChange(languagePairValue(swapped));
-  }
-
-  function ToggleLanguagesAction() {
-    return (
-      <Action
-        title="Toggle Languages"
-        icon={Icon.Switch}
-        shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
-        onAction={handleToggleLanguages}
-      />
-    );
   }
 
   async function handleRate(rating: Rating) {
@@ -243,7 +244,7 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
                 icon={Icon.XMarkCircle}
                 onAction={() => closeMainWindow({ clearRootSearch: true })}
               />
-              <ToggleLanguagesAction />
+              <ToggleLanguagesAction onAction={handleToggleLanguages} />
             </ActionPanel>
           }
         />
@@ -317,7 +318,7 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
                 />
               </>
             )}
-            <ToggleLanguagesAction />
+            <ToggleLanguagesAction onAction={handleToggleLanguages} />
           </ActionPanel>
         }
       />
@@ -415,6 +416,17 @@ if (import.meta.vitest) {
       });
       expect(reloaded.phase).toBe("studying");
       expect(reloaded.sessionCards[0].word).toBe("banana");
+    });
+
+    it("can leave loading with an empty loaded state", () => {
+      const done = reducer(initialState, {
+        type: "loaded",
+        cards: [],
+        progressMap: new Map(),
+      });
+
+      expect(done.phase).toBe("done");
+      expect(done.sessionCards).toEqual([]);
     });
   });
 }

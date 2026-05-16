@@ -90,6 +90,17 @@ function relativeTime(timestamp: number): string {
   return `${days}d ago`;
 }
 
+function ToggleLanguagesAction({ onAction }: { onAction: () => void }) {
+  return (
+    <Action
+      title="Toggle Languages"
+      icon={Icon.Switch}
+      shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
+      onAction={onAction}
+    />
+  );
+}
+
 export default function Translate() {
   const { geminiApiKey, readClipboardOnOpen, translationModel } = getPreferenceValues<Preferences.Translate>();
   const model = translationModel.trim() || getPreferenceDefault("translationModel");
@@ -195,17 +206,6 @@ export default function Translate() {
   function handleToggleLanguages() {
     const swapped = swapLanguagePair(activePair);
     void handleLanguagePairChange(languagePairValue(swapped));
-  }
-
-  function ToggleLanguagesAction() {
-    return (
-      <Action
-        title="Toggle Languages"
-        icon={Icon.Switch}
-        shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
-        onAction={handleToggleLanguages}
-      />
-    );
   }
 
   function submitTranslation(rawText: string, clearPending = true) {
@@ -475,7 +475,7 @@ export default function Translate() {
               {RETRYABLE_ERROR_CODES.has(errorCode ?? "") && searchText.trim() && (
                 <Action title="Retry" icon={Icon.ArrowClockwise} onAction={() => submitTranslation(searchText)} />
               )}
-              <ToggleLanguagesAction />
+              <ToggleLanguagesAction onAction={handleToggleLanguages} />
             </ActionPanel>
           }
         />
@@ -535,7 +535,7 @@ export default function Translate() {
                       shortcut={{ modifiers: ["cmd", "shift"], key: "h" }}
                       onAction={() => push(<History languagePair={languagePair} />)}
                     />
-                    <ToggleLanguagesAction />
+                    <ToggleLanguagesAction onAction={handleToggleLanguages} />
                   </ActionPanel>
                 }
               />
@@ -574,7 +574,7 @@ export default function Translate() {
                   shortcut={{ modifiers: ["cmd", "shift"], key: "h" }}
                   onAction={() => push(<History languagePair={languagePair} />)}
                 />
-                <ToggleLanguagesAction />
+                <ToggleLanguagesAction onAction={handleToggleLanguages} />
               </ActionPanel>
             }
           />
@@ -590,7 +590,7 @@ export default function Translate() {
             actions={
               <ActionPanel>
                 <Action title="Translate Now" icon={Icon.Book} onAction={() => submitTranslation(searchText)} />
-                <ToggleLanguagesAction />
+                <ToggleLanguagesAction onAction={handleToggleLanguages} />
               </ActionPanel>
             }
           />
@@ -618,7 +618,7 @@ export default function Translate() {
                     <Action title="Read Clipboard" icon={Icon.Clipboard} onAction={handleReadClipboard} />
                   )}
                   <Action title="Refresh Clipboard" icon={Icon.ArrowClockwise} onAction={handleReadClipboard} />
-                  <ToggleLanguagesAction />
+                  <ToggleLanguagesAction onAction={handleToggleLanguages} />
                 </ActionPanel>
               }
             />
@@ -673,7 +673,7 @@ export default function Translate() {
                         shortcut={{ modifiers: ["cmd", "shift"], key: "h" }}
                         onAction={() => push(<History languagePair={languagePair} />)}
                       />
-                      <ToggleLanguagesAction />
+                      <ToggleLanguagesAction onAction={handleToggleLanguages} />
                     </ActionPanel>
                   }
                 />
