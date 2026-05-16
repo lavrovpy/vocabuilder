@@ -24,7 +24,7 @@ import { getPreferenceDefault } from "./lib/manifest";
 import { looksLikeWordAttempt, normalizeWordInput, normalizeTextInput } from "./lib/input";
 import { LanguagePair, storageKeyPrefix, swapLanguagePair } from "./lib/languages";
 import { posColor } from "./lib/colors";
-import { buildTranslationDetailMarkdown, buildTextTranslationDetailMarkdown } from "./lib/markdown";
+import { TranslationDetail } from "./components/TranslationDetail";
 import { getHistory, saveTranslation } from "./lib/storage";
 import { Translation, WordSense } from "./lib/types";
 
@@ -482,20 +482,7 @@ export default function Translate() {
                     : []),
                   { tag: { value: sense.partOfSpeech, color: posColor(sense.partOfSpeech) } },
                 ]}
-                detail={
-                  <List.Item.Detail
-                    markdown={buildTranslationDetailMarkdown(detailTranslation, pendingWord.originalInput)}
-                    metadata={
-                      <List.Item.Detail.Metadata>
-                        <List.Item.Detail.Metadata.Label
-                          title=""
-                          text="⌘O to pronounce · ⌘⇧O for translation"
-                          icon={Icon.SpeakerHigh}
-                        />
-                      </List.Item.Detail.Metadata>
-                    }
-                  />
-                }
+                detail={<TranslationDetail item={detailTranslation} originalInput={pendingWord.originalInput} />}
                 actions={
                   <ActionPanel>
                     <Action
@@ -540,7 +527,7 @@ export default function Translate() {
             title={truncate(result.word, 60)}
             subtitle={truncate(result.translation, 60)}
             accessories={[{ tag: { value: "text", color: Color.Purple } }]}
-            detail={<List.Item.Detail markdown={buildTextTranslationDetailMarkdown(result.word, result.translation)} />}
+            detail={<TranslationDetail item={result} />}
             actions={
               <ActionPanel>
                 <Action.CopyToClipboard
@@ -634,15 +621,7 @@ export default function Translate() {
                       : { tag: { value: item.partOfSpeech, color: posColor(item.partOfSpeech) } },
                     { text: relativeTime(item.timestamp) },
                   ]}
-                  detail={
-                    <List.Item.Detail
-                      markdown={
-                        item.type === "text"
-                          ? buildTextTranslationDetailMarkdown(item.word, item.translation)
-                          : buildTranslationDetailMarkdown(item)
-                      }
-                    />
-                  }
+                  detail={<TranslationDetail item={item} />}
                   actions={
                     <ActionPanel>
                       <Action
