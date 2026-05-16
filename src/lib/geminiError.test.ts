@@ -1,0 +1,113 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  geminiError,
+  isGeminiError,
+  isOutcome,
+  isTransient,
+  type GeminiError,
+  type GeminiInfrastructureCause,
+  type GeminiOutcomeKind,
+} from "./geminiError";
+
+describe("geminiError + isGeminiError", () => {
+  it("builds an Error whose message mirrors kind and whose cause carries the tag", () => {
+    const e = geminiError({ kind: "model-not-found", surface: "tts", domain: "infrastructure", model: "x" });
+    expect(e).toBeInstanceOf(Error);
+    expect(e.message).toBe("model-not-found");
+    expect(e.cause).toEqual({ kind: "model-not-found", surface: "tts", domain: "infrastructure", model: "x" });
+  });
+
+  it("isGeminiError narrows a tagged Error", () => {
+    const e = geminiError({ kind: "network-offline", surface: "translate", domain: "infrastructure" });
+    expect(isGeminiError(e)).toBe(true);
+  });
+
+  it("isGeminiError rejects plain Errors (no cause)", () => {
+    expect(isGeminiError(new Error("WORD_NOT_FOUND"))).toBe(false);
+  });
+
+  it("isGeminiError rejects Errors whose cause lacks the tag", () => {
+    expect(isGeminiError(new Error("x", { cause: { status: 500 } }))).toBe(false);
+  });
+
+  it("isGeminiError rejects causes missing the domain discriminator", () => {
+    // A cause shape from before the domain refactor must not be recognized as a
+    // current GeminiError, otherwise downstream switches on domain go wrong.
+    expect(isGeminiError(new Error("x", { cause: { kind: "network-offline", surface: "translate" } }))).toBe(false);
+  });
+
+  it("isGeminiError rejects non-Error values", () => {
+    expect(isGeminiError("network-offline")).toBe(false);
+    expect(isGeminiError(null)).toBe(false);
+    expect(isGeminiError({ kind: "network-offline", surface: "tts", domain: "infrastructure" })).toBe(false);
+  });
+});
+
+describe("isOutcome", () => {
+  it("matches outcome-domain Gemini errors", () => {
+    expect(isOutcome(geminiError({ kind: "word-not-found", surface: "translate", domain: "outcome" }))).toBe(true);
+    expect(isOutcome(geminiError({ kind: "invalid-word-input", surface: "translate", domain: "outcome" }))).toBe(true);
+    expect(isOutcome(geminiError({ kind: "invalid-text-input", surface: "translate", domain: "outcome" }))).toBe(true);
+  });
+
+  it("rejects infrastructure-domain Gemini errors", () => {
+    expect(isOutcome(geminiError({ kind: "network-offline", surface: "translate", domain: "infrastructure" }))).toBe(
+      false,
+    );
+    expect(isOutcome(geminiError({ kind: "request-failed", surface: "tts", domain: "infrastructure" }))).toBe(false);
+  });
+
+  it("rejects non-Gemini errors", () => {
+    expect(isOutcome(new Error("anything"))).toBe(false);
+  });
+});
+
+describe("isTransient", () => {
+  const infra = (cause: GeminiInfrastructureCause): GeminiError => geminiError(cause);
+  const outcome = (kind: GeminiOutcomeKind): GeminiError =>
+    geminiError({ kind, surface: "translate", domain: "outcome" });
+
+  it("network-offline is transient", () => {
+    expect(isTransient(infra({ kind: "network-offline", surface: "translate", domain: "infrastructure" }))).toBe(true);
+  });
+
+  it("5xx request-failed is transient", () => {
+    expect(isTransient(infra({ kind: "request-failed", surface: "tts", domain: "infrastructure", status: 503 }))).toBe(
+      true,
+    );
+  });
+
+  it("429 and 408 are transient", () => {
+    expect(
+      isTransient(infra({ kind: "request-failed", surface: "translate", domain: "infrastructure", status: 429 })),
+    ).toBe(true);
+    expect(
+      isTransient(infra({ kind: "request-failed", surface: "translate", domain: "infrastructure", status: 408 })),
+    ).toBe(true);
+  });
+
+  it("4xx (other than 429/408) is NOT transient", () => {
+    expect(
+      isTransient(infra({ kind: "request-failed", surface: "translate", domain: "infrastructure", status: 400 })),
+    ).toBe(false);
+    expect(
+      isTransient(infra({ kind: "request-failed", surface: "translate", domain: "infrastructure", status: 404 })),
+    ).toBe(false);
+  });
+
+  it("invalid-api-key, model-not-found, empty/invalid-response are NOT transient", () => {
+    expect(isTransient(infra({ kind: "invalid-api-key", surface: "tts", domain: "infrastructure" }))).toBe(false);
+    expect(isTransient(infra({ kind: "model-not-found", surface: "tts", domain: "infrastructure", model: "x" }))).toBe(
+      false,
+    );
+    expect(isTransient(infra({ kind: "empty-response", surface: "translate", domain: "infrastructure" }))).toBe(false);
+    expect(isTransient(infra({ kind: "invalid-response", surface: "tts", domain: "infrastructure" }))).toBe(false);
+  });
+
+  it("outcome-domain errors are NEVER transient — deterministic verdicts, not retryable", () => {
+    expect(isTransient(outcome("word-not-found"))).toBe(false);
+    expect(isTransient(outcome("invalid-word-input"))).toBe(false);
+    expect(isTransient(outcome("invalid-text-input"))).toBe(false);
+  });
+});
