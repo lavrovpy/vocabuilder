@@ -145,7 +145,7 @@ describe("translateWord", () => {
     expect(result.senses.map((x) => x.partOfSpeech).sort()).toEqual(["noun", "verb"]);
   });
 
-  it("throws WORD_NOT_FOUND when notAWord is true", async () => {
+  it("throws word-not-found outcome when notAWord is true", async () => {
     const payload = { senses: [], notAWord: true };
     vi.mocked(fetch).mockResolvedValue(
       new Response(JSON.stringify(geminiJsonBody(payload)), {
@@ -153,7 +153,17 @@ describe("translateWord", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
-    await expect(translateWord("xqzptl", API_KEY, pair, undefined, TEST_OPTIONS)).rejects.toThrow("WORD_NOT_FOUND");
+    let caught: unknown;
+    try {
+      await translateWord("xqzptl", API_KEY, pair, undefined, TEST_OPTIONS);
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).message).toBe("word-not-found");
+    // Outcome-domain tag is what the eval provider and translate.tsx switch on —
+    // assert it explicitly so future shape changes can't silently misclassify.
+    expect((caught as Error).cause).toMatchObject({ domain: "outcome", kind: "word-not-found" });
   });
 
   it("throws invalid-response when senses array is empty without notAWord", async () => {
@@ -363,8 +373,15 @@ describe("translateWord", () => {
     await expect(translateWord("hello", API_KEY, pair, undefined, TEST_OPTIONS)).rejects.toThrow("invalid-response");
   });
 
-  it("throws INVALID_WORD_INPUT for empty input", async () => {
-    await expect(translateWord("", API_KEY, pair, undefined, TEST_OPTIONS)).rejects.toThrow("INVALID_WORD_INPUT");
+  it("throws invalid-word-input outcome for empty input", async () => {
+    let caught: unknown;
+    try {
+      await translateWord("", API_KEY, pair, undefined, TEST_OPTIONS);
+    } catch (err) {
+      caught = err;
+    }
+    expect((caught as Error).message).toBe("invalid-word-input");
+    expect((caught as Error).cause).toMatchObject({ domain: "outcome", kind: "invalid-word-input" });
   });
 
   it("throws network-offline when fetch fails with a network TypeError", async () => {
@@ -535,8 +552,15 @@ describe("translateText", () => {
     });
   });
 
-  it("throws INVALID_TEXT_INPUT for empty input", async () => {
-    await expect(translateText("", API_KEY, pair, undefined, TEST_OPTIONS)).rejects.toThrow("INVALID_TEXT_INPUT");
+  it("throws invalid-text-input outcome for empty input", async () => {
+    let caught: unknown;
+    try {
+      await translateText("", API_KEY, pair, undefined, TEST_OPTIONS);
+    } catch (err) {
+      caught = err;
+    }
+    expect((caught as Error).message).toBe("invalid-text-input");
+    expect((caught as Error).cause).toMatchObject({ domain: "outcome", kind: "invalid-text-input" });
   });
 
   it("throws network-offline when fetch fails with a network TypeError", async () => {

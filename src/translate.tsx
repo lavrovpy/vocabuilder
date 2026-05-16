@@ -19,15 +19,9 @@ import { useLanguagePair } from "./hooks/useLanguagePair";
 import History from "./history";
 import { translateWord, translateText } from "./lib/gemini";
 import { defaultToastFor } from "./lib/errorToast";
-import { isGeminiError } from "./lib/geminiError";
+import { geminiError, isGeminiError } from "./lib/geminiError";
 import { getPreferenceDefault } from "./lib/manifest";
-import {
-  MAX_PHRASE_TOKENS,
-  MAX_VOCAB_LENGTH,
-  looksLikeWordAttempt,
-  normalizeWordInput,
-  normalizeTextInput,
-} from "./lib/input";
+import { looksLikeWordAttempt, normalizeWordInput, normalizeTextInput } from "./lib/input";
 import { LanguagePair, storageKeyPrefix, swapLanguagePair } from "./lib/languages";
 import { posColor } from "./lib/colors";
 import { buildTranslationDetailMarkdown, buildTextTranslationDetailMarkdown } from "./lib/markdown";
@@ -70,31 +64,16 @@ function isSafeClipboardSuggestion(raw: string): boolean {
 
 type ErrorDescription = { code: string; title: string; message: string };
 
+// Every recognized error — infrastructure (network/api/model) AND outcome
+// (word-not-found, invalid-word-input, invalid-text-input) — now flows through
+// defaultToastFor. The unknown-error branch only catches things like
+// DOMException("AbortError") or genuinely unexpected throws.
 function describeError(err: unknown): ErrorDescription {
   if (isGeminiError(err)) {
     const { title, message } = defaultToastFor(err.cause);
     return { code: err.cause.kind, title, message };
   }
-  const code = err instanceof Error ? err.message : "UNKNOWN_ERROR";
-  const title = "Translation failed";
-  switch (code) {
-    case "WORD_NOT_FOUND":
-      return {
-        code,
-        title: "Word not recognized",
-        message: "This word or phrase was not recognized. Check the spelling or try something else.",
-      };
-    case "INVALID_WORD_INPUT":
-      return {
-        code,
-        title,
-        message: `Enter a word or short phrase (letters, apostrophe, hyphen; up to ${MAX_PHRASE_TOKENS} words, ${MAX_VOCAB_LENGTH} chars).`,
-      };
-    case "INVALID_TEXT_INPUT":
-      return { code, title, message: "Text is empty or too long." };
-    default:
-      return { code, title, message: "Translation failed. Please try again." };
-  }
+  return { code: "UNKNOWN_ERROR", title: "Translation failed", message: "Translation failed. Please try again." };
 }
 
 function truncate(text: string, maxLen: number): string {
@@ -231,7 +210,7 @@ export default function Translate() {
       setResult(null);
       setPendingWord(null);
       setIsLoading(false);
-      const desc = describeError(new Error("INVALID_WORD_INPUT"));
+      const desc = describeError(geminiError({ domain: "outcome", kind: "invalid-word-input", surface: "translate" }));
       setErrorCode(desc.code);
       setError(desc.message);
       return;
@@ -246,7 +225,7 @@ export default function Translate() {
     setResult(null);
     setPendingWord(null);
     setIsLoading(false);
-    const desc = describeError(new Error("INVALID_TEXT_INPUT"));
+    const desc = describeError(geminiError({ domain: "outcome", kind: "invalid-text-input", surface: "translate" }));
     setErrorCode(desc.code);
     setError(desc.message);
   }

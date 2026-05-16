@@ -71,17 +71,17 @@ async function fetchGeminiOnce(
     });
   } catch (err) {
     if (err instanceof TypeError) {
-      throw geminiError({ kind: "network-offline", surface: "translate" });
+      throw geminiError({ domain: "infrastructure", kind: "network-offline", surface: "translate" });
     }
     throw err;
   }
 
   if (response.status === 401 || response.status === 403) {
-    throw geminiError({ kind: "invalid-api-key", surface: "translate" });
+    throw geminiError({ domain: "infrastructure", kind: "invalid-api-key", surface: "translate" });
   }
 
   if (response.status === 404) {
-    throw geminiError({ kind: "model-not-found", surface: "translate", model });
+    throw geminiError({ domain: "infrastructure", kind: "model-not-found", surface: "translate", model });
   }
 
   if (!response.ok) {
@@ -91,7 +91,13 @@ async function fetchGeminiOnce(
     } catch {
       // body unreadable - proceed with empty
     }
-    throw geminiError({ kind: "request-failed", surface: "translate", status: response.status, body: errBody });
+    throw geminiError({
+      domain: "infrastructure",
+      kind: "request-failed",
+      surface: "translate",
+      status: response.status,
+      body: errBody,
+    });
   }
 
   return response;
@@ -132,13 +138,13 @@ async function callGemini(
 
   // Unreachable in practice — the loop either assigns response or throws —
   // but TS narrows better with this guard than with a non-null assertion.
-  if (!response) throw geminiError({ kind: "request-failed", surface: "translate" });
+  if (!response) throw geminiError({ domain: "infrastructure", kind: "request-failed", surface: "translate" });
 
   const apiData = GeminiApiResponseSchema.parse(await response.json());
   const raw = apiData.candidates[0]?.content.parts[0]?.text ?? "";
 
   if (!raw) {
-    throw geminiError({ kind: "empty-response", surface: "translate" });
+    throw geminiError({ domain: "infrastructure", kind: "empty-response", surface: "translate" });
   }
 
   return raw
@@ -209,7 +215,7 @@ async function translateWordRaw(
 ): Promise<GeminiWordResponse> {
   const normalizedWord = normalizeWordInput(word);
   if (!normalizedWord) {
-    throw new Error("INVALID_WORD_INPUT");
+    throw geminiError({ domain: "outcome", kind: "invalid-word-input", surface: "translate" });
   }
 
   const prompt = buildWordPrompt(normalizedWord, languagePair);
@@ -221,7 +227,7 @@ async function translateWordRaw(
   try {
     return GeminiWordResponseSchema.parse(JSON.parse(cleaned));
   } catch {
-    throw geminiError({ kind: "invalid-response", surface: "translate" });
+    throw geminiError({ domain: "infrastructure", kind: "invalid-response", surface: "translate" });
   }
 }
 
@@ -235,10 +241,10 @@ export async function translateWord(
   const parsed = await translateWordRaw(word, apiKey, languagePair, signal, options);
 
   if (parsed.notAWord) {
-    throw new Error("WORD_NOT_FOUND");
+    throw geminiError({ domain: "outcome", kind: "word-not-found", surface: "translate" });
   }
   if (parsed.senses.length === 0) {
-    throw geminiError({ kind: "invalid-response", surface: "translate" });
+    throw geminiError({ domain: "infrastructure", kind: "invalid-response", surface: "translate" });
   }
 
   return { ...parsed, senses: dedupeSenses(parsed.senses) };
@@ -359,7 +365,7 @@ export async function translateText(
 ): Promise<GeminiTextResponse> {
   const normalizedText = normalizeTextInput(text);
   if (!normalizedText) {
-    throw new Error("INVALID_TEXT_INPUT");
+    throw geminiError({ domain: "outcome", kind: "invalid-text-input", surface: "translate" });
   }
 
   const { source, target } = languagePair;
@@ -378,6 +384,6 @@ Text: ${asJsonStringLiteral(normalizedText)}`;
   try {
     return GeminiTextResponseSchema.parse(JSON.parse(cleaned));
   } catch {
-    throw geminiError({ kind: "invalid-response", surface: "translate" });
+    throw geminiError({ domain: "infrastructure", kind: "invalid-response", surface: "translate" });
   }
 }

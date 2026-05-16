@@ -159,17 +159,17 @@ async function generateSpeechGemini(
     });
   } catch (err) {
     if (err instanceof TypeError) {
-      throw geminiError({ kind: "network-offline", surface: "tts" });
+      throw geminiError({ domain: "infrastructure", kind: "network-offline", surface: "tts" });
     }
     throw err;
   }
 
   if (response.status === 401 || response.status === 403) {
-    throw geminiError({ kind: "invalid-api-key", surface: "tts" });
+    throw geminiError({ domain: "infrastructure", kind: "invalid-api-key", surface: "tts" });
   }
 
   if (response.status === 404) {
-    throw geminiError({ kind: "model-not-found", surface: "tts", model });
+    throw geminiError({ domain: "infrastructure", kind: "model-not-found", surface: "tts", model });
   }
 
   if (!response.ok) {
@@ -179,7 +179,13 @@ async function generateSpeechGemini(
     } catch {
       // body unreadable - proceed with empty
     }
-    throw geminiError({ kind: "request-failed", surface: "tts", status: response.status, body: errBody });
+    throw geminiError({
+      domain: "infrastructure",
+      kind: "request-failed",
+      surface: "tts",
+      status: response.status,
+      body: errBody,
+    });
   }
 
   const rawJson = await response.text();
@@ -187,7 +193,12 @@ async function generateSpeechGemini(
   try {
     apiData = GeminiTtsResponseSchema.parse(JSON.parse(rawJson));
   } catch {
-    throw geminiError({ kind: "invalid-response", surface: "tts", body: rawJson.slice(0, 500) });
+    throw geminiError({
+      domain: "infrastructure",
+      kind: "invalid-response",
+      surface: "tts",
+      body: rawJson.slice(0, 500),
+    });
   }
   // Schema guarantees structural shape; `data` is allowed to be empty string,
   // which we surface separately as `empty-response` rather than rolling it
@@ -195,7 +206,7 @@ async function generateSpeechGemini(
   const base64Audio = apiData.candidates[0].content.parts[0].inlineData.data;
 
   if (!base64Audio) {
-    throw geminiError({ kind: "empty-response", surface: "tts" });
+    throw geminiError({ domain: "infrastructure", kind: "empty-response", surface: "tts" });
   }
 
   const pcm = Buffer.from(base64Audio, "base64");

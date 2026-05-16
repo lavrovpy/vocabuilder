@@ -1,4 +1,5 @@
 import type { GeminiErrorCause } from "./geminiError";
+import { MAX_PHRASE_TOKENS, MAX_VOCAB_LENGTH } from "./input";
 
 export type ToastSpec = {
   title: string;
@@ -54,6 +55,24 @@ export function defaultToastFor(cause: GeminiErrorCause): ToastSpec {
         title: "Unexpected response from Gemini",
         message: "Gemini returned an unrecognized format. Try again or pick a different model.",
       };
+
+    case "word-not-found":
+      return {
+        title: "Word not recognized",
+        message: "This word or phrase was not recognized. Check the spelling or try something else.",
+      };
+
+    case "invalid-word-input":
+      return {
+        title: "Translation failed",
+        message: `Enter a word or short phrase (letters, apostrophe, hyphen; up to ${MAX_PHRASE_TOKENS} words, ${MAX_VOCAB_LENGTH} chars).`,
+      };
+
+    case "invalid-text-input":
+      return {
+        title: "Translation failed",
+        message: "Text is empty or too long.",
+      };
   }
 }
 
@@ -61,23 +80,28 @@ if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
   describe("defaultToastFor", () => {
+    // Tiny helper so each test reads as "infrastructure cause for kind X" without
+    // 12 redundant `domain: "infrastructure"` literals diluting the intent.
+    const infra = (cause: Omit<Extract<GeminiErrorCause, { domain: "infrastructure" }>, "domain">) =>
+      defaultToastFor({ ...cause, domain: "infrastructure" } as GeminiErrorCause);
+
     it("network-offline is surface-agnostic", () => {
-      const a = defaultToastFor({ kind: "network-offline", surface: "translate" });
-      const b = defaultToastFor({ kind: "network-offline", surface: "tts" });
+      const a = infra({ kind: "network-offline", surface: "translate" });
+      const b = infra({ kind: "network-offline", surface: "tts" });
       expect(a).toEqual(b);
       expect(a.title).toMatch(/internet/i);
     });
 
     it("invalid-api-key is surface-agnostic", () => {
-      const a = defaultToastFor({ kind: "invalid-api-key", surface: "translate" });
-      const b = defaultToastFor({ kind: "invalid-api-key", surface: "tts" });
+      const a = infra({ kind: "invalid-api-key", surface: "translate" });
+      const b = infra({ kind: "invalid-api-key", surface: "tts" });
       expect(a).toEqual(b);
       expect(a.title).toMatch(/api key/i);
     });
 
     it("model-not-found references the correct preference name per surface", () => {
-      const t = defaultToastFor({ kind: "model-not-found", surface: "translate", model: "X" });
-      const tts = defaultToastFor({ kind: "model-not-found", surface: "tts", model: "X" });
+      const t = infra({ kind: "model-not-found", surface: "translate", model: "X" });
+      const tts = infra({ kind: "model-not-found", surface: "tts", model: "X" });
       expect(t.message).toContain("Translation Model");
       expect(tts.message).toContain("Text-to-Speech Model");
       expect(t.message).toContain("X");
@@ -85,38 +109,57 @@ if (import.meta.vitest) {
     });
 
     it("model-not-found falls back when model is missing", () => {
-      const t = defaultToastFor({ kind: "model-not-found", surface: "translate" });
+      const t = infra({ kind: "model-not-found", surface: "translate" });
       expect(t.message).toContain("the configured model");
     });
 
     it("request-failed title varies by surface", () => {
-      const t = defaultToastFor({ kind: "request-failed", surface: "translate", status: 503 });
-      const tts = defaultToastFor({ kind: "request-failed", surface: "tts", status: 503 });
+      const t = infra({ kind: "request-failed", surface: "translate", status: 503 });
+      const tts = infra({ kind: "request-failed", surface: "tts", status: 503 });
       expect(t.title).toMatch(/translation/i);
       expect(tts.title).toMatch(/pronunciation/i);
     });
 
     it("request-failed surfaces the HTTP status in the message when present", () => {
-      const t = defaultToastFor({ kind: "request-failed", surface: "translate", status: 429 });
+      const t = infra({ kind: "request-failed", surface: "translate", status: 429 });
       expect(t.message).toContain("429");
     });
 
     it("request-failed omits status when not present", () => {
-      const t = defaultToastFor({ kind: "request-failed", surface: "translate" });
+      const t = infra({ kind: "request-failed", surface: "translate" });
       expect(t.message).not.toMatch(/\d{3}/);
     });
 
     it("empty-response title varies by surface", () => {
-      const t = defaultToastFor({ kind: "empty-response", surface: "translate" });
-      const tts = defaultToastFor({ kind: "empty-response", surface: "tts" });
+      const t = infra({ kind: "empty-response", surface: "translate" });
+      const tts = infra({ kind: "empty-response", surface: "tts" });
       expect(t.title).toMatch(/empty/i);
       expect(tts.title).toMatch(/audio/i);
     });
 
     it("invalid-response is surface-agnostic", () => {
-      const a = defaultToastFor({ kind: "invalid-response", surface: "translate" });
-      const b = defaultToastFor({ kind: "invalid-response", surface: "tts" });
+      const a = defaultToastFor({ kind: "invalid-response", surface: "translate", domain: "infrastructure" });
+      const b = defaultToastFor({ kind: "invalid-response", surface: "tts", domain: "infrastructure" });
       expect(a).toEqual(b);
+    });
+
+    it("word-not-found uses outcome-specific copy distinct from infrastructure errors", () => {
+      const t = defaultToastFor({ kind: "word-not-found", surface: "translate", domain: "outcome" });
+      expect(t.title).toMatch(/not recognized/i);
+      // Don't suggest retrying — outcomes are deterministic verdicts, not transient.
+      expect(t.message).not.toMatch(/try again/i);
+    });
+
+    it("invalid-word-input surfaces the input-shape constraints from src/lib/input.ts", () => {
+      const t = defaultToastFor({ kind: "invalid-word-input", surface: "translate", domain: "outcome" });
+      // Mention the actual numeric limits so the message stays in sync with the validator.
+      expect(t.message).toMatch(/\d+\s+words/);
+      expect(t.message).toMatch(/\d+\s+chars/);
+    });
+
+    it("invalid-text-input has its own copy", () => {
+      const t = defaultToastFor({ kind: "invalid-text-input", surface: "translate", domain: "outcome" });
+      expect(t.message).toMatch(/empty|too long/i);
     });
   });
 }
