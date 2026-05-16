@@ -62,15 +62,10 @@ function projectKnownError(input: string, pair: LanguagePair, error: string): Re
 }
 
 /**
- * Return a known-domain projection if this is an outcome-domain Gemini error
- * (deterministic verdict from the translation pipeline — input validation or
- * notAWord). Otherwise null — caller surfaces it as a provider-level error.
- *
- * Note: invalid-response is INFRASTRUCTURE, not outcome — the schema-level
- * failure means Gemini misbehaved, not that the input was rejected. We used to
- * project it as an app-level error (legacy GEMINI_INVALID_RESPONSE behavior),
- * but the eval YAML never asserts against it; if it ever should, add an
- * explicit infrastructure→outcome promotion here rather than widening isOutcome.
+ * Project outcome-domain Gemini errors into app-level eval JSON; return null for
+ * infrastructure errors so the caller surfaces them as provider failures.
+ * See AGENTS.md → Error Handling (Eval provider mapping) for the invalid-response
+ * classification and how to add a future infrastructure→outcome promotion.
  */
 export function projectKnownErrorOrNull(
   err: unknown,

@@ -40,12 +40,7 @@ function pickSenseShortcut(index: number): { modifiers: "cmd"[]; key: "1" | "2" 
   return { modifiers: ["cmd"], key: keys[index] };
 }
 
-/**
- * Codes for which the UI should offer a Retry button. Includes every Gemini
- * transport kind that *might* succeed on retry, plus the app-level UNKNOWN_ERROR
- * (which could be a one-off). Excludes invalid-api-key and model-not-found —
- * those need a preferences change first.
- */
+// Codes that surface a Retry button. See AGENTS.md → Error Handling (Retry policy).
 const RETRYABLE_ERROR_CODES = new Set<string>([
   "network-offline",
   "request-failed",
@@ -64,10 +59,8 @@ function isSafeClipboardSuggestion(raw: string): boolean {
 
 type ErrorDescription = { code: string; title: string; message: string };
 
-// Every recognized error — infrastructure (network/api/model) AND outcome
-// (word-not-found, invalid-word-input, invalid-text-input) — now flows through
-// defaultToastFor. The unknown-error branch only catches things like
-// DOMException("AbortError") or genuinely unexpected throws.
+// UNKNOWN_ERROR is the catch-all for AbortError and genuinely unexpected throws;
+// everything recognized routes through defaultToastFor.
 function describeError(err: unknown): ErrorDescription {
   if (isGeminiError(err)) {
     const { title, message } = defaultToastFor(err.cause);

@@ -6,11 +6,7 @@ export type ToastSpec = {
   message: string;
 };
 
-/**
- * Default toast copy for a Gemini error. Surface-aware where the difference is
- * deterministic copy (which preferences pane to open, "Translation" vs
- * "Pronunciation" framing). Surfaces add behavior — actions, fallbacks — on top.
- */
+/** Single source of truth for user-visible toast copy. See AGENTS.md → Error Handling. */
 export function defaultToastFor(cause: GeminiErrorCause): ToastSpec {
   switch (cause.kind) {
     case "network-offline":

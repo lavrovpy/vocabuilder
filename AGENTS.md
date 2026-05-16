@@ -38,6 +38,55 @@ After the PR is opened, the Raycast team reviews it and may request changes. Onc
 - Do not export functions, constants, or types solely for testing purposes.
 - Prefer tests that encode project behavior or contracts over tests that mirror declarations. For Zod schemas, do not add parse/not-parse cases merely proving required fields, enum rejection, or primitive types; test app-level invariants, hand-written schema drift, migration/storage boundaries, and behavior that would fail in production.
 
+# Error Handling
+
+A centralized tagged-cause pattern routes every Gemini-derived failure through one error shape (`GeminiError`) and one toast router (`defaultToastFor`). Eliminates parallel string switches across `translate.tsx`, `PronounceAction.tsx`, and the eval provider.
+
+## Layout
+
+- `src/lib/geminiError.ts` — `GeminiError`, the `geminiError()` constructor, the `isGeminiError`/`isOutcome`/`isTransient` narrowers
+- `src/lib/errorToast.ts` — `defaultToastFor(cause)`: single source of truth for user-visible toast copy
+- `src/lib/pronounceFlow.ts` — pure orchestrator for the "try Gemini TTS, fall back to `say(1)`" flow
+- `src/translate.tsx` `RETRYABLE_ERROR_CODES` — codes that surface a Retry button in the UI
+- `evals/promptfoo/provider.ts` `projectKnownErrorOrNull` — projects outcome-domain errors into app-level eval JSON
+
+## The pattern
+
+`geminiError(cause)` returns `new Error(cause.kind, { cause })`. The `message` deliberately mirrors `cause.kind` so test assertions like `.toThrow("model-not-found")` keep working without inspecting `.cause`. The cause object is a discriminated union by `domain`, narrowed with `isGeminiError`.
+
+## Two domains
+
+- **`infrastructure`** — transport/API/network failures the user cannot fix from the prompt. Drives retries, fallbacks, and "open preferences" actions. Kinds: `network-offline`, `invalid-api-key`, `model-not-found`, `request-failed`, `invalid-response`, `empty-response`. Carries `surface` (`"translate" | "tts"`) plus optional `model`, `status`, `body`.
+- **`outcome`** — deterministic verdicts the translation pipeline produced: input-validation failures or "this is not a word." Never retried, never fall back. Kinds: `word-not-found`, `invalid-word-input`, `invalid-text-input`. Surface is locked to the literal `"translate"` at the type level — widen to `GeminiErrorSurface` only when TTS gains its first outcome kind.
+
+The compiler enforces the split: you cannot construct an outcome cause with `surface: "tts"` or with HTTP `status`, and `isTransient` short-circuits on `domain !== "infrastructure"` so outcomes can never trigger a retry by accident.
+
+## Discriminator invariant
+
+`isGeminiError` requires **all** of `kind`, `surface`, and `domain` on the cause. Pre-domain causes are rejected on purpose so legacy producers can't be confused for current ones — that test is part of the flag day, not a regression to fix.
+
+## Toast routing
+
+`defaultToastFor(cause)` owns the user-visible copy for every kind. Surface-aware where it matters (which preferences pane to mention, "Translation" vs "Pronunciation" framing). Callers may **overlay** behavior on top — for example `PronounceAction` rewrites the message to "Using system voice for now." when offline — but should not rewrite wording for cases the router already handles.
+
+## Retry policy
+
+`RETRYABLE_ERROR_CODES` in `translate.tsx` lists the codes for which the UI offers a Retry button: every transport kind that *might* succeed on retry, plus `UNKNOWN_ERROR`. Excludes `invalid-api-key` and `model-not-found` — those need a preferences change first. Outcomes are never present in the set.
+
+`isTransient(err)` is a *separate* predicate used by the retry loops inside `translateWord`/`pronounce`. It returns `true` for `network-offline` and for `request-failed` with status ≥ 500 or status in `{429, 408}`.
+
+## Pronounce fallback orchestrator
+
+`runPronounceWithFallback` is a pure async function returning a `PronounceOutcome` verdict: `primary | aborted | fallback-ok | failed`. The component owns the UI; this function owns the decision sequence.
+
+Key invariant: **the failure toast must not flash when the system-voice fallback succeeds.** The orchestrator runs the fallback *before* deciding between `fallback-ok` and `failed`, and the component switches on the verdict to render exactly one toast.
+
+## Eval provider mapping
+
+`projectKnownErrorOrNull(err, input, pair)` projects only outcome-domain Gemini errors into the eval's app-level success/error JSON. Infrastructure errors return `null` and bubble as provider failures (the case errors out rather than asserting against a misleading "output").
+
+`invalid-response` is intentionally **infrastructure**, not outcome — a schema-level failure means Gemini misbehaved, not that the input was deterministically rejected. The eval YAML never asserts on it; if a future case ever should, add an explicit infrastructure→outcome promotion in this projector rather than widening `isOutcome`.
+
 # Evals
 
 A Promptfoo-driven end-to-end harness over the production `translateWord` path. The eval target is the processed application behavior users rely on: a parsed, schema-validated, de-duplicated translation result, or a mapped domain error. It is not a raw Gemini-output eval.

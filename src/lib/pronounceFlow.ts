@@ -1,11 +1,7 @@
 /**
- * Pure orchestrator for the "try Gemini TTS, fall back to say(1)" flow.
- * Returns a verdict instead of touching toasts so the component owns the UI
- * and the decision logic stays testable without rendering React.
- *
- * Key behavior: the failure toast must NOT flash when the system-voice fallback
- * succeeds. We attempt the fallback *before* deciding between "fallback-ok" and
- * "failed", and only the latter calls for a failure toast at the caller.
+ * Pure orchestrator for the "try Gemini TTS, fall back to say(1)" flow. Returns
+ * a verdict so the component owns the UI. See AGENTS.md → Error Handling for the
+ * fallback-before-decide invariant.
  */
 export type PronounceOutcome =
   | { kind: "primary"; cached: boolean }

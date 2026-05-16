@@ -1,18 +1,7 @@
 /**
- * Centralized error shape for Gemini API failures (translate + TTS).
- *
- * Design: a plain `Error` whose `cause` carries a tagged object discriminated by
- * `domain`. No class, no inheritance. Narrowed by `isGeminiError`. The `message`
- * mirrors `kind` so `.toThrow("model-not-found")` works in tests.
- *
- * Two domains:
- *  - "infrastructure": API/network/transport failures the user cannot directly
- *    fix from the prompt (network down, bad key, model retired, 5xx, malformed
- *    response). These drive retries, fallbacks, and "open preferences" actions.
- *  - "outcome": the translation pipeline produced a definite, recognizable
- *    result that isn't success — input failed validation, or the model
- *    confidently said "this isn't a word." These are deterministic verdicts
- *    the eval suite asserts against; never retried, never fall back.
+ * Tagged-cause Error for every Gemini-derived failure (translate + TTS).
+ * The cause is a discriminated union by `domain` ("infrastructure" vs "outcome").
+ * See AGENTS.md → Error Handling for routing rules and the retry policy.
  */
 
 export type GeminiInfrastructureKind =
@@ -41,9 +30,7 @@ export type GeminiInfrastructureCause = {
 export type GeminiOutcomeCause = {
   domain: "outcome";
   kind: GeminiOutcomeKind;
-  // Outcomes are translate-only today (input validation + notAWord). Locking
-  // the literal here means the type system rejects accidental TTS outcome causes;
-  // widen to GeminiErrorSurface if TTS ever gains an outcome kind.
+  // Locked literal — widen to GeminiErrorSurface if TTS ever gains an outcome kind.
   surface: "translate";
 };
 
