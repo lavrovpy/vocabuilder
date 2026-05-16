@@ -153,17 +153,12 @@ describe("translateWord", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
-    let caught: unknown;
-    try {
-      await translateWord("xqzptl", API_KEY, pair, undefined, TEST_OPTIONS);
-    } catch (err) {
-      caught = err;
-    }
-    expect(caught).toBeInstanceOf(Error);
-    expect((caught as Error).message).toBe("word-not-found");
     // Outcome-domain tag is what the eval provider and translate.tsx switch on —
     // assert it explicitly so future shape changes can't silently misclassify.
-    expect((caught as Error).cause).toMatchObject({ domain: "outcome", kind: "word-not-found" });
+    await expect(translateWord("xqzptl", API_KEY, pair, undefined, TEST_OPTIONS)).rejects.toMatchObject({
+      message: "word-not-found",
+      cause: { domain: "outcome", kind: "word-not-found" },
+    });
   });
 
   it("throws invalid-response when senses array is empty without notAWord", async () => {
@@ -319,32 +314,27 @@ describe("translateWord", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     const body = '{"error":{"code":429,"message":"Resource has been exhausted"}}';
     vi.mocked(fetch).mockImplementation(async () => new Response(body, { status: 429 }));
-    try {
-      await translateWord("hello", API_KEY, pair, undefined, TEST_OPTIONS);
-      throw new Error("expected rejection");
-    } catch (err) {
-      expect(err).toBeInstanceOf(Error);
-      expect((err as Error).message).toBe("request-failed");
-      const cause = (err as Error).cause as { kind?: string; surface?: string; status?: number; body?: string };
-      expect(cause.kind).toBe("request-failed");
-      expect(cause.surface).toBe("translate");
-      expect(cause.status).toBe(429);
-      expect(cause.body).toContain("Resource has been exhausted");
-    }
+    await expect(translateWord("hello", API_KEY, pair, undefined, TEST_OPTIONS)).rejects.toMatchObject({
+      message: "request-failed",
+      cause: {
+        kind: "request-failed",
+        surface: "translate",
+        status: 429,
+        body: expect.stringContaining("Resource has been exhausted"),
+      },
+    });
   });
 
   it("truncates long error bodies on the cause to 500 chars", async () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     const huge = "x".repeat(2000);
     vi.mocked(fetch).mockImplementation(async () => new Response(huge, { status: 500 }));
-    try {
-      await translateWord("hello", API_KEY, pair, undefined, TEST_OPTIONS);
-      throw new Error("expected rejection");
-    } catch (err) {
-      const cause = (err as Error).cause as { status?: number; body?: string };
-      expect(cause.status).toBe(500);
-      expect(cause.body!.length).toBe(500);
-    }
+    await expect(translateWord("hello", API_KEY, pair, undefined, TEST_OPTIONS)).rejects.toMatchObject({
+      cause: {
+        status: 500,
+        body: expect.stringMatching(/^x{500}$/),
+      },
+    });
   });
 
   it("throws empty-response when response text is empty", async () => {
@@ -374,14 +364,10 @@ describe("translateWord", () => {
   });
 
   it("throws invalid-word-input outcome for empty input", async () => {
-    let caught: unknown;
-    try {
-      await translateWord("", API_KEY, pair, undefined, TEST_OPTIONS);
-    } catch (err) {
-      caught = err;
-    }
-    expect((caught as Error).message).toBe("invalid-word-input");
-    expect((caught as Error).cause).toMatchObject({ domain: "outcome", kind: "invalid-word-input" });
+    await expect(translateWord("", API_KEY, pair, undefined, TEST_OPTIONS)).rejects.toMatchObject({
+      message: "invalid-word-input",
+      cause: { domain: "outcome", kind: "invalid-word-input" },
+    });
   });
 
   it("throws network-offline when fetch fails with a network TypeError", async () => {
@@ -445,15 +431,10 @@ describe("translateWord retry behavior", () => {
   it("gives up after MAX_RETRY_ATTEMPTS and surfaces request-failed", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Service Unavailable", { status: 503 }));
 
-    try {
-      await translateWord("hello", API_KEY, pair, undefined, TEST_OPTIONS);
-      throw new Error("expected rejection");
-    } catch (err) {
-      expect(err).toBeInstanceOf(Error);
-      expect((err as Error).message).toBe("request-failed");
-      const cause = (err as Error).cause as { status?: number };
-      expect(cause?.status).toBe(503);
-    }
+    await expect(translateWord("hello", API_KEY, pair, undefined, TEST_OPTIONS)).rejects.toMatchObject({
+      message: "request-failed",
+      cause: { status: 503 },
+    });
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(3);
   });
 
@@ -475,32 +456,22 @@ describe("translateWord retry behavior", () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Not Found", { status: 404 }));
     const customModel = "gemini-bogus-model";
 
-    let caught: unknown;
-    try {
-      await translateWord("hello", API_KEY, pair, undefined, { model: customModel });
-    } catch (err) {
-      caught = err;
-    }
-    expect(caught).toBeInstanceOf(Error);
-    expect((caught as Error).message).toBe("model-not-found");
-    expect((caught as Error).cause).toMatchObject({
-      kind: "model-not-found",
-      surface: "translate",
-      model: customModel,
+    await expect(translateWord("hello", API_KEY, pair, undefined, { model: customModel })).rejects.toMatchObject({
+      message: "model-not-found",
+      cause: {
+        kind: "model-not-found",
+        surface: "translate",
+        model: customModel,
+      },
     });
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
   });
 
   it("propagates the caller-supplied model through to the cause", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Not Found", { status: 404 }));
-    let caught: unknown;
-    try {
-      await translateWord("hello", API_KEY, pair, undefined, TEST_OPTIONS);
-    } catch (err) {
-      caught = err;
-    }
-    const cause = (caught as Error).cause as { model?: string };
-    expect(cause.model).toBe(TEST_OPTIONS.model);
+    await expect(translateWord("hello", API_KEY, pair, undefined, TEST_OPTIONS)).rejects.toMatchObject({
+      cause: { model: TEST_OPTIONS.model },
+    });
   });
 
   it("aborts cleanly during retry backoff without making more fetch calls", async () => {
@@ -553,14 +524,10 @@ describe("translateText", () => {
   });
 
   it("throws invalid-text-input outcome for empty input", async () => {
-    let caught: unknown;
-    try {
-      await translateText("", API_KEY, pair, undefined, TEST_OPTIONS);
-    } catch (err) {
-      caught = err;
-    }
-    expect((caught as Error).message).toBe("invalid-text-input");
-    expect((caught as Error).cause).toMatchObject({ domain: "outcome", kind: "invalid-text-input" });
+    await expect(translateText("", API_KEY, pair, undefined, TEST_OPTIONS)).rejects.toMatchObject({
+      message: "invalid-text-input",
+      cause: { domain: "outcome", kind: "invalid-text-input" },
+    });
   });
 
   it("throws network-offline when fetch fails with a network TypeError", async () => {

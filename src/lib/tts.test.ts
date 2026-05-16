@@ -94,18 +94,14 @@ describe("pronounce", () => {
   it("throws model-not-found on 404 and carries the model name in cause", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response('{"error":{"code":404,"status":"NOT_FOUND"}}', { status: 404 }));
     const customModel = "gemini-2.5-flash-preview-tts";
-    let caught: unknown;
-    try {
-      await pronounce("hello", API_KEY, "en", undefined, customModel);
-    } catch (err) {
-      caught = err;
-    }
-    expect(caught).toBeInstanceOf(Error);
-    expect((caught as Error).message).toBe("model-not-found");
-    expect((caught as Error).cause).toMatchObject({
-      kind: "model-not-found",
-      surface: "tts",
-      model: customModel,
+
+    await expect(pronounce("hello", API_KEY, "en", undefined, customModel)).rejects.toMatchObject({
+      message: "model-not-found",
+      cause: {
+        kind: "model-not-found",
+        surface: "tts",
+        model: customModel,
+      },
     });
   });
 
@@ -138,19 +134,14 @@ describe("pronounce", () => {
 
   it("throws request-failed on non-ok response and carries status + body in cause", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Server Error", { status: 500 }));
-    let caught: unknown;
-    try {
-      await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL);
-    } catch (err) {
-      caught = err;
-    }
-    expect(caught).toBeInstanceOf(Error);
-    expect((caught as Error).message).toBe("request-failed");
-    expect((caught as Error).cause).toMatchObject({
-      kind: "request-failed",
-      surface: "tts",
-      status: 500,
-      body: "Server Error",
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toMatchObject({
+      message: "request-failed",
+      cause: {
+        kind: "request-failed",
+        surface: "tts",
+        status: 500,
+        body: "Server Error",
+      },
     });
   });
 
@@ -161,15 +152,10 @@ describe("pronounce", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
-    let caught: unknown;
-    try {
-      await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL);
-    } catch (err) {
-      caught = err;
-    }
-    expect(caught).toBeInstanceOf(Error);
-    expect((caught as Error).message).toBe("invalid-response");
-    expect((caught as Error).cause).toHaveProperty("body");
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toMatchObject({
+      message: "invalid-response",
+      cause: expect.objectContaining({ body: expect.any(String) }),
+    });
   });
 
   it("throws empty-response when no audio data", async () => {
