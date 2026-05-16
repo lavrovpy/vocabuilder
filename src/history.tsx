@@ -13,11 +13,13 @@ import {
 import { posColor } from "./lib/colors";
 import { useEffect, useState } from "react";
 import LanguageConfigError from "./components/LanguageConfigError";
+import LanguagePairDropdown from "./components/LanguagePairDropdown";
 import PronounceAction from "./components/PronounceAction";
 import { TranslationDetail } from "./components/TranslationDetail";
 import { exportToFile, formatAnki, formatJson, formatQuizlet } from "./lib/export";
 import { useLanguagePair } from "./hooks/useLanguagePair";
-import { LanguagePair, storageKeyPrefix, swapLanguagePair } from "./lib/languages";
+import { LanguagePair, storageKeyPrefix } from "./lib/languages";
+import { languagePairTitle, languagePairValue, swapLanguagePair } from "./lib/languageSession";
 import { clearHistory, deleteTranslation, getHistory } from "./lib/storage";
 import { Translation } from "./lib/types";
 
@@ -38,20 +40,15 @@ function relativeTime(timestamp: number): string {
 }
 
 export default function History(props: { languagePair?: LanguagePair }) {
-  const langResult = useLanguagePair();
-  const initialPair = props.languagePair ?? langResult.pair;
-  const [languagePair, setLanguagePair] = useState<LanguagePair | null>(initialPair);
-
-  // Re-sync when preferences become valid after LanguageConfigError
-  if (!languagePair && langResult.pair) {
-    setLanguagePair(langResult.pair);
-  }
+  const langResult = useLanguagePair(props.languagePair);
 
   const [history, setHistory] = useState<Translation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isShowingDetail, setIsShowingDetail] = useState(false);
   const [searchText, setSearchText] = useState("");
 
+  const languagePair = langResult.pair;
+  const defaultPair = langResult.defaultPair;
   const pairKey = languagePair ? storageKeyPrefix(languagePair) : null;
 
   useEffect(() => {
@@ -70,19 +67,39 @@ export default function History(props: { languagePair?: LanguagePair }) {
     };
   }, [pairKey]);
 
-  if (!languagePair) return <LanguageConfigError message={langResult.error ?? "Invalid language configuration."} />;
+  if (!languagePair || !defaultPair) {
+    return <LanguageConfigError message={langResult.error ?? "Invalid language configuration."} />;
+  }
+
+  const activePair = languagePair;
+  const activeDefaultPair = defaultPair;
+
+  async function handleLanguagePairChange(value: string) {
+    if (value === pairKey) return;
+    setSearchText("");
+    setIsShowingDetail(false);
+    setHistory([]);
+    setIsLoading(true);
+
+    const selected = await langResult.selectPairValue(value);
+    if (!selected) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Invalid language pair",
+        message: "Choose one of the supported language pairs.",
+      });
+      return;
+    }
+
+    await showToast({
+      style: Toast.Style.Success,
+      title: languagePairTitle(selected),
+    });
+  }
 
   function handleToggleLanguages() {
-    setSearchText("");
-    setLanguagePair((prev) => {
-      if (!prev) return prev;
-      const swapped = swapLanguagePair(prev);
-      showToast({
-        style: Toast.Style.Success,
-        title: `${swapped.source.name} → ${swapped.target.name}`,
-      });
-      return swapped;
-    });
+    const swapped = swapLanguagePair(activePair);
+    void handleLanguagePairChange(languagePairValue(swapped));
   }
 
   function ToggleLanguagesAction() {
@@ -147,11 +164,14 @@ export default function History(props: { languagePair?: LanguagePair }) {
   return (
     <List
       navigationTitle={`${languagePair.source.name} → ${languagePair.target.name}`}
-      isLoading={isLoading}
+      isLoading={isLoading || langResult.isLoading}
       isShowingDetail={isShowingDetail}
       searchBarPlaceholder="Search translations..."
       searchText={searchText}
       onSearchTextChange={setSearchText}
+      searchBarAccessory={
+        <LanguagePairDropdown pair={activePair} defaultPair={activeDefaultPair} onChange={handleLanguagePairChange} />
+      }
     >
       {filtered.length === 0 && !isLoading ? (
         <List.EmptyView
