@@ -44,8 +44,8 @@
       "name": "sourceLanguage",
       "type": "dropdown",
       "required": true,
-      "title": "Source Language",
-      "description": "The language you want to translate from",
+      "title": "Default Source Language",
+      "description": "Used before you pick a language pair from the Translate dropdown",
       "default": "en",
       "data": [
         {
@@ -122,8 +122,8 @@
       "name": "targetLanguage",
       "type": "dropdown",
       "required": true,
-      "title": "Target Language",
-      "description": "The language you want to translate to",
+      "title": "Default Target Language",
+      "description": "Used before you pick a language pair from the Translate dropdown",
       "default": "uk",
       "data": [
         {
