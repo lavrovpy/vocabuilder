@@ -640,7 +640,12 @@ export default function Translate() {
                         title="Pronounce Word"
                         shortcut={{ modifiers: ["cmd"], key: "o" }}
                       />
-                      {/* Recent items only show source pronunciation — full history has both */}
+                      <PronounceAction
+                        word={item.translation}
+                        languageCode={languagePair.target.code}
+                        title="Pronounce Translation"
+                        shortcut={{ modifiers: ["cmd", "shift"], key: "o" }}
+                      />
                       <Action
                         title="Open History"
                         icon={Icon.Clock}

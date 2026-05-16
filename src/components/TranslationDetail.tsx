@@ -4,7 +4,12 @@ import { Translation } from "../lib/types";
 
 export const TTS_HINT_TEXT = "⌘O to pronounce · ⌘⇧O for translation";
 
-export function buildDetailMarkdown(item: Translation, originalInput?: string): string {
+type TranslationDetailInput = Pick<
+  Translation,
+  "type" | "word" | "translation" | "partOfSpeech" | "example" | "exampleTranslation"
+>;
+
+export function buildDetailMarkdown(item: TranslationDetailInput, originalInput?: string): string {
   return item.type === "text"
     ? buildTextTranslationDetailMarkdown(item.word, item.translation)
     : buildTranslationDetailMarkdown(item, originalInput);
