@@ -22,61 +22,12 @@ export const getPreferenceValues = vi.fn(() => ({
   targetLanguage: "uk",
 }));
 
-export const closeMainWindow = vi.fn(async () => {});
+export const environment = {
+  supportPath: "/tmp/vocabuilder-test-support",
+};
 
-export const showToast = vi.fn(async (options: { title: string; message?: string; style?: string }) => ({
-  ...options,
-  hide: vi.fn(async () => {}),
-  show: vi.fn(async () => {}),
-}));
-
-export const openExtensionPreferences = vi.fn(async () => {});
-
-export const Action = Object.assign(
-  vi.fn(() => null),
-  {
-    CopyToClipboard: vi.fn(() => null),
-    Style: {
-      Destructive: "destructive",
-    },
-  },
-);
-
-export const ActionPanel = vi.fn(() => null);
-
-export const List = Object.assign(
-  vi.fn(() => null),
-  {
-    EmptyView: vi.fn(() => null),
-    Item: Object.assign(
-      vi.fn(() => null),
-      {
-        Detail: Object.assign(
-          vi.fn(() => null),
-          {
-            Metadata: Object.assign(
-              vi.fn(() => null),
-              {
-                Label: vi.fn(() => null),
-              },
-            ),
-          },
-        ),
-      },
-    ),
-    Section: vi.fn(() => null),
-  },
-);
-
-export const Detail = vi.fn(() => null);
-
-export const Icon = new Proxy(
-  {},
-  {
-    get: (_target, prop) => String(prop),
-  },
-) as Record<string, string>;
-
+// colors.ts reads Color.Blue etc. at module load — Proxy keeps that working
+// without enumerating every Raycast color name.
 export const Color = new Proxy(
   {},
   {
@@ -85,26 +36,19 @@ export const Color = new Proxy(
 ) as Record<string, string>;
 
 export const Toast = {
-  Style: {
-    Animated: "animated",
-    Failure: "failure",
-    Success: "success",
-  },
+  Style: { Animated: "animated", Failure: "failure", Success: "success" },
 };
 
-export const Keyboard = {
-  Shortcut: {
-    Common: {},
-  },
-};
+export const showToast = vi.fn(async () => ({ hide: vi.fn(async () => {}) }));
 
-export function useNavigation() {
-  return {
-    push: vi.fn(),
-    pop: vi.fn(),
-  };
-}
-
-export const environment = {
-  supportPath: "/tmp/vocabuilder-test-support",
-};
+// Placeholders: imported by .tsx files but only accessed inside render/handler
+// bodies, which tests never invoke. Exist so the import statement resolves.
+export const Action = {} as never;
+export const ActionPanel = {} as never;
+export const List = {} as never;
+export const Detail = {} as never;
+export const Icon = {} as never;
+export const Keyboard = {} as never;
+export const closeMainWindow = vi.fn(async () => {});
+export const openExtensionPreferences = vi.fn(async () => {});
+export const useNavigation = () => ({ push: vi.fn(), pop: vi.fn() });
