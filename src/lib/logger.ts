@@ -11,8 +11,10 @@ const SENSITIVE_KEY_RE =
   /^(api[-_]?key|authorization|body|clipboard|input|password|prompt|raw|secret|text|token|word)$/i;
 const MAX_STRING_LENGTH = 240;
 
+// Raycast sets NODE_ENV to "development" for the local dev runner and silences
+// console.* entirely for Store builds. Gating here lets prod skip sanitization.
 function isLogEnabled(options?: LoggerOptions): boolean {
-  return options?.enabled ?? process.env.NODE_ENV !== "test";
+  return options?.enabled ?? process.env.NODE_ENV === "development";
 }
 
 function nowMs(): number {

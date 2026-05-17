@@ -252,12 +252,9 @@ export async function pronounce(
   let cached = true;
   if (!existsSync(filePath)) {
     cached = false;
-    log.debug("tts cache miss", { model, langCode });
     const wavBuffer = await generateSpeechGemini(word, apiKey, signal, model);
     writeFileSync(filePath, wavBuffer);
     evictOldestCacheFiles(dir, MAX_CACHE_FILES);
-  } else {
-    log.debug("tts cache hit", { model, langCode });
   }
 
   const playbackMs = log.timer();
@@ -273,7 +270,13 @@ export async function pronounceFallback(word: string, langCode: string): Promise
   return new Promise((resolve, reject) => {
     execFile("/usr/bin/say", ["-v", voice, word], (err) => {
       if (err) {
-        log.warn("system voice fallback failed", { langCode, voice, fallbackMs: fallbackMs(), error: err });
+        log.warn("system voice fallback failed", {
+          langCode,
+          voice,
+          fallbackMs: fallbackMs(),
+          error: err.name,
+          code: (err as NodeJS.ErrnoException).code,
+        });
         reject(err);
       } else {
         log.debug("system voice fallback completed", { langCode, voice, fallbackMs: fallbackMs() });

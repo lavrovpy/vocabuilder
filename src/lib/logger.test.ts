@@ -47,8 +47,11 @@ describe("sanitizeLogFields", () => {
 });
 
 describe("createLogger", () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+
   afterEach(() => {
     vi.restoreAllMocks();
+    process.env.NODE_ENV = originalNodeEnv;
   });
 
   it("writes scoped structured logs when explicitly enabled", () => {
@@ -60,9 +63,30 @@ describe("createLogger", () => {
     expect(debug).toHaveBeenCalledWith("[test-scope] event", { model: "m", apiKey: "[redacted]" });
   });
 
-  it("stays silent in test mode by default", () => {
+  it("stays silent by default when NODE_ENV is not 'development'", () => {
+    process.env.NODE_ENV = "production";
     const debug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
     const logger = createLogger("test-scope");
+
+    logger.debug("event", { model: "m" });
+
+    expect(debug).not.toHaveBeenCalled();
+  });
+
+  it("emits by default when NODE_ENV is 'development'", () => {
+    process.env.NODE_ENV = "development";
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
+    const logger = createLogger("test-scope");
+
+    logger.debug("event", { model: "m" });
+
+    expect(debug).toHaveBeenCalledWith("[test-scope] event", { model: "m" });
+  });
+
+  it("explicit enabled: false overrides a development environment", () => {
+    process.env.NODE_ENV = "development";
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
+    const logger = createLogger("test-scope", { enabled: false });
 
     logger.debug("event", { model: "m" });
 
