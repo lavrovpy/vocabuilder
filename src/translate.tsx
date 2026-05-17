@@ -15,6 +15,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import PronounceAction from "./components/PronounceAction";
 import LanguageConfigError from "./components/LanguageConfigError";
+import LanguagePairDropdown from "./components/LanguagePairDropdown";
 import { useLanguagePair } from "./hooks/useLanguagePair";
 import History from "./history";
 import { translateWord, translateText } from "./lib/gemini";
@@ -22,7 +23,8 @@ import { defaultToastFor } from "./lib/errorToast";
 import { geminiError, isGeminiError } from "./lib/geminiError";
 import { getPreferenceDefault } from "./lib/manifest";
 import { looksLikeWordAttempt, normalizeWordInput, normalizeTextInput } from "./lib/input";
-import { LanguagePair, storageKeyPrefix, swapLanguagePair } from "./lib/languages";
+import { storageKeyPrefix } from "./lib/languages";
+import { languagePairTitle, languagePairValue, swapLanguagePair } from "./lib/languageSession";
 import { posColor } from "./lib/colors";
 import { TranslationDetail } from "./components/TranslationDetail";
 import { getHistory, saveTranslation } from "./lib/storage";
@@ -88,6 +90,17 @@ function relativeTime(timestamp: number): string {
   return `${days}d ago`;
 }
 
+function ToggleLanguagesAction({ onAction }: { onAction: () => void }) {
+  return (
+    <Action
+      title="Toggle Languages"
+      icon={Icon.Switch}
+      shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
+      onAction={onAction}
+    />
+  );
+}
+
 export default function Translate() {
   const { geminiApiKey, readClipboardOnOpen, translationModel } = getPreferenceValues<Preferences.Translate>();
   const model = translationModel.trim() || getPreferenceDefault("translationModel");
@@ -101,19 +114,14 @@ export default function Translate() {
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [recentHistory, setRecentHistory] = useState<Translation[]>([]);
   const [pendingWord, setPendingWord] = useState<PendingWordTranslation | null>(null);
-  const [languagePair, setLanguagePair] = useState<LanguagePair | null>(langResult.pair);
-
-  // Re-sync when preferences become valid after LanguageConfigError
-  if (!languagePair && langResult.pair) {
-    setLanguagePair(langResult.pair);
-  }
-
   const [clipboardSuggestion, setClipboardSuggestion] = useState("");
   const [recentShowingDetail, setRecentShowingDetail] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const languagePair = langResult.pair;
+  const defaultPair = langResult.defaultPair;
   const pairKey = languagePair ? storageKeyPrefix(languagePair) : null;
 
   useEffect(() => {
@@ -143,8 +151,13 @@ export default function Translate() {
     };
   }, [readClipboardOnOpen, pairKey]);
 
-  if (!languagePair) return <LanguageConfigError message={langResult.error ?? "Invalid language configuration."} />;
-  const { source } = languagePair;
+  if (!languagePair || !defaultPair) {
+    return <LanguageConfigError message={langResult.error ?? "Invalid language configuration."} />;
+  }
+
+  const activePair = languagePair;
+  const activeDefaultPair = defaultPair;
+  const { source } = activePair;
 
   function clearDebounce() {
     if (debounceRef.current) {
@@ -153,7 +166,7 @@ export default function Translate() {
     }
   }
 
-  function handleToggleLanguages() {
+  function resetForLanguagePairChange() {
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
@@ -167,27 +180,32 @@ export default function Translate() {
     setPendingWord(null);
     setClipboardSuggestion("");
     setRecentShowingDetail(false);
+    setRecentHistory([]);
+  }
 
-    setLanguagePair((prev) => {
-      if (!prev) return prev;
-      const swapped = swapLanguagePair(prev);
-      showToast({
-        style: Toast.Style.Success,
-        title: `${swapped.source.name} → ${swapped.target.name}`,
+  async function handleLanguagePairChange(value: string) {
+    if (value === pairKey) return;
+    resetForLanguagePairChange();
+
+    const selected = await langResult.selectPairValue(value);
+    if (!selected) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Invalid language pair",
+        message: "Choose one of the supported language pairs.",
       });
-      return swapped;
+      return;
+    }
+
+    await showToast({
+      style: Toast.Style.Success,
+      title: languagePairTitle(selected),
     });
   }
 
-  function ToggleLanguagesAction() {
-    return (
-      <Action
-        title="Toggle Languages"
-        icon={Icon.Switch}
-        shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
-        onAction={handleToggleLanguages}
-      />
-    );
+  function handleToggleLanguages() {
+    const swapped = swapLanguagePair(activePair);
+    void handleLanguagePairChange(languagePairValue(swapped));
   }
 
   function submitTranslation(rawText: string, clearPending = true) {
@@ -433,13 +451,16 @@ export default function Translate() {
   return (
     <List
       navigationTitle={`${languagePair.source.name} → ${languagePair.target.name}`}
-      isLoading={isLoading}
+      isLoading={isLoading || langResult.isLoading}
       isShowingDetail={
         (showResult && isTextResult) || showSensePicker || (showEmpty && showRecent && recentShowingDetail)
       }
       searchBarPlaceholder={`Type a ${source.name} word or text...`}
       searchText={searchText}
       onSearchTextChange={handleSearchChange}
+      searchBarAccessory={
+        <LanguagePairDropdown pair={activePair} defaultPair={activeDefaultPair} onChange={handleLanguagePairChange} />
+      }
     >
       {error ? (
         <List.EmptyView
@@ -454,7 +475,7 @@ export default function Translate() {
               {RETRYABLE_ERROR_CODES.has(errorCode ?? "") && searchText.trim() && (
                 <Action title="Retry" icon={Icon.ArrowClockwise} onAction={() => submitTranslation(searchText)} />
               )}
-              <ToggleLanguagesAction />
+              <ToggleLanguagesAction onAction={handleToggleLanguages} />
             </ActionPanel>
           }
         />
@@ -514,7 +535,7 @@ export default function Translate() {
                       shortcut={{ modifiers: ["cmd", "shift"], key: "h" }}
                       onAction={() => push(<History languagePair={languagePair} />)}
                     />
-                    <ToggleLanguagesAction />
+                    <ToggleLanguagesAction onAction={handleToggleLanguages} />
                   </ActionPanel>
                 }
               />
@@ -553,7 +574,7 @@ export default function Translate() {
                   shortcut={{ modifiers: ["cmd", "shift"], key: "h" }}
                   onAction={() => push(<History languagePair={languagePair} />)}
                 />
-                <ToggleLanguagesAction />
+                <ToggleLanguagesAction onAction={handleToggleLanguages} />
               </ActionPanel>
             }
           />
@@ -569,7 +590,7 @@ export default function Translate() {
             actions={
               <ActionPanel>
                 <Action title="Translate Now" icon={Icon.Book} onAction={() => submitTranslation(searchText)} />
-                <ToggleLanguagesAction />
+                <ToggleLanguagesAction onAction={handleToggleLanguages} />
               </ActionPanel>
             }
           />
@@ -597,7 +618,7 @@ export default function Translate() {
                     <Action title="Read Clipboard" icon={Icon.Clipboard} onAction={handleReadClipboard} />
                   )}
                   <Action title="Refresh Clipboard" icon={Icon.ArrowClockwise} onAction={handleReadClipboard} />
-                  <ToggleLanguagesAction />
+                  <ToggleLanguagesAction onAction={handleToggleLanguages} />
                 </ActionPanel>
               }
             />
@@ -652,7 +673,7 @@ export default function Translate() {
                         shortcut={{ modifiers: ["cmd", "shift"], key: "h" }}
                         onAction={() => push(<History languagePair={languagePair} />)}
                       />
-                      <ToggleLanguagesAction />
+                      <ToggleLanguagesAction onAction={handleToggleLanguages} />
                     </ActionPanel>
                   }
                 />
