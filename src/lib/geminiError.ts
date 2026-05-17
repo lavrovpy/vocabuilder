@@ -18,6 +18,15 @@ export type GeminiErrorKind = GeminiInfrastructureKind | GeminiOutcomeKind;
 
 export type GeminiErrorSurface = "translate" | "tts";
 
+export type GeminiRateLimitDiagnostics = {
+  message?: string;
+  quotaMetric?: string;
+  quotaId?: string;
+  quotaModel?: string;
+  quotaLocation?: string;
+  retryDelay?: string;
+};
+
 export type GeminiInfrastructureCause = {
   domain: "infrastructure";
   kind: GeminiInfrastructureKind;
@@ -25,6 +34,7 @@ export type GeminiInfrastructureCause = {
   model?: string;
   status?: number;
   body?: string;
+  rateLimit?: GeminiRateLimitDiagnostics;
 };
 
 export type GeminiOutcomeCause = {
