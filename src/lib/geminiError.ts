@@ -18,6 +18,15 @@ export type GeminiErrorKind = GeminiInfrastructureKind | GeminiOutcomeKind;
 
 export type GeminiErrorSurface = "translate" | "tts";
 
+export type GeminiRateLimitDiagnostics = {
+  message?: string;
+  quotaMetric?: string;
+  quotaId?: string;
+  quotaModel?: string;
+  quotaLocation?: string;
+  retryDelay?: string;
+};
+
 export type GeminiInfrastructureCause = {
   domain: "infrastructure";
   kind: GeminiInfrastructureKind;
@@ -25,6 +34,7 @@ export type GeminiInfrastructureCause = {
   model?: string;
   status?: number;
   body?: string;
+  rateLimit?: GeminiRateLimitDiagnostics;
 };
 
 export type GeminiOutcomeCause = {
@@ -60,4 +70,28 @@ export function isTransient(err: GeminiError): boolean {
   if (err.cause.kind !== "request-failed") return false;
   const status = err.cause.status;
   return typeof status === "number" && (status >= 500 || status === 429 || status === 408);
+}
+
+/**
+ * Flatten a GeminiError (or any unknown failure) into structured log fields.
+ * Lives here — alongside GeminiRateLimitDiagnostics — so the projection cannot
+ * drift between translate and TTS call sites.
+ */
+export function geminiErrorLogFields(err: unknown): Record<string, unknown> {
+  if (!isGeminiError(err)) {
+    return { error: err instanceof Error ? err.name : "unknown" };
+  }
+  const cause = err.cause;
+  const rateLimit = cause.domain === "infrastructure" ? cause.rateLimit : undefined;
+  return {
+    error: cause.kind,
+    domain: cause.domain,
+    status: cause.domain === "infrastructure" ? cause.status : undefined,
+    quotaMetric: rateLimit?.quotaMetric,
+    quotaId: rateLimit?.quotaId,
+    quotaModel: rateLimit?.quotaModel,
+    quotaLocation: rateLimit?.quotaLocation,
+    retryDelay: rateLimit?.retryDelay,
+    message: rateLimit?.message,
+  };
 }

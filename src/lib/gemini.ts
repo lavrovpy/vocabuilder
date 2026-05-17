@@ -10,10 +10,13 @@ import {
   WordSense,
 } from "./types";
 import { asJsonStringLiteral, normalizeWordInput, normalizeTextInput } from "./input";
-import { geminiError, isGeminiError, isTransient } from "./geminiError";
+import { geminiError, geminiErrorLogFields, isGeminiError, isTransient } from "./geminiError";
 import { throwForHttpError } from "./geminiHttp";
 import type { LanguagePair } from "./languages";
+import { createLogger } from "./logger";
 import { BASE_URL, BASE_RETRY_DELAY_MS, MAX_RETRY_ATTEMPTS } from "./gemini-config";
+
+const log = createLogger("gemini");
 
 export type GenerationOptions = {
   model: string;
@@ -103,12 +106,33 @@ async function callGemini(
   if (Object.keys(generationConfig).length > 0) body.generationConfig = generationConfig;
 
   let response: Response | undefined;
+  const totalMs = log.timer();
+  log.debug("translation request started", {
+    model,
+    promptChars: prompt.length,
+    structuredJson: options.responseJsonSchema !== undefined,
+  });
+
   for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
+    const attemptMs = log.timer();
     try {
       response = await fetchGeminiOnce(url, apiKey, body, signal, model);
+      log.debug("translation attempt succeeded", {
+        model,
+        attempt,
+        attemptMs: attemptMs(),
+        status: response.status,
+      });
       break;
     } catch (err) {
       const canRetry = attempt < MAX_RETRY_ATTEMPTS && isGeminiError(err) && isTransient(err);
+      log.warn(canRetry ? "translation attempt failed; retrying" : "translation attempt failed", {
+        model,
+        attempt,
+        attemptMs: attemptMs(),
+        ...geminiErrorLogFields(err),
+        willRetry: canRetry,
+      });
       if (!canRetry) throw err;
       await abortableSleep(getRetryDelayMs(attempt), signal);
     }
@@ -124,6 +148,8 @@ async function callGemini(
   if (!raw) {
     throw geminiError({ domain: "infrastructure", kind: "empty-response", surface: "translate" });
   }
+
+  log.debug("translation request completed", { model, totalMs: totalMs(), responseChars: raw.length });
 
   return raw
     .replace(/^```(?:json)?\s*/i, "")

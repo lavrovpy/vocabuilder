@@ -43,6 +43,47 @@ describe("throwForHttpError", () => {
     });
   });
 
+  it("extracts safe 429 quota diagnostics from Gemini error details", async () => {
+    const body = JSON.stringify({
+      error: {
+        code: 429,
+        message:
+          "Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests\nPlease retry in 21s.",
+        status: "RESOURCE_EXHAUSTED",
+        details: [
+          {
+            "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+            violations: [
+              {
+                quotaMetric: "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+                quotaId: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+                quotaDimensions: { location: "global", model: "gemini-3-flash-preview" },
+              },
+            ],
+          },
+          {
+            "@type": "type.googleapis.com/google.rpc.RetryInfo",
+            retryDelay: "21s",
+          },
+        ],
+      },
+    });
+
+    await expect(throwForHttpError(makeResponse(429, body), "translate", "m")).rejects.toMatchObject({
+      cause: {
+        status: 429,
+        rateLimit: {
+          message: "Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests",
+          quotaMetric: "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+          quotaId: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+          quotaModel: "gemini-3-flash-preview",
+          quotaLocation: "global",
+          retryDelay: "21s",
+        },
+      },
+    });
+  });
+
   it("truncates oversized error bodies to 500 chars", async () => {
     const big = "x".repeat(2000);
     await expect(throwForHttpError(makeResponse(500, big), "tts", "m")).rejects.toMatchObject({

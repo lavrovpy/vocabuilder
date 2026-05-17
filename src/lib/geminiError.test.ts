@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   geminiError,
+  geminiErrorLogFields,
   isGeminiError,
   isOutcome,
   isTransient,
@@ -109,5 +110,78 @@ describe("isTransient", () => {
     expect(isTransient(outcome("word-not-found"))).toBe(false);
     expect(isTransient(outcome("invalid-word-input"))).toBe(false);
     expect(isTransient(outcome("invalid-text-input"))).toBe(false);
+  });
+});
+
+describe("geminiErrorLogFields", () => {
+  it("returns just the error name for a plain Error", () => {
+    expect(geminiErrorLogFields(new TypeError("nope"))).toEqual({ error: "TypeError" });
+  });
+
+  it("returns error: 'unknown' for a non-Error value", () => {
+    expect(geminiErrorLogFields("oops")).toEqual({ error: "unknown" });
+    expect(geminiErrorLogFields(null)).toEqual({ error: "unknown" });
+  });
+
+  it("flattens outcome-domain errors without rateLimit/status fields", () => {
+    const err = geminiError({ kind: "word-not-found", surface: "translate", domain: "outcome" });
+    expect(geminiErrorLogFields(err)).toEqual({
+      error: "word-not-found",
+      domain: "outcome",
+      status: undefined,
+      quotaMetric: undefined,
+      quotaId: undefined,
+      quotaModel: undefined,
+      quotaLocation: undefined,
+      retryDelay: undefined,
+      message: undefined,
+    });
+  });
+
+  it("flattens infrastructure errors with status but no rateLimit", () => {
+    const err = geminiError({
+      kind: "request-failed",
+      surface: "tts",
+      domain: "infrastructure",
+      status: 500,
+    });
+    expect(geminiErrorLogFields(err)).toMatchObject({
+      error: "request-failed",
+      domain: "infrastructure",
+      status: 500,
+      quotaMetric: undefined,
+      retryDelay: undefined,
+      message: undefined,
+    });
+  });
+
+  it("surfaces every rate-limit diagnostic when present (including message)", () => {
+    // The message field is the one that silently drifted between gemini.ts and
+    // tts.ts before — guard it explicitly here.
+    const err = geminiError({
+      kind: "request-failed",
+      surface: "translate",
+      domain: "infrastructure",
+      status: 429,
+      rateLimit: {
+        message: "Quota exceeded for requests per minute",
+        quotaMetric: "generativelanguage.googleapis.com/generate_content_requests",
+        quotaId: "GenerateRequestsPerMinutePerProjectPerModel",
+        quotaModel: "gemini-3-flash-preview",
+        quotaLocation: "global",
+        retryDelay: "30s",
+      },
+    });
+    expect(geminiErrorLogFields(err)).toEqual({
+      error: "request-failed",
+      domain: "infrastructure",
+      status: 429,
+      quotaMetric: "generativelanguage.googleapis.com/generate_content_requests",
+      quotaId: "GenerateRequestsPerMinutePerProjectPerModel",
+      quotaModel: "gemini-3-flash-preview",
+      quotaLocation: "global",
+      retryDelay: "30s",
+      message: "Quota exceeded for requests per minute",
+    });
   });
 });

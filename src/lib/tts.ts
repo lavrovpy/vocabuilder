@@ -5,11 +5,13 @@ import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync
 import path from "path";
 import { z } from "zod";
 import { BASE_URL, TTS_BITS_PER_SAMPLE, TTS_DEFAULT_VOICE, TTS_NUM_CHANNELS, TTS_SAMPLE_RATE } from "./gemini-config";
-import { geminiError } from "./geminiError";
+import { geminiError, geminiErrorLogFields } from "./geminiError";
 import { throwForHttpError } from "./geminiHttp";
+import { createLogger } from "./logger";
 import { GeminiTtsResponseSchema } from "./types";
 
 const MAX_CACHE_FILES = 50;
+const log = createLogger("tts");
 
 const GEMINI_SUPPORTED_LANGS = new Set([
   "en",
@@ -136,6 +138,8 @@ async function generateSpeechGemini(
   model: string,
 ): Promise<Buffer> {
   const url = `${BASE_URL}/${model}:generateContent`;
+  const requestMs = log.timer();
+  log.debug("gemini tts request started", { model, textChars: text.length });
 
   let response: Response;
   try {
@@ -160,14 +164,38 @@ async function generateSpeechGemini(
     });
   } catch (err) {
     if (err instanceof TypeError) {
+      log.warn("gemini tts request failed", {
+        model,
+        requestMs: requestMs(),
+        error: "network-offline",
+      });
       throw geminiError({ domain: "infrastructure", kind: "network-offline", surface: "tts" });
     }
+    log.warn("gemini tts request failed", {
+      model,
+      requestMs: requestMs(),
+      error: err instanceof Error ? err.name : "unknown",
+    });
     throw err;
   }
 
-  await throwForHttpError(response, "tts", model);
+  try {
+    await throwForHttpError(response, "tts", model);
+  } catch (err) {
+    log.warn("gemini tts request failed", {
+      model,
+      requestMs: requestMs(),
+      ...geminiErrorLogFields(err),
+    });
+    throw err;
+  }
 
   const rawJson = await response.text();
+  log.debug("gemini tts request completed", {
+    model,
+    requestMs: requestMs(),
+    responseChars: rawJson.length,
+  });
   let apiData: z.infer<typeof GeminiTtsResponseSchema>;
   try {
     apiData = GeminiTtsResponseSchema.parse(JSON.parse(rawJson));
@@ -213,16 +241,31 @@ export async function pronounce(
     evictOldestCacheFiles(dir, MAX_CACHE_FILES);
   }
 
+  const playbackMs = log.timer();
   await playAudio(filePath);
+  log.debug("tts playback completed", { model, langCode, cached, playbackMs: playbackMs() });
   return { cached };
 }
 
 export async function pronounceFallback(word: string, langCode: string): Promise<void> {
   const voice = macosVoiceForLanguage(langCode);
+  const fallbackMs = log.timer();
+  log.debug("system voice fallback started", { langCode, voice, wordChars: word.length });
   return new Promise((resolve, reject) => {
     execFile("/usr/bin/say", ["-v", voice, word], (err) => {
-      if (err) reject(err);
-      else resolve();
+      if (err) {
+        log.warn("system voice fallback failed", {
+          langCode,
+          voice,
+          fallbackMs: fallbackMs(),
+          error: err.name,
+          code: (err as NodeJS.ErrnoException).code,
+        });
+        reject(err);
+      } else {
+        log.debug("system voice fallback completed", { langCode, voice, fallbackMs: fallbackMs() });
+        resolve();
+      }
     });
   });
 }
