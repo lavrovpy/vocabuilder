@@ -92,4 +92,22 @@ describe("createLogger", () => {
 
     expect(debug).not.toHaveBeenCalled();
   });
+
+  it("omits the fields argument entirely when there are no fields to log", () => {
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
+    const logger = createLogger("test-scope", { enabled: true });
+
+    logger.debug("event");
+
+    expect(debug).toHaveBeenCalledWith("[test-scope] event");
+  });
+
+  it("omits the fields argument when every field is undefined (all stripped by sanitize)", () => {
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
+    const logger = createLogger("test-scope", { enabled: true });
+
+    logger.debug("event", { skipped: undefined });
+
+    expect(debug).toHaveBeenCalledWith("[test-scope] event");
+  });
 });

@@ -10,10 +10,10 @@ import {
   WordSense,
 } from "./types";
 import { asJsonStringLiteral, normalizeWordInput, normalizeTextInput } from "./input";
-import { geminiError, isGeminiError, isTransient } from "./geminiError";
+import { geminiError, geminiErrorLogFields, isGeminiError, isTransient } from "./geminiError";
 import { throwForHttpError } from "./geminiHttp";
 import type { LanguagePair } from "./languages";
-import { createLogger, type LogFields } from "./logger";
+import { createLogger } from "./logger";
 import { BASE_URL, BASE_RETRY_DELAY_MS, MAX_RETRY_ATTEMPTS } from "./gemini-config";
 
 const log = createLogger("gemini");
@@ -26,26 +26,6 @@ export type GenerationOptions = {
 type GeminiCallOptions = GenerationOptions & {
   responseJsonSchema?: Record<string, unknown>;
 };
-
-function geminiErrorLogFields(err: unknown): LogFields {
-  if (!isGeminiError(err)) {
-    return { error: err instanceof Error ? err.name : "unknown" };
-  }
-
-  const cause = err.cause;
-  const rateLimit = cause.domain === "infrastructure" ? cause.rateLimit : undefined;
-  return {
-    error: cause.kind,
-    domain: cause.domain,
-    status: cause.domain === "infrastructure" ? cause.status : undefined,
-    quotaMetric: rateLimit?.quotaMetric,
-    quotaId: rateLimit?.quotaId,
-    quotaModel: rateLimit?.quotaModel,
-    quotaLocation: rateLimit?.quotaLocation,
-    retryDelay: rateLimit?.retryDelay,
-    message: rateLimit?.message,
-  };
-}
 
 /** Exponential backoff with full jitter. attempt is 1-based. */
 function getRetryDelayMs(attempt: number): number {

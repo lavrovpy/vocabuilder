@@ -5,9 +5,9 @@ import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync
 import path from "path";
 import { z } from "zod";
 import { BASE_URL, TTS_BITS_PER_SAMPLE, TTS_DEFAULT_VOICE, TTS_NUM_CHANNELS, TTS_SAMPLE_RATE } from "./gemini-config";
-import { geminiError, isGeminiError } from "./geminiError";
+import { geminiError, geminiErrorLogFields } from "./geminiError";
 import { throwForHttpError } from "./geminiHttp";
-import { createLogger, type LogFields } from "./logger";
+import { createLogger } from "./logger";
 import { GeminiTtsResponseSchema } from "./types";
 
 const MAX_CACHE_FILES = 50;
@@ -129,22 +129,6 @@ function playAudio(filePath: string): Promise<void> {
       else resolve();
     });
   });
-}
-
-function geminiErrorLogFields(err: unknown): LogFields {
-  if (!isGeminiError(err)) return { error: err instanceof Error ? err.name : "unknown" };
-  const cause = err.cause;
-  const rateLimit = cause.domain === "infrastructure" ? cause.rateLimit : undefined;
-  return {
-    error: cause.kind,
-    domain: cause.domain,
-    status: cause.domain === "infrastructure" ? cause.status : undefined,
-    quotaMetric: rateLimit?.quotaMetric,
-    quotaId: rateLimit?.quotaId,
-    quotaModel: rateLimit?.quotaModel,
-    quotaLocation: rateLimit?.quotaLocation,
-    retryDelay: rateLimit?.retryDelay,
-  };
 }
 
 async function generateSpeechGemini(

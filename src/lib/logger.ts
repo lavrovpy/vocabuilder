@@ -31,6 +31,9 @@ function sanitizeValue(key: string, value: unknown, depth = 0): LogValue {
   if (value instanceof Error) return { name: value.name };
   if (Array.isArray(value)) {
     if (depth >= 2) return "[array]";
+    // Conservative: forward the parent key when recursing into array items so an
+    // array under a sensitive key (e.g. `prompt: [...]`) stays redacted even if
+    // an item happens to be a plain object with innocuous-looking child keys.
     return value.slice(0, 10).map((item) => sanitizeValue(key, item, depth + 1));
   }
   if (typeof value === "object") {
@@ -56,7 +59,12 @@ export function createLogger(scope: string, options?: LoggerOptions) {
   function write(level: LogLevel, event: string, fields?: LogFields) {
     if (!isLogEnabled(options)) return;
     const log = console[level];
-    log(`[${scope}] ${event}`, sanitizeLogFields(fields));
+    const sanitized = sanitizeLogFields(fields);
+    if (Object.keys(sanitized).length > 0) {
+      log(`[${scope}] ${event}`, sanitized);
+    } else {
+      log(`[${scope}] ${event}`);
+    }
   }
 
   return {
