@@ -36,7 +36,7 @@ async function backupCorruptedStorage(
     sourceKey,
     backupKey,
     rawChars: raw.length,
-    error,
+    error: error instanceof Error ? error.message : String(error),
   });
 }
 
