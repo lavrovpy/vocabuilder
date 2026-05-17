@@ -13,3 +13,7 @@ export function useReducer<S>(_: unknown, initialState: S) {
 export function useState<T>(value: T) {
   return [value, () => undefined] as const;
 }
+
+export function useCallback<T>(callback: T) {
+  return callback;
+}

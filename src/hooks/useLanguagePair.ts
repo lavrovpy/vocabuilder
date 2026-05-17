@@ -20,13 +20,13 @@ type Result = {
 );
 
 export function useLanguagePair(initialPair?: LanguagePair): Result {
-  const preferenceResult = (() => {
+  const [preferenceResult] = useState(() => {
     try {
       return { pair: getLanguagePair(), error: null };
     } catch (e) {
       return { pair: null, error: e instanceof Error ? e.message : "Invalid language configuration." };
     }
-  })();
+  });
 
   const fallbackPair = initialPair ?? preferenceResult.pair;
   const [pair, setPair] = useState<LanguagePair | null>(fallbackPair);

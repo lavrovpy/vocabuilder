@@ -184,8 +184,12 @@ export async function getRecentLanguagePairChoices(
     const pair = parseLanguagePairValue(value);
     return pair ? [pair] : [];
   });
-  const fallbackPairs = storedPairs.length > 0 ? storedPairs : [activePair ?? defaultPair];
-  const pairs = activePair ? [activePair, ...fallbackPairs] : fallbackPairs;
+  const activeValue = activePair ? languagePairValue(activePair) : null;
+  const pairs = activePair
+    ? [activePair, ...storedPairs.filter((pair) => languagePairValue(pair) !== activeValue)]
+    : storedPairs.length > 0
+      ? storedPairs
+      : [defaultPair];
   return choicesFromPairs(pairs, defaultPair, new Set(storedValues));
 }
 
