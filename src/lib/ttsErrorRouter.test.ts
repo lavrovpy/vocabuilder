@@ -16,7 +16,7 @@ describe("routeTtsError — Gemini errors", () => {
   // The bug this test guards against: transient HTTP errors used to surface
   // defaultToastFor's "Please try again." copy inside a success toast — wrong
   // context. All transient kinds must rewrite the message.
-  it.each([408, 429, 500, 503])(
+  it.each([408, 500, 503])(
     "transient HTTP %d triggers fallback with the neutral message (no retry-prompt leakage)",
     (status) => {
       const err = geminiError({ domain: "infrastructure", kind: "request-failed", surface: "tts", status });
@@ -25,6 +25,13 @@ describe("routeTtsError — Gemini errors", () => {
       expect(routed.message).toBe("Using system voice for now.");
     },
   );
+
+  it("rate-limited triggers fallback with the neutral message", () => {
+    const err = geminiError({ domain: "infrastructure", kind: "rate-limited", surface: "tts", status: 429 });
+    const routed = routeTtsError(err, "en");
+    expect(routed.fallback).toBe(true);
+    expect(routed.message).toBe("Using system voice for now.");
+  });
 
   it.each([400, 404])("non-transient request-failed HTTP %d does NOT fall back", (status) => {
     const err = geminiError({ domain: "infrastructure", kind: "request-failed", surface: "tts", status });

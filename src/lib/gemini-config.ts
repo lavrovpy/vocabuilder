@@ -7,6 +7,8 @@ export const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models
 
 export const MAX_RETRY_ATTEMPTS = 3;
 export const BASE_RETRY_DELAY_MS = 400;
+export const TRANSLATE_REQUEST_TIMEOUT_MS = 12_000;
+export const SLOW_GEMINI_REQUEST_MS = 5_000;
 
 // Gemini TTS audio contract — these describe what the API returns; changing
 // them does not change Gemini's output, it only breaks our WAV wrapper.

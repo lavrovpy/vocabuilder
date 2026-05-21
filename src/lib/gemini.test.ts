@@ -34,6 +34,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -98,6 +99,82 @@ describe("translateWord", () => {
         }
       ).responseJsonSchema.properties.senses.items.required,
     ).toEqual(["translation", "partOfSpeech", "example", "exampleTranslation"]);
+  });
+
+  it("sets low-latency thinking config for Gemini 3 Flash word translations", async () => {
+    const payload = {
+      senses: [
+        {
+          translation: "привіт",
+          partOfSpeech: "interjection",
+          example: "Привіт!",
+          exampleTranslation: "Hello!",
+        },
+      ],
+    };
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(geminiJsonBody(payload)), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await translateWord("hello", API_KEY, pair, undefined, { model: "gemini-3-flash-preview" });
+
+    const body = lastGeminiRequestBody();
+    expect(body.generationConfig).toMatchObject({
+      thinkingConfig: { thinkingLevel: "low" },
+    });
+  });
+
+  it("disables thinking for Gemini 2.5 Flash word translations", async () => {
+    const payload = {
+      senses: [
+        {
+          translation: "привіт",
+          partOfSpeech: "interjection",
+          example: "Привіт!",
+          exampleTranslation: "Hello!",
+        },
+      ],
+    };
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(geminiJsonBody(payload)), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await translateWord("hello", API_KEY, pair, undefined, { model: "gemini-2.5-flash" });
+
+    const body = lastGeminiRequestBody();
+    expect(body.generationConfig).toMatchObject({
+      thinkingConfig: { thinkingBudget: 0 },
+    });
+  });
+
+  it("leaves Flash-Lite thinking at the model default", async () => {
+    const payload = {
+      senses: [
+        {
+          translation: "привіт",
+          partOfSpeech: "interjection",
+          example: "Привіт!",
+          exampleTranslation: "Hello!",
+        },
+      ],
+    };
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(geminiJsonBody(payload)), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await translateWord("hello", API_KEY, pair, undefined, { model: "gemini-2.5-flash-lite" });
+
+    const body = lastGeminiRequestBody();
+    expect((body.generationConfig as Record<string, unknown>).thinkingConfig).toBeUndefined();
   });
 
   it("dedupes senses with same translation+POS even if examples differ", async () => {
@@ -309,18 +386,35 @@ describe("translateWord", () => {
     await expect(translateWord("hello", API_KEY, pair, undefined, TEST_OPTIONS)).rejects.toThrow("invalid-api-key");
   });
 
-  it("throws request-failed with cause carrying status and body on non-401/403 failures", async () => {
+  it("throws rate-limited with cause carrying status and body on 429", async () => {
     // Pin the retry sleep to 0 so this test stays fast.
     vi.spyOn(Math, "random").mockReturnValue(0);
     const body = '{"error":{"code":429,"message":"Resource has been exhausted"}}';
     vi.mocked(fetch).mockImplementation(async () => new Response(body, { status: 429 }));
     await expect(translateWord("hello", API_KEY, pair, undefined, TEST_OPTIONS)).rejects.toMatchObject({
+      message: "rate-limited",
+      cause: {
+        kind: "rate-limited",
+        surface: "translate",
+        status: 429,
+        body: expect.stringContaining("Resource has been exhausted"),
+      },
+    });
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws request-failed with cause carrying status and body on non-401/403/429 failures", async () => {
+    // Pin the retry sleep to 0 so this test stays fast.
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const body = '{"error":{"code":500,"message":"Internal error"}}';
+    vi.mocked(fetch).mockImplementation(async () => new Response(body, { status: 500 }));
+    await expect(translateWord("hello", API_KEY, pair, undefined, TEST_OPTIONS)).rejects.toMatchObject({
       message: "request-failed",
       cause: {
         kind: "request-failed",
         surface: "translate",
-        status: 429,
-        body: expect.stringContaining("Resource has been exhausted"),
+        status: 500,
+        body: expect.stringContaining("Internal error"),
       },
     });
   });
@@ -410,14 +504,13 @@ describe("translateWord retry behavior", () => {
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
   });
 
-  it("retries on 429 then succeeds", async () => {
+  it("does NOT retry 429 — fails fast without amplifying rate limits", async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce(new Response("Too Many Requests", { status: 429 }))
       .mockResolvedValueOnce(successResponse());
 
-    const result = await translateWord("hello", API_KEY, pair, undefined, TEST_OPTIONS);
-    expect(result.senses[0].translation).toBe("привіт");
-    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+    await expect(translateWord("hello", API_KEY, pair, undefined, TEST_OPTIONS)).rejects.toThrow("rate-limited");
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
   });
 
   it("retries NETWORK_OFFLINE (TypeError) then succeeds", async () => {
@@ -485,6 +578,28 @@ describe("translateWord retry behavior", () => {
 
     await expect(translateWord("hello", API_KEY, pair, controller.signal, TEST_OPTIONS)).rejects.toThrow();
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+  });
+
+  it("times out a hung request without retrying", async () => {
+    vi.useFakeTimers();
+    vi.mocked(fetch).mockImplementation(
+      (_url, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          const signal = (init as RequestInit).signal;
+          signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+        }),
+    );
+
+    const promise = translateWord("hello", API_KEY, pair, undefined, { ...TEST_OPTIONS, requestTimeoutMs: 10 });
+    const assertion = expect(promise).rejects.toMatchObject({
+      message: "request-timeout",
+      cause: { kind: "request-timeout", surface: "translate", model: TEST_OPTIONS.model },
+    });
+    await vi.advanceTimersByTimeAsync(10);
+
+    await assertion;
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
   });
 });
 

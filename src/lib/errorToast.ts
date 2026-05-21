@@ -40,6 +40,18 @@ export function defaultToastFor(cause: GeminiErrorCause): ToastSpec {
       return { title, message };
     }
 
+    case "rate-limited":
+      return {
+        title: "Gemini rate limit reached",
+        message: "Your Gemini quota is throttling requests. Wait a bit or choose a lower-cost model.",
+      };
+
+    case "request-timeout":
+      return {
+        title: cause.surface === "tts" ? "Pronunciation timed out" : "Translation timed out",
+        message: "Gemini took too long to respond. Please try again.",
+      };
+
     case "empty-response":
       return {
         title: cause.surface === "tts" ? "No audio returned" : "Empty response from Gemini",

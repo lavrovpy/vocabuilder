@@ -79,10 +79,7 @@ describe("isTransient", () => {
     );
   });
 
-  it("429 and 408 are transient", () => {
-    expect(
-      isTransient(infra({ kind: "request-failed", surface: "translate", domain: "infrastructure", status: 429 })),
-    ).toBe(true);
+  it("408 is transient", () => {
     expect(
       isTransient(infra({ kind: "request-failed", surface: "translate", domain: "infrastructure", status: 408 })),
     ).toBe(true);
@@ -97,11 +94,17 @@ describe("isTransient", () => {
     ).toBe(false);
   });
 
-  it("invalid-api-key, model-not-found, empty/invalid-response are NOT transient", () => {
+  it("invalid-api-key, model-not-found, rate-limited, request-timeout, empty/invalid-response are NOT transient", () => {
     expect(isTransient(infra({ kind: "invalid-api-key", surface: "tts", domain: "infrastructure" }))).toBe(false);
     expect(isTransient(infra({ kind: "model-not-found", surface: "tts", domain: "infrastructure", model: "x" }))).toBe(
       false,
     );
+    expect(
+      isTransient(infra({ kind: "rate-limited", surface: "translate", domain: "infrastructure", status: 429 })),
+    ).toBe(false);
+    expect(
+      isTransient(infra({ kind: "request-timeout", surface: "translate", domain: "infrastructure", model: "x" })),
+    ).toBe(false);
     expect(isTransient(infra({ kind: "empty-response", surface: "translate", domain: "infrastructure" }))).toBe(false);
     expect(isTransient(infra({ kind: "invalid-response", surface: "tts", domain: "infrastructure" }))).toBe(false);
   });

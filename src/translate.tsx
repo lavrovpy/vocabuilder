@@ -49,6 +49,7 @@ function pickSenseShortcut(index: number): { modifiers: "cmd"[]; key: "1" | "2" 
 const RETRYABLE_ERROR_CODES = new Set<string>([
   "network-offline",
   "request-failed",
+  "request-timeout",
   "empty-response",
   "invalid-response",
 ]);

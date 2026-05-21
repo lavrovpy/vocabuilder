@@ -15,7 +15,7 @@ export type TtsErrorRouting = { title: string; message: string; fallback: boolea
 export function routeTtsError(err: unknown, languageCode: string): TtsErrorRouting {
   if (isGeminiError(err)) {
     const base = defaultToastFor(err.cause);
-    if (isTransient(err)) {
+    if (isTransient(err) || (err.cause.domain === "infrastructure" && err.cause.kind === "rate-limited")) {
       return { ...base, message: "Using system voice for now.", fallback: true };
     }
     return { ...base, fallback: false };

@@ -56,6 +56,24 @@ export async function throwForHttpError(response: Response, surface: GeminiError
   if (response.status === 404) {
     throw geminiError({ domain: "infrastructure", kind: "model-not-found", surface, model });
   }
+  if (response.status === 429) {
+    let rawBody = "";
+    let body = "";
+    try {
+      rawBody = await response.text();
+      body = rawBody.slice(0, 500);
+    } catch {
+      // body unreadable - proceed with empty
+    }
+    throw geminiError({
+      domain: "infrastructure",
+      kind: "rate-limited",
+      surface,
+      status: 429,
+      body,
+      rateLimit: safeRateLimitDiagnostics(rawBody),
+    });
+  }
   if (!response.ok) {
     let rawBody = "";
     let body = "";

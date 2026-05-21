@@ -56,6 +56,20 @@ describe("defaultToastFor", () => {
     expect(t.message).not.toMatch(/\d{3}/);
   });
 
+  it("rate-limited gives quota-specific guidance", () => {
+    const t = infra({ kind: "rate-limited", surface: "translate", status: 429 });
+
+    expect(t.title).toMatch(/rate limit/i);
+    expect(t.message).toMatch(/quota/i);
+  });
+
+  it("request-timeout tells the user Gemini was too slow", () => {
+    const t = infra({ kind: "request-timeout", surface: "translate", model: "gemini-3-flash-preview" });
+
+    expect(t.title).toMatch(/timed out/i);
+    expect(t.message).toMatch(/too long/i);
+  });
+
   it("empty-response title varies by surface", () => {
     const t = infra({ kind: "empty-response", surface: "translate" });
     const tts = infra({ kind: "empty-response", surface: "tts" });

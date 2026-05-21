@@ -13,19 +13,77 @@ import { asJsonStringLiteral, normalizeWordInput, normalizeTextInput } from "./i
 import { geminiError, geminiErrorLogFields, isGeminiError, isTransient } from "./geminiError";
 import { throwForHttpError } from "./geminiHttp";
 import type { LanguagePair } from "./languages";
-import { createLogger } from "./logger";
-import { BASE_URL, BASE_RETRY_DELAY_MS, MAX_RETRY_ATTEMPTS } from "./gemini-config";
+import { createLogger, type LogFields } from "./logger";
+import {
+  BASE_URL,
+  BASE_RETRY_DELAY_MS,
+  MAX_RETRY_ATTEMPTS,
+  SLOW_GEMINI_REQUEST_MS,
+  TRANSLATE_REQUEST_TIMEOUT_MS,
+} from "./gemini-config";
 
 const log = createLogger("gemini");
+
+/** Slow requests (>= SLOW_GEMINI_REQUEST_MS) escalate from debug to warn so they surface in dev. */
+function logTiming(event: string, fields: LogFields, slow: boolean): void {
+  if (slow) log.warn(event, fields);
+  else log.debug(event, fields);
+}
 
 export type GenerationOptions = {
   model: string;
   temperature?: number;
+  requestTimeoutMs?: number;
 };
 
 type GeminiCallOptions = GenerationOptions & {
   responseJsonSchema?: Record<string, unknown>;
 };
+
+type TimeoutSignal = {
+  signal: AbortSignal;
+  cleanup: () => void;
+};
+
+function isTimeoutError(err: unknown): boolean {
+  return (
+    typeof err === "object" && err !== null && "name" in err && (err as { name?: unknown }).name === "TimeoutError"
+  );
+}
+
+function createTimeoutSignal(parent: AbortSignal | undefined, timeoutMs: number): TimeoutSignal {
+  if (parent?.aborted) return { signal: parent, cleanup: () => undefined };
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort(new DOMException("Gemini request timed out", "TimeoutError"));
+  }, timeoutMs);
+
+  const onParentAbort = () => {
+    controller.abort(parent?.reason ?? new DOMException("Aborted", "AbortError"));
+  };
+
+  parent?.addEventListener("abort", onParentAbort, { once: true });
+
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timeout);
+      parent?.removeEventListener("abort", onParentAbort);
+    },
+  };
+}
+
+function lowLatencyThinkingConfigForModel(model: string): Record<string, unknown> | undefined {
+  const normalized = model.trim().toLowerCase();
+  if (/^gemini-3(?:[.-]|$)/.test(normalized)) {
+    return { thinkingLevel: "low" };
+  }
+  if (/^gemini-2\.5-flash(?:-|$)/.test(normalized) && !/^gemini-2\.5-flash-lite(?:-|$)/.test(normalized)) {
+    return { thinkingBudget: 0 };
+  }
+  return undefined;
+}
 
 /** Exponential backoff with full jitter. attempt is 1-based. */
 function getRetryDelayMs(attempt: number): number {
@@ -92,8 +150,11 @@ async function callGemini(
 ): Promise<string> {
   const { model } = options;
   const url = `${BASE_URL}/${model}:generateContent`;
+  const timeoutMs = options.requestTimeoutMs ?? TRANSLATE_REQUEST_TIMEOUT_MS;
 
   const generationConfig: Record<string, unknown> = {};
+  const thinkingConfig = lowLatencyThinkingConfigForModel(model);
+  if (thinkingConfig !== undefined) generationConfig.thinkingConfig = thinkingConfig;
   if (options.temperature !== undefined) generationConfig.temperature = options.temperature;
   if (options.responseJsonSchema !== undefined) {
     generationConfig.responseMimeType = "application/json";
@@ -107,54 +168,79 @@ async function callGemini(
 
   let response: Response | undefined;
   const totalMs = log.timer();
+  const timeout = createTimeoutSignal(signal, timeoutMs);
   log.debug("translation request started", {
     model,
     promptChars: prompt.length,
+    timeoutMs,
+    thinkingConfig: thinkingConfig === undefined ? "default" : JSON.stringify(thinkingConfig),
     structuredJson: options.responseJsonSchema !== undefined,
   });
 
-  for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
-    const attemptMs = log.timer();
-    try {
-      response = await fetchGeminiOnce(url, apiKey, body, signal, model);
-      log.debug("translation attempt succeeded", {
-        model,
-        attempt,
-        attemptMs: attemptMs(),
-        status: response.status,
-      });
-      break;
-    } catch (err) {
-      const canRetry = attempt < MAX_RETRY_ATTEMPTS && isGeminiError(err) && isTransient(err);
-      log.warn(canRetry ? "translation attempt failed; retrying" : "translation attempt failed", {
-        model,
-        attempt,
-        attemptMs: attemptMs(),
-        ...geminiErrorLogFields(err),
-        willRetry: canRetry,
-      });
-      if (!canRetry) throw err;
-      await abortableSleep(getRetryDelayMs(attempt), signal);
+  try {
+    for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
+      const attemptMs = log.timer();
+      try {
+        response = await fetchGeminiOnce(url, apiKey, body, timeout.signal, model);
+        const elapsed = attemptMs();
+        logTiming(
+          "translation attempt succeeded",
+          { model, attempt, attemptMs: elapsed, status: response.status },
+          elapsed >= SLOW_GEMINI_REQUEST_MS,
+        );
+        break;
+      } catch (err) {
+        if (isTimeoutError(err)) {
+          throw geminiError({ domain: "infrastructure", kind: "request-timeout", surface: "translate", model });
+        }
+
+        const canRetry = attempt < MAX_RETRY_ATTEMPTS && isGeminiError(err) && isTransient(err);
+        logTiming(
+          canRetry ? "translation attempt failed; retrying" : "translation attempt failed",
+          {
+            model,
+            attempt,
+            attemptMs: attemptMs(),
+            ...geminiErrorLogFields(err),
+            willRetry: canRetry,
+          },
+          true,
+        );
+        if (!canRetry) throw err;
+        await abortableSleep(getRetryDelayMs(attempt), timeout.signal);
+      }
     }
+
+    // Unreachable in practice — the loop either assigns response or throws —
+    // but TS narrows better with this guard than with a non-null assertion.
+    if (!response) throw geminiError({ domain: "infrastructure", kind: "request-failed", surface: "translate" });
+
+    const apiData = GeminiApiResponseSchema.parse(await response.json());
+    const raw = apiData.candidates[0]?.content.parts[0]?.text ?? "";
+
+    if (!raw) {
+      throw geminiError({ domain: "infrastructure", kind: "empty-response", surface: "translate" });
+    }
+
+    const elapsed = totalMs();
+    logTiming(
+      "translation request completed",
+      { model, totalMs: elapsed, responseChars: raw.length },
+      elapsed >= SLOW_GEMINI_REQUEST_MS,
+    );
+
+    return raw
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/, "")
+      .trim();
+  } catch (err) {
+    if (isTimeoutError(err)) {
+      throw geminiError({ domain: "infrastructure", kind: "request-timeout", surface: "translate", model });
+    }
+    throw err;
+  } finally {
+    timeout.cleanup();
   }
-
-  // Unreachable in practice — the loop either assigns response or throws —
-  // but TS narrows better with this guard than with a non-null assertion.
-  if (!response) throw geminiError({ domain: "infrastructure", kind: "request-failed", surface: "translate" });
-
-  const apiData = GeminiApiResponseSchema.parse(await response.json());
-  const raw = apiData.candidates[0]?.content.parts[0]?.text ?? "";
-
-  if (!raw) {
-    throw geminiError({ domain: "infrastructure", kind: "empty-response", surface: "translate" });
-  }
-
-  log.debug("translation request completed", { model, totalMs: totalMs(), responseChars: raw.length });
-
-  return raw
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/, "")
-    .trim();
 }
 
 /** Same translation + part of speech = same sense, regardless of example wording. */

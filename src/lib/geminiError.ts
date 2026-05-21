@@ -9,6 +9,8 @@ export type GeminiInfrastructureKind =
   | "invalid-api-key"
   | "model-not-found"
   | "request-failed"
+  | "rate-limited"
+  | "request-timeout"
   | "invalid-response"
   | "empty-response";
 
@@ -63,13 +65,13 @@ export function isOutcome(err: unknown): err is GeminiError & { cause: GeminiOut
   return isGeminiError(err) && err.cause.domain === "outcome";
 }
 
-/** A failure that may succeed on retry: transport-level (offline) or 5xx/429/408. Outcomes are never transient. */
+/** A failure that may succeed on retry: transport-level (offline) or 5xx/408. Outcomes are never transient. */
 export function isTransient(err: GeminiError): boolean {
   if (err.cause.domain !== "infrastructure") return false;
   if (err.cause.kind === "network-offline") return true;
   if (err.cause.kind !== "request-failed") return false;
   const status = err.cause.status;
-  return typeof status === "number" && (status >= 500 || status === 429 || status === 408);
+  return typeof status === "number" && (status >= 500 || status === 408);
 }
 
 /**
