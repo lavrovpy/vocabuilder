@@ -1,5 +1,27 @@
 VocaBuilder Changelog
 
+## [Switch language pairs inside the command] - {PR_MERGE_DATE}
+
+- Added an in-command language pair selector: switch the source and target language straight from a dropdown in the `Translate`, `Translation History`, and `Flashcards` commands, without opening preferences. The selection persists across commands.
+- Renamed the `Source Language` / `Target Language` preferences to `Default Source Language` / `Default Target Language` — they now apply until you pick a pair from the dropdown.
+
+## [Show pronunciation in saved translations] - {PR_MERGE_DATE}
+
+- Saved and recent translations in `Translation History` now show the pronunciation shortcuts (⌘O for the source word, ⌘⇧O for the translation), matching the `Translate` view.
+
+## [Configurable Gemini models with clearer errors] - {PR_MERGE_DATE}
+
+- Added `Translation Model` and `Text-to-Speech Model` preferences so you can point to a newer Gemini model if a default is deprecated.
+- Reworked error handling into clearer, more consistent toasts, including deprecation-aware messages that tell you when a model is no longer available and how to switch.
+
+## [Reduce language mixing in translations] - {PR_MERGE_DATE}
+
+- Added a target-language purity rule so translations stay in the chosen language, reducing cases where words from another language leak into the output.
+
+## [Translate phrasal verbs and idioms] - {PR_MERGE_DATE}
+
+- Phrasal verbs and idioms (e.g. "give up", "break the ice") are now recognized and translated as single vocabulary items, with their own color-coded chip.
+
 ## [Harden word translation quality] - {PR_MERGE_DATE}
 
 - Reject non-existing/gibberish words instead of hallucinating translations.
