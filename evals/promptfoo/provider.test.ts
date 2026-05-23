@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import VocabuilderTranslateWordProvider, {
   EvalVarsSchema,
+  describeFailure,
   parseOrThrow,
   projectKnownErrorOrNull,
 } from "./provider";
@@ -117,6 +118,45 @@ describe("projectKnownErrorOrNull", () => {
     expect(projectKnownErrorOrNull(new Error("WORD_NOT_FOUND"), "x", pair)).toBeNull();
     expect(projectKnownErrorOrNull(new Error("anything-else"), "x", pair)).toBeNull();
     expect(projectKnownErrorOrNull("not even an error", "x", pair)).toBeNull();
+  });
+});
+
+describe("describeFailure", () => {
+  it("returns the bare kind for an infrastructure error with no status or body", () => {
+    const err = geminiError({ domain: "infrastructure", kind: "network-offline", surface: "translate" });
+    expect(describeFailure(err)).toBe("network-offline");
+  });
+
+  it("folds HTTP status and response body into the reason", () => {
+    const err = geminiError({
+      domain: "infrastructure",
+      kind: "request-failed",
+      surface: "translate",
+      status: 400,
+      body: '{"error":{"message":"Invalid JSON payload"}}',
+    });
+    expect(describeFailure(err)).toBe('request-failed — HTTP 400 — {"error":{"message":"Invalid JSON payload"}}');
+  });
+
+  it("surfaces rate-limit retryDelay and message for a 429", () => {
+    const err = geminiError({
+      domain: "infrastructure",
+      kind: "request-failed",
+      surface: "translate",
+      status: 429,
+      body: "raw body",
+      rateLimit: { retryDelay: "21s", message: "Quota exceeded" },
+    });
+    // rateLimit.message wins over body as the human-readable detail.
+    expect(describeFailure(err)).toBe("request-failed — HTTP 429 — retryDelay 21s — Quota exceeded");
+  });
+
+  it("uses name and message for a non-Gemini Error", () => {
+    expect(describeFailure(new TypeError("boom"))).toBe("TypeError: boom");
+  });
+
+  it("stringifies a non-Error value", () => {
+    expect(describeFailure("just a string")).toBe("just a string");
   });
 });
 

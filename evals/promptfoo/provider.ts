@@ -6,7 +6,7 @@ import type {
   ProviderResponse,
 } from "promptfoo";
 import { translateWord } from "../../src/lib/gemini";
-import { isOutcome } from "../../src/lib/geminiError";
+import { isGeminiError, isOutcome } from "../../src/lib/geminiError";
 import { getPreferenceDefault } from "../../src/lib/manifest";
 import type { LanguagePair } from "../../src/lib/languages";
 import type { GeminiWordResponse } from "../../src/lib/types";
@@ -76,6 +76,21 @@ export function projectKnownErrorOrNull(
   return projectKnownError(input, pair, err.cause.kind);
 }
 
+export function describeFailure(err: unknown): string {
+  if (!isGeminiError(err)) {
+    return err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+  }
+  const cause = err.cause;
+  const parts: string[] = [cause.kind];
+  if (cause.domain === "infrastructure") {
+    if (cause.status !== undefined) parts.push(`HTTP ${cause.status}`);
+    if (cause.rateLimit?.retryDelay) parts.push(`retryDelay ${cause.rateLimit.retryDelay}`);
+    const detail = cause.rateLimit?.message ?? cause.body;
+    if (detail) parts.push(detail);
+  }
+  return parts.join(" — ");
+}
+
 export default class VocabuilderTranslateWordProvider implements ApiProvider {
   private temperature: number;
 
@@ -115,7 +130,9 @@ export default class VocabuilderTranslateWordProvider implements ApiProvider {
     } catch (err) {
       const projected = projectKnownErrorOrNull(err, input, pair);
       if (projected) return { output: JSON.stringify(projected, null, 2) };
-      return { error: err instanceof Error ? err.message : String(err) };
+      const reason = describeFailure(err);
+      console.error(`[vocabuilder-eval] "${input}" (${pair.source.code}→${pair.target.code}) failed: ${reason}`);
+      return { error: reason };
     }
   }
 }
