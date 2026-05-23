@@ -254,5 +254,8 @@
     "eval:validate": "promptfoo validate -c evals/promptfooconfig.yaml",
     "eval:results": "promptfoo view",
     "prepare": "husky"
-  }
+  },
+  "platforms": [
+    "macOS"
+  ]
 }
