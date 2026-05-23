@@ -5,7 +5,6 @@ A [Raycast](https://raycast.com) extension that translates words and short text 
 ## Features
 
 - **Translate words and text** — translate a single word with part of speech and example sentences, or translate short text directly
-- **Phrasal verbs and idioms** — multi-word expressions like "give up" or "break the ice" are recognized and translated as single vocabulary items
 - **Multi-sense word translations** — for ambiguous words, review up to 5 senses and save the one you want to keep
 - **Word pronunciation** — hear the source word or its translation spoken aloud via Gemini text-to-speech
 - **Typo correction** — misspelled word input is auto-corrected before translating, with a visual indicator showing the original input

@@ -18,15 +18,12 @@ VocaBuilder Changelog
 
 - Added a target-language purity rule so translations stay in the chosen language, reducing cases where words from another language leak into the output.
 
-## [Translate phrasal verbs and idioms] - {PR_MERGE_DATE}
-
-- Phrasal verbs and idioms (e.g. "give up", "break the ice") are now recognized and translated as single vocabulary items, with their own color-coded chip.
-
 ## [Harden word translation quality] - {PR_MERGE_DATE}
 
 - Reject non-existing/gibberish words instead of hallucinating translations.
 - Require example sentences to contain the original word, not a synonym.
 - Add post-validation that filters out senses with missing words in examples.
+- Handle phrasal verbs and idioms (e.g. "give up", "break the ice") as single vocabulary items.
 
 ## [Add word pronunciation] - {PR_MERGE_DATE}
 
