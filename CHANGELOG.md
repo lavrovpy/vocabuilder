@@ -2,12 +2,8 @@ VocaBuilder Changelog
 
 ## [Switch language pairs inside the command] - {PR_MERGE_DATE}
 
-- Added an in-command language pair selector: switch the source and target language straight from a dropdown in the `Translate`, `Translation History`, and `Flashcards` commands, without opening preferences. The selection persists across commands.
+- Added an in-command language pair selector: switch the source and target language straight from a dropdown in the `Translate`, `Translation History`, and `View Flashcards` commands, without opening preferences. The selection persists across commands.
 - Renamed the `Source Language` / `Target Language` preferences to `Default Source Language` / `Default Target Language` — they now apply until you pick a pair from the dropdown.
-
-## [Show pronunciation in saved translations] - {PR_MERGE_DATE}
-
-- Saved and recent translations in `Translation History` now show the pronunciation shortcuts (⌘O for the source word, ⌘⇧O for the translation), matching the `Translate` view.
 
 ## [Configurable Gemini models with clearer errors] - {PR_MERGE_DATE}
 
