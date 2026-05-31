@@ -1,9 +1,5 @@
 VocaBuilder Changelog
 
-## [Harden Pronunciation Audio Handling] - {PR_MERGE_DATE}
-
-- Validate Gemini pronunciation audio metadata before playback so unsupported audio formats fail safely instead of being wrapped as WAV files.
-
 ## [Switch language pairs, pronunciation, and configurable models] - {PR_MERGE_DATE}
 
 - Added an in-command language pair selector: switch the source and target language straight from a dropdown in the `Translate`, `Translation History`, and `View Flashcards` commands, without opening preferences. The selection persists across commands.

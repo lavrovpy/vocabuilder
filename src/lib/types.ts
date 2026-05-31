@@ -146,9 +146,6 @@ export const GeminiTtsResponseSchema = z.object({
               z.object({
                 inlineData: z.object({
                   mimeType: z.string(),
-                  // data may be empty in degenerate responses — surface that
-                  // as a distinct `empty-response` Gemini error in tts.ts,
-                  // not a generic `invalid-response`.
                   data: z.string(),
                 }),
               }),
