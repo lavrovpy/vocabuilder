@@ -23,6 +23,8 @@ export const getPreferenceValues = vi.fn(() => ({
   translationModelPreset: "gemini-3.5-flash",
   translationModel: "",
   reasoningLevel: "none",
+  ttsModelPreset: "gemini-3.1-flash-tts-preview",
+  ttsModel: "",
 }));
 
 export const environment = {

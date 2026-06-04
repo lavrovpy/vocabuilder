@@ -9,7 +9,7 @@ describe("getPreferenceDefault", () => {
     // exact preference values live in the manifest.
     expect(getPreferenceDefault("translationModelPreset")).toMatch(/\S/);
     expect(getPreferenceDefault("reasoningLevel")).toMatch(/\S/);
-    expect(getPreferenceDefault("ttsModel")).toMatch(/\S/);
+    expect(getPreferenceDefault("ttsModelPreset")).toMatch(/\S/);
   });
 
   it("throws when the preference is not declared", () => {

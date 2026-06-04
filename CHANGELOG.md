@@ -7,6 +7,7 @@ VocaBuilder Changelog
 - Added `Translation Model` and `Text-to-Speech Model` preferences so you can point to a newer Gemini model if a default is deprecated.
 - Added a `Reasoning Level` preference for translations, defaulting to `None` for the fastest Gemini responses.
 - Replaced the free-form translation model default with a curated Gemini model dropdown plus an advanced custom model override.
+- Replaced the free-form text-to-speech model default with a curated Gemini TTS dropdown plus an advanced custom model override.
 - Reworked error handling into clearer, more consistent toasts, including deprecation-aware messages that tell you when a model is no longer available and how to switch.
 - Added a target-language purity rule so translations stay in the chosen language, reducing cases where words from another language leak into the output.
 - Reject non-existing/gibberish words instead of hallucinating translations.

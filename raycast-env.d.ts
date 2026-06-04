@@ -22,8 +22,10 @@ type ExtensionPreferences = {
   "translationModel"?: string,
   /** Reasoning Level - Controls Gemini reasoning for translations. None is fastest and lowest cost; higher levels may improve harder translations. */
   "reasoningLevel": "none" | "low" | "medium" | "high",
-  /** Text-to-Speech Model - Gemini TTS model ID for word pronunciation. Leave blank to use the default. Override if your model is deprecated. */
-  "ttsModel": string
+  /** Text-to-Speech Model - Gemini model used for word pronunciation. Use the custom model field only if you need an ID not listed here. */
+  "ttsModelPreset": "gemini-3.1-flash-tts-preview" | "gemini-2.5-flash-preview-tts" | "gemini-2.5-pro-preview-tts",
+  /** Custom Text-to-Speech Model ID - Optional advanced override. If set, it is used instead of Text-to-Speech Model. */
+  "ttsModel"?: string
 }
 
 /** Preferences accessible in all the extension's commands */

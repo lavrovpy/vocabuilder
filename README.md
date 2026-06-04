@@ -6,7 +6,7 @@ A [Raycast](https://raycast.com) extension that translates words and short text 
 
 - **Translate words and text** — translate a single word with part of speech and example sentences, or translate short text directly
 - **Multi-sense word translations** — for ambiguous words, review up to 5 senses and save the one you want to keep
-- **Word pronunciation** — hear the source word or its translation spoken aloud via Gemini text-to-speech
+- **Word pronunciation** — hear the source word or its translation spoken aloud via a selectable Gemini text-to-speech model
 - **Typo correction** — misspelled word input is auto-corrected before translating, with a visual indicator showing the original input
 - **Translation History** — accepted translations are saved automatically; browse, search, and manage them anytime
 - **View Flashcards** — review saved word translations with spaced repetition
@@ -22,7 +22,7 @@ A [Raycast](https://raycast.com) extension that translates words and short text 
 
 1. Get a free Gemini API key at [aistudio.google.com](https://aistudio.google.com).
 2. Run the **Translate** command and paste your API key when prompted.
-3. (Optional) Open the extension preferences to set default languages, choose the Gemini translation model, configure translation reasoning, override the model ID manually, or enable clipboard suggestions on open.
+3. (Optional) Open the extension preferences to set default languages, choose the Gemini translation and speech models, configure translation reasoning, override model IDs manually, or enable clipboard suggestions on open.
 
 ## Commands
 
