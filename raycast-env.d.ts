@@ -16,8 +16,12 @@ type ExtensionPreferences = {
   "targetLanguage": "en" | "uk" | "pl" | "de" | "fr" | "es" | "it" | "pt" | "nl" | "cs" | "sv" | "ja" | "ko" | "zh" | "tr" | "ru" | "be",
   /** Read Clipboard on Open - If enabled, prefill a suggestion only when clipboard content is a safe single word */
   "readClipboardOnOpen"?: boolean,
-  /** Translation Model - Gemini model ID for translation (e.g. gemini-2.5-flash, gemini-3-flash-preview). Leave blank to use the default. Override if your model is deprecated. */
-  "translationModel": string,
+  /** Translation Model - Gemini model used for translation. Use the custom model field only if you need an ID not listed here. */
+  "translationModelPreset": "gemini-3.5-flash" | "gemini-3.1-flash-lite" | "gemini-3.1-pro-preview" | "gemini-3-flash-preview" | "gemini-2.5-flash" | "gemini-2.5-flash-lite" | "gemini-2.5-pro",
+  /** Custom Translation Model ID - Optional advanced override. If set, it is used instead of Translation Model; reasoning controls are applied only for recognized models. */
+  "translationModel"?: string,
+  /** Reasoning Level - Controls Gemini reasoning for translations. None is fastest and lowest cost; higher levels may improve harder translations. */
+  "reasoningLevel": "none" | "low" | "medium" | "high",
   /** Text-to-Speech Model - Gemini TTS model ID for word pronunciation. Leave blank to use the default. Override if your model is deprecated. */
   "ttsModel": string
 }

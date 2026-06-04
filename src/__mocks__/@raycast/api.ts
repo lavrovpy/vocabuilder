@@ -20,6 +20,9 @@ export const getPreferenceValues = vi.fn(() => ({
   geminiApiKey: "test-api-key",
   sourceLanguage: "en",
   targetLanguage: "uk",
+  translationModelPreset: "gemini-3.5-flash",
+  translationModel: "",
+  reasoningLevel: "none",
 }));
 
 export const environment = {
