@@ -5,7 +5,7 @@ VocaBuilder Changelog
 - Added an in-command language pair selector: switch the source and target language straight from a dropdown in the `Translate`, `Translation History`, and `View Flashcards` commands, without opening preferences. The selection persists across commands.
 - Renamed the `Source Language` / `Target Language` preferences to `Default Source Language` / `Default Target Language` — they now apply until you pick a pair from the dropdown.
 - Added `Translation Model` and `Text-to-Speech Model` preferences so you can point to a newer Gemini model if a default is deprecated.
-- Added a `Reasoning Level` preference for translations, defaulting to `None` for the fastest Gemini responses.
+- Added a `Reasoning Level` preference for translations, defaulting to `Minimum` for the fastest Gemini responses.
 - Replaced the free-form translation model default with a curated Gemini model dropdown plus an advanced custom model override.
 - Replaced the free-form text-to-speech model default with a curated Gemini TTS dropdown plus an advanced custom model override.
 - Reworked error handling into clearer, more consistent toasts, including deprecation-aware messages that tell you when a model is no longer available and how to switch.

@@ -42,6 +42,8 @@ const FLASH_THINKING_LEVELS: Record<ReasoningLevel, ThinkingLevel> = {
   high: "high",
 };
 
+// Pro models cannot fully disable thinking; the user-facing "Minimum" option
+// maps to the lowest supported level for those models.
 const PRO_THINKING_LEVELS: Record<ReasoningLevel, ThinkingLevel> = {
   none: "low",
   low: "low",
@@ -67,6 +69,8 @@ const MODEL_THINKING_PROFILES: Record<string, ThinkingProfile> = {
   "gemini-3.5-flash": { kind: "thinkingLevel", levels: FLASH_THINKING_LEVELS },
   "gemini-3.1-flash-lite": { kind: "thinkingLevel", levels: FLASH_THINKING_LEVELS },
   "gemini-3.1-pro-preview": { kind: "thinkingLevel", levels: PRO_THINKING_LEVELS },
+  // Documented Gemini 3.1 Pro variant for custom-tool workflows; available only
+  // through the advanced custom model preference, not the curated preset list.
   "gemini-3.1-pro-preview-customtools": { kind: "thinkingLevel", levels: PRO_THINKING_LEVELS },
   "gemini-3-flash-preview": { kind: "thinkingLevel", levels: FLASH_THINKING_LEVELS },
   "gemini-2.5-flash": { kind: "thinkingBudget", budgets: FLASH_THINKING_BUDGETS },
@@ -368,7 +372,7 @@ if (import.meta.vitest) {
       });
     });
 
-    it("maps the default no-reasoning setting to Gemini 3.5 Flash minimal thinking", async () => {
+    it("maps the minimum setting to Gemini 3.5 Flash minimal thinking", async () => {
       await callGemini("hi", "key", undefined, {
         model: "gemini-3.5-flash",
         reasoningLevel: "none",
@@ -379,7 +383,7 @@ if (import.meta.vitest) {
       });
     });
 
-    it("maps no reasoning to the lowest supported Gemini 3.1 Pro thinking level", async () => {
+    it("maps the minimum setting to the lowest supported Gemini 3.1 Pro thinking level", async () => {
       await callGemini("hi", "key", undefined, {
         model: "gemini-3.1-pro-preview",
         reasoningLevel: "none",
@@ -390,7 +394,7 @@ if (import.meta.vitest) {
       });
     });
 
-    it("maps no reasoning to a zero thinking budget for Gemini 2.5 Flash", async () => {
+    it("maps the minimum setting to a zero thinking budget for Gemini 2.5 Flash", async () => {
       await callGemini("hi", "key", undefined, {
         model: "gemini-2.5-flash",
         reasoningLevel: "none",
@@ -401,7 +405,7 @@ if (import.meta.vitest) {
       });
     });
 
-    it("maps no reasoning to the lowest valid budget for Gemini 2.5 Pro", async () => {
+    it("maps the minimum setting to the lowest valid budget for Gemini 2.5 Pro", async () => {
       await callGemini("hi", "key", undefined, {
         model: "gemini-2.5-pro",
         reasoningLevel: "none",

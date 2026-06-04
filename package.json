@@ -255,11 +255,11 @@
       "type": "dropdown",
       "required": true,
       "title": "Reasoning Level",
-      "description": "Controls Gemini reasoning for translations. None is fastest and lowest cost; higher levels may improve harder translations.",
+      "description": "Controls Gemini reasoning for translations. Minimum is fastest: it disables thinking where supported; Pro models use their lowest supported reasoning level.",
       "default": "none",
       "data": [
         {
-          "title": "None (fastest)",
+          "title": "Minimum (fastest)",
           "value": "none"
         },
         {

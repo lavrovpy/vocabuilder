@@ -64,7 +64,7 @@ npm run dev
 
 > Regenerate `package-lock.json` only on npm 10.x. npm 11 records optional peer dependencies differently, producing a lockfile that passes locally but fails the store CI's `npm ci`.
 
-Built with the [Raycast API](https://developers.raycast.com), TypeScript + React, and [Zod](https://zod.dev) for runtime validation. Translations use Gemini — defaults `gemini-3.5-flash` (text) with reasoning set to `none`, and `gemini-3.1-flash-tts-preview` (speech), configurable in preferences.
+Built with the [Raycast API](https://developers.raycast.com), TypeScript + React, and [Zod](https://zod.dev) for runtime validation. Translations use Gemini — defaults `gemini-3.5-flash` (text) with reasoning set to minimum, and `gemini-3.1-flash-tts-preview` (speech), configurable in preferences.
 
 ## License
 

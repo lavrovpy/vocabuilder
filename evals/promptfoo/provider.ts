@@ -5,7 +5,7 @@ import type {
   ProviderOptions,
   ProviderResponse,
 } from "promptfoo";
-import { translateWord, type ReasoningLevel } from "../../src/lib/gemini";
+import { translateWord } from "../../src/lib/gemini";
 import { isGeminiError, isOutcome } from "../../src/lib/geminiError";
 import { getPreferenceDefault } from "../../src/lib/manifest";
 import type { LanguagePair } from "../../src/lib/languages";
@@ -21,6 +21,8 @@ export function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown, prefix: str
 export const ProviderConfigSchema = z.object({
   temperature: z.number(),
 });
+
+export const ReasoningLevelSchema = z.enum(["none", "low", "medium", "high"]);
 
 export const EvalVarsSchema = z
   .object({
@@ -124,7 +126,7 @@ export default class VocabuilderTranslateWordProvider implements ApiProvider {
     try {
       const response = await translateWord(input, apiKey, pair, undefined, {
         model: getPreferenceDefault("translationModelPreset"),
-        reasoningLevel: getPreferenceDefault("reasoningLevel") as ReasoningLevel,
+        reasoningLevel: ReasoningLevelSchema.parse(getPreferenceDefault("reasoningLevel")),
         temperature: this.temperature,
       });
       return { output: JSON.stringify(projectSuccess(input, pair, response), null, 2) };
