@@ -117,9 +117,13 @@ function getCacheDir(): string {
 }
 
 function cacheKey(word: string, langCode: string, model: string): string {
-  const modelHash = createHash("sha256").update(model).digest("hex").slice(0, 8);
+  const modelHash = createHash("sha256").update(normalizeGeminiModelId(model)).digest("hex").slice(0, 8);
   const wordHash = createHash("sha256").update(word.toLowerCase()).digest("hex").slice(0, 32);
   return `${langCode}-${modelHash}-${wordHash}.wav`;
+}
+
+function normalizeGeminiModelId(model: string): string {
+  return model.trim().replace(/^models\//, "");
 }
 
 function evictOldestCacheFiles(dir: string, maxFiles: number): void {
@@ -157,9 +161,10 @@ async function generateSpeechGemini(
   signal: AbortSignal | undefined,
   model: string,
 ): Promise<Buffer> {
-  const url = `${BASE_URL}/${model}:generateContent`;
+  const normalizedModel = normalizeGeminiModelId(model);
+  const url = `${BASE_URL}/${normalizedModel}:generateContent`;
   const requestMs = log.timer();
-  log.debug("gemini tts request started", { model, textChars: text.length });
+  log.debug("gemini tts request started", { model: normalizedModel, textChars: text.length });
 
   let response: Response;
   try {
@@ -185,14 +190,14 @@ async function generateSpeechGemini(
   } catch (err) {
     if (err instanceof TypeError) {
       log.warn("gemini tts request failed", {
-        model,
+        model: normalizedModel,
         requestMs: requestMs(),
         error: "network-offline",
       });
       throw geminiError({ domain: "infrastructure", kind: "network-offline", surface: "tts" });
     }
     log.warn("gemini tts request failed", {
-      model,
+      model: normalizedModel,
       requestMs: requestMs(),
       error: err instanceof Error ? err.name : "unknown",
     });
@@ -200,10 +205,10 @@ async function generateSpeechGemini(
   }
 
   try {
-    await throwForHttpError(response, "tts", model);
+    await throwForHttpError(response, "tts", normalizedModel);
   } catch (err) {
     log.warn("gemini tts request failed", {
-      model,
+      model: normalizedModel,
       requestMs: requestMs(),
       ...geminiErrorLogFields(err),
     });
@@ -212,7 +217,7 @@ async function generateSpeechGemini(
 
   const rawJson = await response.text();
   log.debug("gemini tts request completed", {
-    model,
+    model: normalizedModel,
     requestMs: requestMs(),
     responseChars: rawJson.length,
   });
@@ -258,7 +263,8 @@ export async function pronounce(
   model: string,
 ): Promise<{ cached: boolean }> {
   const dir = getCacheDir();
-  const fileName = cacheKey(word, langCode, model);
+  const normalizedModel = normalizeGeminiModelId(model);
+  const fileName = cacheKey(word, langCode, normalizedModel);
   const filePath = path.join(dir, fileName);
 
   signal?.throwIfAborted();
@@ -266,14 +272,14 @@ export async function pronounce(
   let cached = true;
   if (!existsSync(filePath)) {
     cached = false;
-    const wavBuffer = await generateSpeechGemini(word, apiKey, signal, model);
+    const wavBuffer = await generateSpeechGemini(word, apiKey, signal, normalizedModel);
     writeFileSync(filePath, wavBuffer);
     evictOldestCacheFiles(dir, MAX_CACHE_FILES);
   }
 
   const playbackMs = log.timer();
   await playAudio(filePath);
-  log.debug("tts playback completed", { model, langCode, cached, playbackMs: playbackMs() });
+  log.debug("tts playback completed", { model: normalizedModel, langCode, cached, playbackMs: playbackMs() });
   return { cached };
 }
 

@@ -92,6 +92,21 @@ describe("pronounce", () => {
     expect(fetchCall[0]).toContain(`/${customModel}:generateContent`);
   });
 
+  it("accepts Google model IDs with the optional models/ prefix", async () => {
+    const fakePcm = Buffer.alloc(48).toString("base64");
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(ttsResponseBody(fakePcm)), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await pronounce("hello", API_KEY, "en", undefined, "models/gemini-3.1-flash-tts-preview");
+
+    const fetchCall = vi.mocked(fetch).mock.calls[0];
+    expect(fetchCall[0]).toContain("/gemini-3.1-flash-tts-preview:generateContent");
+  });
+
   it("throws model-not-found on 404 and carries the model name in cause", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response('{"error":{"code":404,"status":"NOT_FOUND"}}', { status: 404 }));
     const customModel = "gemini-2.5-flash-preview-tts";
