@@ -21,8 +21,9 @@ dist/
 # Raycast
 .raycast/
 
-# Claude Code
-.claude/
+# Claude Code (but track the skills symlink → .agents/skills)
+.claude/*
+!.claude/skills
 
 # Subagent scratch (but track shared Codex skills checked into the repo)
 .agents/*
