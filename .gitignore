@@ -24,10 +24,6 @@ dist/
 # Claude Code
 .claude/
 
-# Subagent scratch (but track shared Codex skills checked into the repo)
-.agents/*
-!.agents/skills/
-
 # Promptfoo local artifacts
 .promptfoo/
 evals/results/
