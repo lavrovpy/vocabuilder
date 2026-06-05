@@ -21,11 +21,9 @@ dist/
 # Raycast
 .raycast/
 
-# Claude Code
-.claude/
-
-# Subagent scratch
-.agents/
+# Claude Code — track shared config/skills, ignore local-only bits
+.claude/settings.local.json
+.claude/worktrees/
 
 # Promptfoo local artifacts
 .promptfoo/
