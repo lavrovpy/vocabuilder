@@ -156,6 +156,7 @@ A Promptfoo-driven end-to-end harness over the production `translateWord` path. 
 - For multi-sense word translation, prefer one decisive primary action: save to history and flashcards, copy the chosen gloss, then dismiss with `closeMainWindow({ clearRootSearch: true })` instead of an extra results screen after picking a sense.
 - Match list and detail behavior between History and the Translate screen Recent section (for example Show/Hide Detail as the primary action and the same markdown detail patterns).
 - Prefer breaking storage or schema changes over optional legacy compatibility when the project is still greenfield and the simpler model is worth a reset.
+- Prefer clear input contracts and UI hints over defensive compatibility code for unlikely custom-field formats; if an advanced setting expects a specific shape, document an example instead of silently accepting weird variants.
 
 ## Raycast Reserved Keyboard Shortcuts
 
