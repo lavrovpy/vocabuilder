@@ -18,13 +18,13 @@ type ExtensionPreferences = {
   "readClipboardOnOpen"?: boolean,
   /** Translation Model - Gemini model used for translation. Use the custom model field only if you need an ID not listed here. */
   "translationModelPreset": "gemini-3.5-flash" | "gemini-3.1-flash-lite" | "gemini-3.1-pro-preview" | "gemini-3-flash-preview" | "gemini-2.5-flash" | "gemini-2.5-flash-lite" | "gemini-2.5-pro",
-  /** Custom Translation Model ID - Optional advanced override. If set, it is used instead of Translation Model; reasoning controls are applied only for recognized models. */
+  /** Custom Translation Model ID - Optional advanced override. Use an unprefixed ID, for example gemini-3.5-flash. Reasoning controls are applied only for recognized models. */
   "translationModel"?: string,
   /** Reasoning Level - Controls Gemini reasoning for translations. Minimum is fastest: it disables thinking where supported; Pro models use their lowest supported reasoning level. */
   "reasoningLevel": "none" | "low" | "medium" | "high",
   /** Text-to-Speech Model - Gemini model used for word pronunciation. Use the custom model field only if you need an ID not listed here. */
   "ttsModelPreset": "gemini-3.1-flash-tts-preview" | "gemini-2.5-flash-preview-tts" | "gemini-2.5-pro-preview-tts",
-  /** Custom Text-to-Speech Model ID - Optional advanced override. If set, it is used instead of Text-to-Speech Model. */
+  /** Custom Text-to-Speech Model ID - Optional advanced override. Use an unprefixed ID, for example gemini-3.1-flash-tts-preview. */
   "ttsModel"?: string
 }
 

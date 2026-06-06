@@ -7,7 +7,6 @@ import { z } from "zod";
 import { BASE_URL, TTS_BITS_PER_SAMPLE, TTS_DEFAULT_VOICE, TTS_NUM_CHANNELS, TTS_SAMPLE_RATE } from "./gemini-config";
 import { geminiError, geminiErrorLogFields } from "./geminiError";
 import { throwForHttpError } from "./geminiHttp";
-import { normalizeGeminiModelId } from "./geminiModel";
 import { createLogger } from "./logger";
 import { GeminiTtsResponseSchema } from "./types";
 
@@ -137,10 +136,7 @@ function getCacheDir(): string {
 }
 
 function cacheKey(word: string, langCode: string, model: string): string {
-  const modelHash = createHash("sha256")
-    .update(`${normalizeGeminiModelId(model)}:${TTS_PROMPT_VERSION}`)
-    .digest("hex")
-    .slice(0, 8);
+  const modelHash = createHash("sha256").update(`${model.trim()}:${TTS_PROMPT_VERSION}`).digest("hex").slice(0, 8);
   const wordHash = createHash("sha256").update(word.toLowerCase()).digest("hex").slice(0, 32);
   return `${langCode}-${modelHash}-${wordHash}.wav`;
 }
@@ -203,7 +199,7 @@ async function generateSpeechGemini(
   signal: AbortSignal | undefined,
   model: string,
 ): Promise<Buffer> {
-  const normalizedModel = normalizeGeminiModelId(model);
+  const normalizedModel = model.trim();
   const url = `${BASE_URL}/${normalizedModel}:generateContent`;
   const requestMs = log.timer();
   const languageCode = geminiTtsLanguageCodeFor(langCode);
@@ -307,7 +303,7 @@ export async function pronounce(
   model: string,
 ): Promise<{ cached: boolean }> {
   const dir = getCacheDir();
-  const normalizedModel = normalizeGeminiModelId(model);
+  const normalizedModel = model.trim();
   const fileName = cacheKey(word, langCode, normalizedModel);
   const filePath = path.join(dir, fileName);
 
