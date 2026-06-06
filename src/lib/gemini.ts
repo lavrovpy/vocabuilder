@@ -12,6 +12,7 @@ import {
 import { asJsonStringLiteral, normalizeWordInput, normalizeTextInput } from "./input";
 import { geminiError, geminiErrorLogFields, isGeminiError, isTransient } from "./geminiError";
 import { throwForHttpError } from "./geminiHttp";
+import { normalizeGeminiModelId } from "./geminiModel";
 import type { LanguagePair } from "./languages";
 import { createLogger } from "./logger";
 import { BASE_URL, BASE_RETRY_DELAY_MS, MAX_RETRY_ATTEMPTS } from "./gemini-config";
@@ -79,10 +80,6 @@ const MODEL_THINKING_PROFILES: Record<string, ThinkingProfile> = {
   "gemini-2.5-flash-lite-preview-09-2025": { kind: "thinkingBudget", budgets: FLASH_THINKING_BUDGETS },
   "gemini-2.5-pro": { kind: "thinkingBudget", budgets: PRO_THINKING_BUDGETS },
 };
-
-function normalizeGeminiModelId(model: string): string {
-  return model.trim().replace(/^models\//, "");
-}
 
 function buildThinkingConfig(model: string, level: ReasoningLevel | undefined): Record<string, unknown> | undefined {
   if (!level) return undefined;

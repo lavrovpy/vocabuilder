@@ -7,6 +7,7 @@ import { z } from "zod";
 import { BASE_URL, TTS_BITS_PER_SAMPLE, TTS_DEFAULT_VOICE, TTS_NUM_CHANNELS, TTS_SAMPLE_RATE } from "./gemini-config";
 import { geminiError, geminiErrorLogFields } from "./geminiError";
 import { throwForHttpError } from "./geminiHttp";
+import { normalizeGeminiModelId } from "./geminiModel";
 import { createLogger } from "./logger";
 import { GeminiTtsResponseSchema } from "./types";
 
@@ -142,10 +143,6 @@ function cacheKey(word: string, langCode: string, model: string): string {
     .slice(0, 8);
   const wordHash = createHash("sha256").update(word.toLowerCase()).digest("hex").slice(0, 32);
   return `${langCode}-${modelHash}-${wordHash}.wav`;
-}
-
-function normalizeGeminiModelId(model: string): string {
-  return model.trim().replace(/^models\//, "");
 }
 
 function geminiTtsLanguageCodeFor(langCode: string): string | undefined {
