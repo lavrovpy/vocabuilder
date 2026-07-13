@@ -3,6 +3,7 @@
 - Use `npm` to run build scripts (e.g. `npm run lint`, `npm run build`).
 - Use a Node/npm version compatible with `.nvmrc` — **Node 22.22.2 / npm 10.x** — which matches the current Raycast extension toolchain. Use whichever Node version manager is already available in the environment. Do not regenerate `package-lock.json` under npm 11.
 - When `mise` is available, run repo commands through it from the start: `mise exec -- npm run ...`, `mise exec -- npx ...`, and `mise exec -- git commit ...`. Git hooks inherit the Node version from the `git commit` process, so do not use plain `git commit` when the shell's default Node/npm differs from `.nvmrc`.
+- On macOS, `gh` stores authenticated credentials in Keychain, which is unavailable in the sandbox. Run authenticated `gh` commands (for example `gh pr create`, `gh pr view`, and `gh auth status`) with `require_escalated`; never authenticate by putting GitHub tokens in the workspace or environment.
 
 # Raycast Store Publishing
 
