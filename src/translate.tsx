@@ -54,6 +54,11 @@ const RETRYABLE_ERROR_CODES = new Set<string>([
 ]);
 
 const SECRET_PREFIX_RE = /^(sk-|ghp_|github_pat_|xox[baprs]-|AKIA|ASIA|AIza)/i;
+const WORD_TRANSLATION_DEBOUNCE_MS = 700;
+
+function scheduleWordTranslation(callback: () => void): ReturnType<typeof setTimeout> {
+  return setTimeout(callback, WORD_TRANSLATION_DEBOUNCE_MS);
+}
 
 function isSafeClipboardSuggestion(raw: string): boolean {
   const text = raw.trim();
@@ -302,10 +307,10 @@ export default function Translate() {
 
     // Only auto-translate for word-like input
     if (normalizeWordInput(text) !== null) {
-      debounceRef.current = setTimeout(() => {
+      debounceRef.current = scheduleWordTranslation(() => {
         debounceRef.current = null;
         submitTranslation(text, false);
-      }, 1500);
+      });
     }
   }
 
@@ -587,7 +592,7 @@ export default function Translate() {
           <List.Item
             title={`Translate "${truncate(searchText.trim(), 40)}"`}
             subtitle={
-              isWordInput ? "Press Enter to translate immediately (auto-runs in 1.5s)" : "Press Enter to translate"
+              isWordInput ? "Press Enter to translate immediately (auto-runs in 0.7s)" : "Press Enter to translate"
             }
             icon={Icon.ArrowRight}
             actions={
@@ -689,4 +694,27 @@ export default function Translate() {
       ) : null}
     </List>
   );
+}
+
+if (import.meta.vitest) {
+  const { afterEach, describe, expect, it, vi } = import.meta.vitest;
+
+  describe("word translation debounce", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("waits 700 ms before automatically translating a word", () => {
+      vi.useFakeTimers();
+      const translate = vi.fn();
+
+      scheduleWordTranslation(translate);
+
+      vi.advanceTimersByTime(699);
+      expect(translate).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1);
+      expect(translate).toHaveBeenCalledTimes(1);
+    });
+  });
 }
