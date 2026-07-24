@@ -67,6 +67,20 @@ npm run dev
 
 Built with the [Raycast API](https://developers.raycast.com), TypeScript + React, and [Zod](https://zod.dev) for runtime validation. Translations use Gemini — defaults `gemini-3.5-flash` (text) and `gemini-3.1-flash-tts-preview` (speech), configurable in preferences.
 
+## Translation evaluations
+
+The production `translateWord` path is evaluated with a 96-case risk-based Promptfoo suite plus an optional 272-case matrix covering every directed language pair. The standard suite covers all 17 supported languages, common vocabulary, ambiguity, idioms, phrasal verbs, lexical gaps, false friends, typo correction, and rejection behavior. Results include a Markdown breakdown by language pair, category, difficulty, and tier.
+
+```bash
+npm run eval:validate # validate configuration without model calls
+npm run eval:smoke    # stable 12-case developer check
+npm run eval          # 96-case risk-based suite plus summary
+npm run eval:matrix   # every directed pair; 272 model-graded cases
+npm run eval:all      # both suites; 368 cases and intentionally expensive
+```
+
+See [the evaluation-suite design](docs/evaluation-suite-design.md) for coverage, grading, reporting, and maintenance decisions.
+
 ## License
 
 MIT
