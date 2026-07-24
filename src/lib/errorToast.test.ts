@@ -12,12 +12,21 @@ describe("defaultToastFor", () => {
   it.each([
     ["network-offline", /internet/i],
     ["invalid-api-key", /api key/i],
+    ["invalid-base-url", /api url/i],
   ] as const)("%s is surface-agnostic", (kind, titlePattern) => {
     const a = infra({ kind, surface: "translate" });
     const b = infra({ kind, surface: "tts" });
 
     expect(a).toEqual(b);
     expect(a.title).toMatch(titlePattern);
+  });
+
+  it("invalid-base-url names the preference to fix and never echoes the URL", () => {
+    const spec = infra({ kind: "invalid-base-url", surface: "translate" });
+
+    expect(spec.message).toContain("API Base URL");
+    expect(spec.message).toMatch(/localhost/i);
+    expect(spec.message).not.toMatch(/https?:\/\//);
   });
 
   it("model-not-found references the correct preference name per surface", () => {

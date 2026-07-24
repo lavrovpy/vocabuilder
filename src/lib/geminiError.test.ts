@@ -97,8 +97,11 @@ describe("isTransient", () => {
     ).toBe(false);
   });
 
-  it("invalid-api-key, model-not-found, empty/invalid-response are NOT transient", () => {
+  it("invalid-api-key, model-not-found, invalid-base-url, empty/invalid-response are NOT transient", () => {
     expect(isTransient(infra({ kind: "invalid-api-key", surface: "tts", domain: "infrastructure" }))).toBe(false);
+    expect(isTransient(infra({ kind: "invalid-base-url", surface: "translate", domain: "infrastructure" }))).toBe(
+      false,
+    );
     expect(isTransient(infra({ kind: "model-not-found", surface: "tts", domain: "infrastructure", model: "x" }))).toBe(
       false,
     );

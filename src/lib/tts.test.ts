@@ -24,6 +24,7 @@ import { pronounce, pronounceFallback } from "./tts";
 
 const API_KEY = "test-key";
 const TEST_MODEL = "test-tts-model";
+const TEST_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 type TtsRequestBody = {
   contents: [{ parts: [{ text: string }] }];
@@ -76,7 +77,7 @@ describe("pronounce", () => {
       }),
     );
 
-    const result = await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL);
+    const result = await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL, TEST_BASE_URL);
 
     expect(result.cached).toBe(false);
     expect(fetch).toHaveBeenCalledOnce();
@@ -106,7 +107,7 @@ describe("pronounce", () => {
       }),
     );
 
-    await pronounce("but", API_KEY, "pl", undefined, TEST_MODEL);
+    await pronounce("but", API_KEY, "pl", undefined, TEST_MODEL, TEST_BASE_URL);
 
     const body = lastTtsRequestBody();
     const prompt = body.contents[0].parts[0].text;
@@ -125,7 +126,7 @@ describe("pronounce", () => {
       }),
     );
 
-    await pronounce("привіт", API_KEY, "uk", undefined, TEST_MODEL);
+    await pronounce("привіт", API_KEY, "uk", undefined, TEST_MODEL, TEST_BASE_URL);
 
     const body = lastTtsRequestBody();
     expect(body.generationConfig.speechConfig.languageCode).toBeUndefined();
@@ -142,7 +143,7 @@ describe("pronounce", () => {
     );
 
     const customModel = "custom-tts-model-xyz";
-    await pronounce("hello", API_KEY, "en", undefined, customModel);
+    await pronounce("hello", API_KEY, "en", undefined, customModel, TEST_BASE_URL);
 
     const fetchCall = vi.mocked(fetch).mock.calls[0];
     expect(fetchCall[0]).toContain(`/${customModel}:generateContent`);
@@ -157,7 +158,7 @@ describe("pronounce", () => {
       }),
     );
 
-    await pronounce("hello", API_KEY, "en", undefined, " gemini-3.1-flash-tts-preview ");
+    await pronounce("hello", API_KEY, "en", undefined, " gemini-3.1-flash-tts-preview ", TEST_BASE_URL);
 
     const fetchCall = vi.mocked(fetch).mock.calls[0];
     expect(fetchCall[0]).toContain("/gemini-3.1-flash-tts-preview:generateContent");
@@ -167,7 +168,7 @@ describe("pronounce", () => {
     vi.mocked(fetch).mockResolvedValue(new Response('{"error":{"code":404,"status":"NOT_FOUND"}}', { status: 404 }));
     const customModel = "gemini-2.5-flash-preview-tts";
 
-    await expect(pronounce("hello", API_KEY, "en", undefined, customModel)).rejects.toMatchObject({
+    await expect(pronounce("hello", API_KEY, "en", undefined, customModel, TEST_BASE_URL)).rejects.toMatchObject({
       message: "model-not-found",
       cause: {
         kind: "model-not-found",
@@ -183,7 +184,7 @@ describe("pronounce", () => {
       return String(p).endsWith(".wav");
     });
 
-    const result = await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL);
+    const result = await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL, TEST_BASE_URL);
 
     expect(result.cached).toBe(true);
     expect(fetch).not.toHaveBeenCalled();
@@ -191,22 +192,28 @@ describe("pronounce", () => {
 
   it("throws invalid-api-key on 401", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Unauthorized", { status: 401 }));
-    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toThrow("invalid-api-key");
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL, TEST_BASE_URL)).rejects.toThrow(
+      "invalid-api-key",
+    );
   });
 
   it("throws invalid-api-key on 403", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Forbidden", { status: 403 }));
-    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toThrow("invalid-api-key");
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL, TEST_BASE_URL)).rejects.toThrow(
+      "invalid-api-key",
+    );
   });
 
   it("throws network-offline on network TypeError", async () => {
     vi.mocked(fetch).mockRejectedValue(new TypeError("fetch failed"));
-    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toThrow("network-offline");
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL, TEST_BASE_URL)).rejects.toThrow(
+      "network-offline",
+    );
   });
 
   it("throws request-failed on non-ok response and carries status + body in cause", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Server Error", { status: 500 }));
-    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toMatchObject({
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL, TEST_BASE_URL)).rejects.toMatchObject({
       message: "request-failed",
       cause: {
         kind: "request-failed",
@@ -224,7 +231,7 @@ describe("pronounce", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
-    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toMatchObject({
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL, TEST_BASE_URL)).rejects.toMatchObject({
       message: "invalid-response",
       cause: expect.objectContaining({ body: expect.any(String) }),
     });
@@ -240,7 +247,9 @@ describe("pronounce", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
-    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toThrow("empty-response");
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL, TEST_BASE_URL)).rejects.toThrow(
+      "empty-response",
+    );
   });
 
   it("throws invalid-response before caching when Gemini returns non-PCM audio", async () => {
@@ -252,7 +261,7 @@ describe("pronounce", () => {
       }),
     );
 
-    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).rejects.toMatchObject({
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL, TEST_BASE_URL)).rejects.toMatchObject({
       message: "invalid-response",
       cause: expect.objectContaining({ kind: "invalid-response", surface: "tts" }),
     });
@@ -268,7 +277,9 @@ describe("pronounce", () => {
       }),
     );
 
-    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL)).resolves.toEqual({ cached: false });
+    await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL, TEST_BASE_URL)).resolves.toEqual({
+      cached: false,
+    });
     expect(writeFileSync).toHaveBeenCalledOnce();
   });
 
@@ -294,7 +305,7 @@ describe("pronounce", () => {
         }) as ReturnType<typeof statSync>,
     );
 
-    await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL);
+    await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL, TEST_BASE_URL);
 
     expect(unlinkSync).toHaveBeenCalledWith(
       expect.stringContaining("en-deadbeef-00000000000000000000000000000000.wav"),
@@ -303,7 +314,7 @@ describe("pronounce", () => {
 
   it("does not call fetch when signal is already aborted", async () => {
     const signal = AbortSignal.abort();
-    await expect(pronounce("hello", API_KEY, "en", signal, TEST_MODEL)).rejects.toThrow();
+    await expect(pronounce("hello", API_KEY, "en", signal, TEST_MODEL, TEST_BASE_URL)).rejects.toThrow();
     expect(fetch).not.toHaveBeenCalled();
   });
 });

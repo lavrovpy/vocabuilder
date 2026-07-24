@@ -31,6 +31,12 @@ export function defaultToastFor(cause: GeminiErrorCause): ToastSpec {
       };
     }
 
+    case "invalid-base-url":
+      return {
+        title: "Invalid API URL",
+        message: 'Check "API Base URL" in extension preferences. Use https, or http only for localhost.',
+      };
+
     case "request-failed": {
       const title = cause.surface === "tts" ? "Pronunciation request failed" : "Translation failed";
       const message =

@@ -1,9 +1,10 @@
 VocaBuilder Changelog
 
-## [Model and pronunciation updates] - {PR_MERGE_DATE}
+## [Model, pronunciation, and endpoint updates] - {PR_MERGE_DATE}
 
 - Simplified translation and text-to-speech model preferences to accept any Gemini model ID without relying on hardcoded dropdown options.
 - Removed the separate reasoning preference so reasoning behavior follows the configured model.
+- Added an `API Base URL` preference so translation and pronunciation can be routed through any endpoint that speaks the native Gemini REST protocol, such as a proxy or gateway. Plain `http` is accepted only for local addresses.
 - Refreshed the extension icon.
 - Tightened the pronunciation prompt for more accurate text-to-speech output.
 

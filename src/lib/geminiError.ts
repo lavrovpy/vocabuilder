@@ -8,6 +8,7 @@ export type GeminiInfrastructureKind =
   | "network-offline"
   | "invalid-api-key"
   | "model-not-found"
+  | "invalid-base-url"
   | "request-failed"
   | "invalid-response"
   | "empty-response";

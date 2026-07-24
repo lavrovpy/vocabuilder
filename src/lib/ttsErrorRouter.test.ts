@@ -31,6 +31,16 @@ describe("routeTtsError — Gemini errors", () => {
     expect(routeTtsError(err, "en").fallback).toBe(false);
   });
 
+  // A misconfigured endpoint is reported honestly rather than masked by the
+  // system voice — silently "succeeding" would hide the setting that is broken.
+  it("invalid-base-url does not fall back to the system voice", () => {
+    const err = geminiError({ domain: "infrastructure", kind: "invalid-base-url", surface: "tts" });
+    const routed = routeTtsError(err, "en");
+
+    expect(routed.fallback).toBe(false);
+    expect(routed.title).toBe(defaultToastFor(err.cause).title);
+  });
+
   it("invalid-api-key keeps the default copy and does not fall back", () => {
     const err = geminiError({ domain: "infrastructure", kind: "invalid-api-key", surface: "tts" });
     const routed = routeTtsError(err, "en");

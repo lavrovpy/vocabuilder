@@ -41,6 +41,15 @@
       "placeholder": "AIza..."
     },
     {
+      "name": "geminiApiBaseUrl",
+      "type": "textfield",
+      "required": false,
+      "title": "API Base URL",
+      "description": "Advanced. Send translation and pronunciation requests to an endpoint that speaks the native Gemini REST protocol, for example a proxy or gateway. Include the API version and the models segment, as in https://your-gateway/v1beta/models. Plain http is accepted only for localhost.",
+      "default": "https://generativelanguage.googleapis.com/v1beta/models",
+      "placeholder": "https://generativelanguage.googleapis.com/v1beta/models"
+    },
+    {
       "name": "sourceLanguage",
       "type": "dropdown",
       "required": true,

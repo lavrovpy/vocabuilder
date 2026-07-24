@@ -124,6 +124,7 @@ export default class VocabuilderTranslateWordProvider implements ApiProvider {
     try {
       const response = await translateWord(input, apiKey, pair, undefined, {
         model: getPreferenceDefault("translationModel"),
+        baseUrl: getPreferenceDefault("geminiApiBaseUrl"),
         temperature: this.temperature,
       });
       return { output: JSON.stringify(projectSuccess(input, pair, response), null, 2) };

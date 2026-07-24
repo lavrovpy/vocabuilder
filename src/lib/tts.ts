@@ -4,7 +4,8 @@ import { createHash } from "crypto";
 import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from "fs";
 import path from "path";
 import { z } from "zod";
-import { BASE_URL, TTS_BITS_PER_SAMPLE, TTS_DEFAULT_VOICE, TTS_NUM_CHANNELS, TTS_SAMPLE_RATE } from "./gemini-config";
+import { TTS_BITS_PER_SAMPLE, TTS_DEFAULT_VOICE, TTS_NUM_CHANNELS, TTS_SAMPLE_RATE } from "./gemini-config";
+import { hostForLog, resolveBaseUrl } from "./baseUrl";
 import { geminiError, geminiErrorLogFields } from "./geminiError";
 import { throwForHttpError } from "./geminiHttp";
 import { createLogger } from "./logger";
@@ -198,12 +199,19 @@ async function generateSpeechGemini(
   apiKey: string,
   signal: AbortSignal | undefined,
   model: string,
+  baseUrl: string,
 ): Promise<Buffer> {
   const normalizedModel = model.trim();
-  const url = `${BASE_URL}/${normalizedModel}:generateContent`;
+  const resolvedBaseUrl = resolveBaseUrl(baseUrl, "tts");
+  const url = `${resolvedBaseUrl}/${normalizedModel}:generateContent`;
   const requestMs = log.timer();
   const languageCode = geminiTtsLanguageCodeFor(langCode);
-  log.debug("gemini tts request started", { model: normalizedModel, langCode, textChars: text.length });
+  log.debug("gemini tts request started", {
+    model: normalizedModel,
+    host: hostForLog(resolvedBaseUrl),
+    langCode,
+    textChars: text.length,
+  });
 
   let response: Response;
   try {
@@ -301,6 +309,7 @@ export async function pronounce(
   langCode: string,
   signal: AbortSignal | undefined,
   model: string,
+  baseUrl: string,
 ): Promise<{ cached: boolean }> {
   const dir = getCacheDir();
   const normalizedModel = model.trim();
@@ -312,7 +321,7 @@ export async function pronounce(
   let cached = true;
   if (!existsSync(filePath)) {
     cached = false;
-    const wavBuffer = await generateSpeechGemini(word, langCode, apiKey, signal, normalizedModel);
+    const wavBuffer = await generateSpeechGemini(word, langCode, apiKey, signal, normalizedModel, baseUrl);
     writeFileSync(filePath, wavBuffer);
     evictOldestCacheFiles(dir, MAX_CACHE_FILES);
   }

@@ -9,7 +9,8 @@ const pair: LanguagePair = {
 };
 
 const API_KEY = "test-key";
-const TEST_OPTIONS: GenerationOptions = { model: "test-model" };
+const TEST_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+const TEST_OPTIONS: GenerationOptions = { model: "test-model", baseUrl: TEST_BASE_URL };
 
 function geminiJsonBody(payload: object): object {
   return {
@@ -456,7 +457,9 @@ describe("translateWord retry behavior", () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Not Found", { status: 404 }));
     const customModel = "gemini-bogus-model";
 
-    await expect(translateWord("hello", API_KEY, pair, undefined, { model: customModel })).rejects.toMatchObject({
+    await expect(
+      translateWord("hello", API_KEY, pair, undefined, { model: customModel, baseUrl: TEST_BASE_URL }),
+    ).rejects.toMatchObject({
       message: "model-not-found",
       cause: {
         kind: "model-not-found",
