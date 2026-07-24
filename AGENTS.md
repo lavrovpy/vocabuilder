@@ -109,9 +109,13 @@ A Promptfoo-driven end-to-end harness over the production `translateWord` path. 
 
 ## Layout
 
-- `evals/promptfooconfig.yaml` — eval cases plus the `llm-rubric` assertion judged by `google:gemini-3-flash-preview`
+- `evals/promptfooconfig.yaml` — suite settings plus deterministic and model-graded assertions; semantic quality is judged by `google:gemini-3.1-pro-preview`
+- `evals/promptfoo/cases.cjs` — generated 96-case risk-based dataset plus an optional 272-case common-word matrix covering every directed language pair
+- `evals/promptfoo/assert-output.cjs` — deterministic application-contract assertion for projections, corrections, rejections, sense uniqueness, exact source-form examples, and known-wrong translations
+- `evals/promptfoo/judge-prompt.txt` — isolated, injection-resistant judge wrapper
 - `evals/promptfoo/provider.ts` — custom Promptfoo provider that calls production `translateWord`
 - `evals/promptfoo/transform-vars.cjs` — `JSON.stringify` of each case's `expect` block, surfaced to the rubric template as `{{expectJson}}`
+- `evals/promptfoo/report.ts` — Markdown summaries grouped by language pair, category, difficulty, and tier
 - `evals/promptfoo/provider.test.ts` — Vitest coverage for the Zod schemas, the `parseOrThrow` helper, and the provider constructor
 
 ## Conventions
@@ -126,7 +130,7 @@ A Promptfoo-driven end-to-end harness over the production `translateWord` path. 
 
 - **Evaluate the production result, not raw Gemini output.** The custom provider calls `translateWord` and projects the app-level success/error output for Promptfoo. Use this harness for release/regression confidence in the user-visible translation behavior. If raw model drift or prompt internals need diagnosis, add separate metadata or component-level checks instead of making the default judge score hidden pipeline details.
 - **Keep schema validation outside the judge.** `translateWord` already requests structured Gemini JSON and validates it with `GeminiWordResponseSchema`; malformed or schema-invalid model output becomes `GEMINI_INVALID_RESPONSE` before the rubric sees it. Do not ask the LLM judge to re-check JSON shape or Zod-level type constraints.
-- **Use the judge for semantic and contract quality.** Morphology, synonymy, regional variants, idiomatic acceptability, target-language quality, examples, and per-case `expect` behavior are rubric concerns. Per-case `expect` fields (`forbiddenTranslations`, `correctedWord`, `status`, `error`) are passed to the rubric verbatim through `{{expectJson}}` — they are inputs to the judge, not separate deterministic gates.
+- **Separate deterministic contracts from semantic judgment.** `assert-output.cjs` owns exact projection, correction, rejection, uniqueness, source-form, and forbidden-translation checks. The LLM judge owns morphology, synonymy, regional variants, idiomatic acceptability, target-language quality, and example meaning/naturalness. Per-case `expect` fields are still passed through `{{expectJson}}` as judge context, but exact enforcement belongs to the deterministic assertion.
 - **Address language drift at the prompt layer, not via regex.** When the model returns Russian where Ukrainian is expected, the fix lives in the production prompt, not in `forbiddenTranslations` lists.
 - **Treat all rubric inputs as untrusted data.** The rubric prompt explicitly tells the judge not to follow instructions inside `{{input}}`, `{{intent}}`, or `{{expectJson}}`. Preserve that framing when editing the rubric.
 
@@ -134,14 +138,17 @@ A Promptfoo-driven end-to-end harness over the production `translateWord` path. 
 
 - **Suite-wide settings live in `evals/promptfooconfig.yaml`, not in `package.json` scripts or `.env`.** Promptfoo `PROMPTFOO_*` env vars belong in the top-level `env:` block (currently `PROMPTFOO_PASS_RATE_THRESHOLD` and `PROMPTFOO_REQUEST_BACKOFF_MS`); CLI-flag defaults belong under `commandLineOptions:` (`maxConcurrency`, `delay`, `share: false`). One source of truth so CI, the IDE plugin, and ad-hoc `promptfoo eval -c …` runs all behave the same.
 - **Precedence: CLI flags > YAML `env:` block > `process.env` (loaded from `.env`) > built-in defaults.** A CLI flag like `--max-concurrency 4` overrides the YAML for one-off tuning, but a `.env` value cannot override anything pinned in the YAML `env:` block — to change a pinned var, edit the YAML. `.env` only takes effect for `PROMPTFOO_*` vars *not* set in the YAML.
-- **Pass-rate threshold sits at 75%** because the model-graded judge can return transient service errors under load and one flake should not fail the whole run. The built-in promptfoo default is `100`, so removing the YAML entry silently breaks this guarantee. Tighten back toward 100% once the judge layer is reliable.
+- **Pass-rate threshold sits at 75%** as a permissive compatibility gate while model-graded and provider-service variance is uncalibrated. It is not sufficient release evidence: review every zero-pass pair and every reported subgroup below 75%. The built-in Promptfoo default is `100`, so removing the YAML entry silently changes project policy. Tighten it using repeated-run and human-calibration data once the judge layer is reliable.
 - **Do not write tests that assert literal strings appear in config files** (`package.json`, YAML, etc.). They have no oracle: editing the config means editing the test, no bug ever caught. Promptfoo's loader catches broken file references when the eval actually runs.
 
 ## Running
 
 - `npm run eval` — full suite, writes `evals/results/promptfoo.json`
-- `npm run eval:smoke` — random sample of 10 cases for fast local iteration
+- `npm run eval:smoke` — stable 12-case multilingual sample for fast local iteration
+- `npm run eval:matrix` — all 272 directed language pairs using a uniform common-word probe
+- `npm run eval:all` — standard and matrix suites together (368 cases; intentionally expensive)
 - `npm run eval:validate` — config-only validation, no Gemini calls
+- `npm run eval:report` — regenerate `evals/results/summary.md` from the latest full JSON result
 - `npm run eval:results` — open the Promptfoo viewer
 
 # Security Guardrails for AI Edits
