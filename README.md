@@ -73,7 +73,24 @@ npm run dev
 
 Built with the [Raycast API](https://developers.raycast.com), TypeScript + React, and [Zod](https://zod.dev) for runtime validation. Each provider is a small adapter over plain `fetch` in `src/lib/providers/`; the prompt, response validation, and sense de-duplication are shared in `src/lib/translation.ts`.
 
-Tests run with `npm test`. The translation quality evals read their keys from `.env` — copy `.env.example` to start. `npm run eval` scores the Gemini provider and needs only `GEMINI_API_KEY`, which the eval judge also uses; `npm run eval:all` scores Gemini, Anthropic, and OpenAI side by side and also needs `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`.
+Tests run with `npm test`.
+
+## Translation evaluations
+
+The production `translateWord` path is evaluated with a 96-case risk-based Promptfoo suite plus an optional 272-case matrix covering every directed language pair. The standard suite covers all 17 supported languages, common vocabulary, ambiguity, idioms, phrasal verbs, lexical gaps, false friends, typo correction, and rejection behavior. Results include a Markdown breakdown by language pair, category, difficulty, and tier.
+
+The default eval scripts score the Gemini provider and need only `GEMINI_API_KEY` (the same secret CI uses; model, endpoint, and judge default to the extension's production values). `npm run eval:providers` compares Gemini, Anthropic, and OpenAI side by side on the standard suite and also needs `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`. Optional `EVAL_TRANSLATION_*` and `EVAL_JUDGE_*` variables can point a role at a local proxy or a different model — see `.env.example`.
+
+```bash
+npm run eval:validate  # validate configuration without model calls
+npm run eval:smoke     # stable 12-case developer check on Gemini
+npm run eval           # 96-case risk-based suite on Gemini plus summary
+npm run eval:matrix    # every directed pair on Gemini; 272 model-graded cases
+npm run eval:all       # both suites on Gemini; 368 cases and intentionally expensive
+npm run eval:providers # 96-case suite across Gemini, Anthropic, and OpenAI
+```
+
+See [the evaluation-suite design](docs/evaluation-suite-design.md) for coverage, grading, reporting, and maintenance decisions.
 
 ## License
 

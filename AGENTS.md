@@ -149,10 +149,15 @@ The suite runs once per native vendor: `promptfooconfig.yaml` has one provider e
 
 ## Layout
 
-- `evals/promptfooconfig.yaml` — eval cases plus the `llm-rubric` assertion judged by `google:gemini-3-flash-preview`
-- `evals/promptfoo/provider.ts` — custom Promptfoo provider that calls production `translateWord` with the entry's `config.provider` (and optional `config.model`), reading the key from `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `OPENAI_COMPATIBLE_API_KEY`
+- `evals/promptfooconfig.yaml` — suite settings plus deterministic and model-graded assertions; semantic quality defaults to `google:gemini-3-flash-preview` via `EVAL_JUDGE_PROVIDER_ID`
+- `evals/promptfoo/cases.cjs` — generated 96-case risk-based dataset plus an optional 272-case common-word matrix covering every directed language pair
+- `evals/promptfoo/assert-output.cjs` — deterministic application-contract assertion for projections, corrections, rejections, sense uniqueness, exact source-form examples, and known-wrong translations
+- `evals/promptfoo/judge-prompt.txt` — isolated, injection-resistant judge wrapper
+- `evals/promptfoo/provider.ts` — custom Promptfoo provider that calls production `translateWord` with the entry's `config.provider` (and optional `config.model`), reading credentials from `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `OPENAI_COMPATIBLE_API_KEY` and honoring optional `EVAL_TRANSLATION_*` / `EVAL_JUDGE_*` role overrides
+- `evals/promptfoo/run.ts` — Promptfoo launcher that loads `.env`, fills non-secret defaults for config validation, and maps `EVAL_JUDGE_API_KEY` to the judge provider's native credential variable
 - `evals/promptfoo/transform-vars.cjs` — `JSON.stringify` of each case's `expect` block, surfaced to the rubric template as `{{expectJson}}`
-- `evals/promptfoo/provider.test.ts` — Vitest coverage for the Zod schemas, the `parseOrThrow` helper, error projection, and per-provider config and credential resolution
+- `evals/promptfoo/report.ts` — Markdown summaries grouped by language pair, category, difficulty, and tier
+- `evals/promptfoo/provider.test.ts` — Vitest coverage for the Zod schemas, the `parseOrThrow` helper, error projection, and per-provider / per-role config and credential resolution
 
 ## Conventions
 
@@ -168,24 +173,28 @@ The suite runs once per native vendor: `promptfooconfig.yaml` has one provider e
 
 - **Evaluate the production result, not raw model output.** The custom provider calls `translateWord` and projects the app-level success/error output for Promptfoo. Use this harness for release/regression confidence in the user-visible translation behavior. If raw model drift or prompt internals need diagnosis, add separate metadata or component-level checks instead of making the default judge score hidden pipeline details.
 - **Keep schema validation outside the judge.** `translateWord` already requests structured JSON and validates it with `WordResponseSchema`; malformed or schema-invalid model output becomes `invalid-response` before the rubric sees it. Do not ask the LLM judge to re-check JSON shape or Zod-level type constraints.
-- **Use the judge for semantic and contract quality.** Morphology, synonymy, regional variants, idiomatic acceptability, target-language quality, examples, and per-case `expect` behavior are rubric concerns. Per-case `expect` fields (`forbiddenTranslations`, `correctedWord`, `status`, `error`) are passed to the rubric verbatim through `{{expectJson}}` — they are inputs to the judge, not separate deterministic gates.
+- **Separate deterministic contracts from semantic judgment.** `assert-output.cjs` owns exact projection, correction, rejection, uniqueness, source-form, and forbidden-translation checks. The LLM judge owns morphology, synonymy, regional variants, idiomatic acceptability, target-language quality, and example meaning/naturalness. Per-case `expect` fields are still passed through `{{expectJson}}` as judge context, but exact enforcement belongs to the deterministic assertion.
 - **Address language drift at the prompt layer, not via regex.** When the model returns Russian where Ukrainian is expected, the fix lives in the production prompt, not in `forbiddenTranslations` lists.
 - **Treat all rubric inputs as untrusted data.** The rubric prompt explicitly tells the judge not to follow instructions inside `{{input}}`, `{{intent}}`, or `{{expectJson}}`. Preserve that framing when editing the rubric.
 
 **Suite configuration**
 
-- **The default scripts run only the gemini entry.** `eval` and `eval:smoke` pass `--filter-providers '^vocabuilder-gemini$'`, so they work with just `GEMINI_API_KEY` (all CI holds) — an entry whose key is missing errors, and errors count against the pass-rate threshold. `eval:all` drops the filter. The filter matches labels before providers are instantiated; keep the labels and the filter in step.
-- **Suite-wide settings live in `evals/promptfooconfig.yaml`, not in `package.json` scripts or `.env`.** Promptfoo `PROMPTFOO_*` env vars belong in the top-level `env:` block (currently `PROMPTFOO_PASS_RATE_THRESHOLD` and `PROMPTFOO_REQUEST_BACKOFF_MS`); CLI-flag defaults belong under `commandLineOptions:` (`maxConcurrency`, `delay`, `share: false`). One source of truth so CI, the IDE plugin, and ad-hoc `promptfoo eval -c …` runs all behave the same.
-- **Precedence: CLI flags > YAML `env:` block > `process.env` (loaded from `.env`) > built-in defaults.** A CLI flag like `--max-concurrency 4` overrides the YAML for one-off tuning, but a `.env` value cannot override anything pinned in the YAML `env:` block — to change a pinned var, edit the YAML. `.env` only takes effect for `PROMPTFOO_*` vars *not* set in the YAML.
-- **Pass-rate threshold sits at 75%** because the model-graded judge can return transient service errors under load and one flake should not fail the whole run. The built-in promptfoo default is `100`, so removing the YAML entry silently breaks this guarantee. Tighten back toward 100% once the judge layer is reliable.
+- **The default scripts run only the gemini entry.** `eval`, `eval:smoke`, `eval:matrix`, and `eval:all` pass `--filter-providers '^vocabuilder-gemini$'`, so they work with just `GEMINI_API_KEY` (all CI holds) — an entry whose key is missing errors, and errors count against the pass-rate threshold. `eval:providers` drops the provider filter to compare Gemini, Anthropic, and OpenAI on the 96-case standard suite. The filter matches labels before providers are instantiated; keep the labels and the filter in step.
+- **Keep role configuration independent, with production defaults.** Live evals on the default Gemini entry need `GEMINI_API_KEY` (the CI secret). Set `EVAL_TRANSLATION_*` and `EVAL_JUDGE_*` (or per-provider `*_BASE_URL` / `*_MODEL`) only to point a role at a proxy or a different model; an explicit role value never falls back to the other role.
+- **Keep judge credentials out of Promptfoo config.** `evals/promptfoo/run.ts` maps the generic judge key to the native variable for supported key-based `google`, `openai`, and `anthropic` provider prefixes. Add a deliberate mapping when supporting another key-based provider; never interpolate `EVAL_JUDGE_API_KEY` into YAML because raw Promptfoo JSON can retain assertion-provider config.
+- **Suite-wide policy lives in `evals/promptfooconfig.yaml`.** Promptfoo `PROMPTFOO_*` variables belong in the top-level `env:` block (currently `PROMPTFOO_PASS_RATE_THRESHOLD` and `PROMPTFOO_REQUEST_BACKOFF_MS`); CLI-flag defaults belong under `commandLineOptions:` (`maxConcurrency`, `delay`, `share: false`). Do not pin `EVAL_*` in that YAML `env:` block — `.env` cannot override pinned values. Role credentials and optional proxy/model overrides are run-specific environment configuration documented in `.env.example`.
+- **Pass-rate threshold sits at 75%** as a permissive compatibility gate while model-graded and provider-service variance is uncalibrated. It is not sufficient release evidence: review every zero-pass pair and every reported subgroup below 75%. The built-in Promptfoo default is `100`, so removing the YAML entry silently changes project policy. Tighten it using repeated-run and human-calibration data once the judge layer is reliable.
 - **Do not write tests that assert literal strings appear in config files** (`package.json`, YAML, etc.). They have no oracle: editing the config means editing the test, no bug ever caught. Promptfoo's loader catches broken file references when the eval actually runs.
 
 ## Running
 
-- `npm run eval` — full suite on the gemini entry, writes `evals/results/promptfoo.json`; needs only `GEMINI_API_KEY` (the judge runs on Gemini too)
-- `npm run eval:smoke` — random sample of 10 cases on the gemini entry for fast local iteration
-- `npm run eval:all` — full suite across every vendor entry side by side, writes `evals/results/promptfoo-all.json`; also needs `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`
+- `npm run eval` — 96-case standard suite on the gemini entry, writes `evals/results/promptfoo.json` and `evals/results/summary.md`; needs only `GEMINI_API_KEY`
+- `npm run eval:smoke` — stable 12-case multilingual sample on the gemini entry for fast local iteration
+- `npm run eval:matrix` — all 272 directed language pairs on the gemini entry using a uniform common-word probe
+- `npm run eval:all` — standard and matrix suites together on the gemini entry (368 cases; intentionally expensive)
+- `npm run eval:providers` — 96-case standard suite across every vendor entry side by side, writes `evals/results/promptfoo-providers.json` and `evals/results/summary-providers.md`; also needs `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`
 - `npm run eval:validate` — config-only validation, no model calls and no keys needed
+- `npm run eval:report` — regenerate `evals/results/summary.md` from `evals/results/promptfoo.json`
 - `npm run eval:results` — open the Promptfoo viewer
 
 # Security Guardrails for AI Edits
