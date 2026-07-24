@@ -312,6 +312,71 @@ describe("pronounce", () => {
     );
   });
 
+  it("does not replay another endpoint's audio after the base URL changes", async () => {
+    const fakePcm = Buffer.alloc(48).toString("base64");
+    // A fresh Response per call — a single shared one throws on the second read.
+    vi.mocked(fetch).mockImplementation(
+      async () =>
+        new Response(JSON.stringify(ttsResponseBody(fakePcm)), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+    );
+
+    await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL, TEST_BASE_URL);
+    const firstPath = vi.mocked(writeFileSync).mock.calls[0][0];
+    vi.mocked(existsSync).mockImplementation((p) => p === firstPath);
+
+    const result = await pronounce(
+      "hello",
+      API_KEY,
+      "en",
+      undefined,
+      TEST_MODEL,
+      "http://localhost:4000/v1beta/models",
+    );
+
+    expect(result.cached).toBe(false);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("reuses cached audio across spellings of the same endpoint", async () => {
+    const fakePcm = Buffer.alloc(48).toString("base64");
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(ttsResponseBody(fakePcm)), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL, TEST_BASE_URL);
+    const firstPath = vi.mocked(writeFileSync).mock.calls[0][0];
+    vi.mocked(existsSync).mockImplementation((p) => p === firstPath);
+
+    const result = await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL, `  ${TEST_BASE_URL}//  `);
+
+    expect(result.cached).toBe(true);
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it("rejects an unusable base URL even when cached audio exists", async () => {
+    vi.mocked(existsSync).mockReturnValue(true);
+
+    await expect(
+      pronounce("hello", API_KEY, "en", undefined, TEST_MODEL, "http://gw.corp/v1beta/models"),
+    ).rejects.toThrow("invalid-base-url");
+  });
+
+  it("names the endpoint host when a custom base URL returns 404", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response("Not Found", { status: 404 }));
+
+    await expect(
+      pronounce("hello", API_KEY, "en", undefined, TEST_MODEL, "https://gw.corp/v1beta/models"),
+    ).rejects.toMatchObject({
+      cause: { kind: "model-not-found", surface: "tts", endpointHost: "gw.corp" },
+    });
+  });
+
   it("does not call fetch when signal is already aborted", async () => {
     const signal = AbortSignal.abort();
     await expect(pronounce("hello", API_KEY, "en", signal, TEST_MODEL, TEST_BASE_URL)).rejects.toThrow();

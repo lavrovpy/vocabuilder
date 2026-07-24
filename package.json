@@ -45,7 +45,7 @@
       "type": "textfield",
       "required": false,
       "title": "API Base URL",
-      "description": "Advanced. Send translation and pronunciation requests to an endpoint that speaks the native Gemini REST protocol, for example a proxy or gateway. Include the API version and the models segment, as in https://your-gateway/v1beta/models. Plain http is accepted only for localhost.",
+      "description": "Advanced. Send translation and pronunciation requests to an endpoint that speaks the native Gemini REST protocol, for example a proxy or gateway. Your Gemini API key is sent to whatever host you set here. Include the API version and the models segment, as in https://your-gateway/v1beta/models, with no query string. Plain http is accepted only for local addresses (localhost, 127.0.0.1, [::1], 0.0.0.0).",
       "default": "https://generativelanguage.googleapis.com/v1beta/models",
       "placeholder": "https://generativelanguage.googleapis.com/v1beta/models"
     },

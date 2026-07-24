@@ -64,6 +64,7 @@ async function fetchGeminiOnce(
   body: Record<string, unknown>,
   signal: AbortSignal | undefined,
   model: string,
+  resolvedBaseUrl: string,
 ): Promise<Response> {
   let response: Response;
   try {
@@ -83,7 +84,7 @@ async function fetchGeminiOnce(
     throw err;
   }
 
-  await throwForHttpError(response, "translate", model);
+  await throwForHttpError(response, "translate", model, resolvedBaseUrl);
   return response;
 }
 
@@ -121,7 +122,7 @@ async function callGemini(
   for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
     const attemptMs = log.timer();
     try {
-      response = await fetchGeminiOnce(url, apiKey, body, signal, model);
+      response = await fetchGeminiOnce(url, apiKey, body, signal, model, baseUrl);
       log.debug("translation attempt succeeded", {
         model,
         attempt,
@@ -325,6 +326,31 @@ if (import.meta.vitest) {
         callGemini("hi", "key", undefined, { baseUrl: "http://gw.corp/v1beta/models", model: "gemini-3.5-flash" }),
       ).rejects.toThrow("invalid-base-url");
       expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    // Pins the base URL threading through fetchGeminiOnce: passing the full
+    // request URL instead would name a host built from the model segment.
+    it("names the endpoint host when a custom base URL returns 404", async () => {
+      fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
+
+      await expect(
+        callGemini("hi", "key", undefined, {
+          baseUrl: "https://gw.corp:8443/gemini/v1beta/models",
+          model: "gemini-3.5-flash",
+        }),
+      ).rejects.toMatchObject({
+        cause: { kind: "model-not-found", surface: "translate", endpointHost: "gw.corp:8443" },
+      });
+    });
+
+    it("leaves the endpoint host unset when the default base URL returns 404", async () => {
+      fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
+
+      await expect(
+        callGemini("hi", "key", undefined, { baseUrl: TEST_BASE_URL, model: "gemini-3.5-flash" }),
+      ).rejects.toMatchObject({
+        cause: { kind: "model-not-found", endpointHost: undefined },
+      });
     });
 
     it("trims custom model IDs before building the request", async () => {

@@ -10,7 +10,7 @@
 type ExtensionPreferences = {
   /** Gemini API Key - Get a free key at aistudio.google.com */
   "geminiApiKey": string,
-  /** API Base URL - Advanced. Send translation and pronunciation requests to an endpoint that speaks the native Gemini REST protocol, for example a proxy or gateway. Include the API version and the models segment, as in https://your-gateway/v1beta/models. Plain http is accepted only for localhost. */
+  /** API Base URL - Advanced. Send translation and pronunciation requests to an endpoint that speaks the native Gemini REST protocol, for example a proxy or gateway. Your Gemini API key is sent to whatever host you set here. Include the API version and the models segment, as in https://your-gateway/v1beta/models, with no query string. Plain http is accepted only for local addresses (localhost, 127.0.0.1, [::1], 0.0.0.0). */
   "geminiApiBaseUrl": string,
   /** Default Source Language - Used before you pick a language pair from the Translate dropdown */
   "sourceLanguage": "en" | "uk" | "pl" | "de" | "fr" | "es" | "it" | "pt" | "nl" | "cs" | "sv" | "ja" | "ko" | "zh" | "tr" | "ru" | "be",

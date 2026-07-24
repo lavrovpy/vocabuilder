@@ -39,6 +39,25 @@ describe("defaultToastFor", () => {
     expect(tts.message).toContain("X");
   });
 
+  // Against a custom endpoint a 404 is ambiguous, so the copy must not send the
+  // user off to cycle through models when the base URL is what is wrong.
+  it("model-not-found names both preferences when a custom endpoint is configured", () => {
+    const t = infra({ kind: "model-not-found", surface: "translate", model: "X", endpointHost: "gw.corp:8443" });
+    const tts = infra({ kind: "model-not-found", surface: "tts", model: "X", endpointHost: "gw.corp:8443" });
+
+    expect(t.message).toContain("API Base URL");
+    expect(t.message).toContain("Translation Model");
+    expect(t.message).toContain("gw.corp:8443");
+    expect(tts.message).toContain("API Base URL");
+    expect(tts.message).toContain("Text-to-Speech Model");
+  });
+
+  it("model-not-found keeps the single-preference copy on the default endpoint", () => {
+    const t = infra({ kind: "model-not-found", surface: "translate", model: "X" });
+
+    expect(t.message).not.toContain("API Base URL");
+  });
+
   it("model-not-found falls back when model is missing", () => {
     const t = infra({ kind: "model-not-found", surface: "translate" });
 

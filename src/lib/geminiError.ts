@@ -33,6 +33,12 @@ export type GeminiInfrastructureCause = {
   kind: GeminiInfrastructureKind;
   surface: GeminiErrorSurface;
   model?: string;
+  /**
+   * Host of the configured endpoint, set only when it is not the manifest
+   * default. Disambiguates a 404 — a bad model and a bad base URL look
+   * identical to the transport. Host-only, via `hostForLog`.
+   */
+  endpointHost?: string;
   status?: number;
   body?: string;
   rateLimit?: GeminiRateLimitDiagnostics;

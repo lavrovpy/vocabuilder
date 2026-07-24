@@ -12,7 +12,7 @@ A [Raycast](https://raycast.com) extension that translates words and short text 
 - **View Flashcards** — review saved word translations with spaced repetition
 - **Configurable language pair** — pick source and target from 17 supported languages (defaults to English → Ukrainian), switchable from a dropdown inside each command or via preferences
 - **Configurable models** — paste the Gemini model IDs used for translation and text-to-speech without waiting for a hardcoded model list to be updated
-- **Custom API endpoint** — route translation and pronunciation through any endpoint that speaks the native Gemini REST protocol (a proxy, gateway, or local passthrough) instead of Google's default
+- **Custom API endpoint** — route translation and pronunciation through any endpoint that speaks the native Gemini REST protocol (a proxy, gateway, or local passthrough) instead of Google's default; your API key is sent to whichever host you configure, so plain `http` is limited to local addresses
 - **Separate history per language pair** — switching languages gives you an independent history and flashcard deck
 - **Clipboard suggestion** — optionally prefill a safe single word from the clipboard when the command opens
 - **History export** — export saved history as JSON, Anki-ready TSV, or Quizlet-ready TSV

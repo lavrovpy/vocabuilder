@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hostForLog, resolveBaseUrl } from "./baseUrl";
+import { customEndpointHost, hostForLog, resolveBaseUrl } from "./baseUrl";
 import { isGeminiError } from "./geminiError";
 import { getPreferenceDefault } from "./manifest";
 
@@ -48,6 +48,9 @@ describe("resolveBaseUrl", () => {
       "http://localhost:4000/v1beta/models",
       "http://127.0.0.1:8080/v1beta/models",
       "http://[::1]/v1beta/models",
+      // The bind address a local proxy is usually started with; as a destination
+      // the kernel keeps it on this host.
+      "http://0.0.0.0:4000/v1beta/models",
     ])("accepts %s", (url) => {
       expect(resolveBaseUrl(url, "translate")).toBe(url);
     });
@@ -77,6 +80,17 @@ describe("resolveBaseUrl", () => {
     expectRejected("ftp://gw.corp/v1beta/models");
   });
 
+  // `?…`/`#…` parse cleanly but swallow the appended `/{model}:generateContent`,
+  // so the POST would silently land on the base path instead of the model.
+  it("rejects a query string, which would swallow the appended model segment", () => {
+    expectRejected("https://gw.corp/v1beta/models?key=abc123");
+    expectRejected("https://gw.corp/v1beta/models?");
+  });
+
+  it("rejects a fragment, which fetch drops along with the model segment", () => {
+    expectRejected("https://gw.corp/v1beta/models#section");
+  });
+
   it("tags the failure with the calling surface so the toast routes correctly", () => {
     try {
       resolveBaseUrl("http://gw.corp/v1beta/models", "tts");
@@ -90,6 +104,24 @@ describe("resolveBaseUrl", () => {
   it("permits https with userinfo so basic-auth proxies stay usable", () => {
     const url = "https://user:pass@gw.corp/v1beta/models";
     expect(resolveBaseUrl(url, "translate")).toBe(url);
+  });
+});
+
+describe("customEndpointHost", () => {
+  it("returns nothing for the manifest default so default installs keep the original error copy", () => {
+    expect(customEndpointHost(getPreferenceDefault("geminiApiBaseUrl"))).toBeUndefined();
+  });
+
+  it("returns host and port for a configured endpoint", () => {
+    expect(customEndpointHost("https://gw.corp:8443/gemini/v1beta/models")).toBe("gw.corp:8443");
+  });
+
+  it("never carries the path or userinfo into user-visible error copy", () => {
+    expect(customEndpointHost("https://user:pass@gw.corp/k/SECRET123/v1beta/models")).toBe("gw.corp");
+  });
+
+  it("treats a loopback endpoint as custom", () => {
+    expect(customEndpointHost("http://localhost:4000/v1beta/models")).toBe("localhost:4000");
   });
 });
 

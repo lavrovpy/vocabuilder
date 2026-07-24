@@ -14,8 +14,10 @@ import { getPreferenceDefault } from "./manifest";
  */
 
 // `new URL("http://[::1]:4000").hostname` keeps the brackets — matching without
-// them silently rejects IPv6 loopback.
-const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+// them silently rejects IPv6 loopback. `0.0.0.0` is the bind address local
+// proxies are usually started with, and users type back what they bound; as a
+// destination the kernel routes it to this host, so the request stays local.
+const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]", "0.0.0.0"]);
 
 function normalize(raw: string): string {
   return raw.trim().replace(/\/+$/, "");
@@ -45,7 +47,27 @@ export function resolveBaseUrl(raw: string | undefined, surface: GeminiErrorSurf
     throw geminiError({ domain: "infrastructure", kind: "invalid-base-url", surface });
   }
 
+  // A query string or fragment swallows the appended `/{model}:generateContent`,
+  // silently POSTing to the base path instead. `?key=…` is the shape Google's
+  // own older snippets use, so it is a likely paste — and it puts a secret in a URL.
+  // Tested on the raw string, not `url.search`/`url.hash`: a trailing `?` parses
+  // to an empty search yet still truncates the path at concatenation time.
+  if (candidate.includes("?") || candidate.includes("#")) {
+    throw geminiError({ domain: "infrastructure", kind: "invalid-base-url", surface });
+  }
+
   return candidate;
+}
+
+/**
+ * Host to name when a request to a user-configured endpoint fails ambiguously.
+ * `undefined` for the manifest default, which keeps the error copy unchanged
+ * for installs that never touched the preference. Built from `hostForLog`, so
+ * no path or userinfo can reach user-visible text.
+ */
+export function customEndpointHost(resolvedBaseUrl: string): string | undefined {
+  if (resolvedBaseUrl === normalize(getPreferenceDefault("geminiApiBaseUrl"))) return undefined;
+  return hostForLog(resolvedBaseUrl);
 }
 
 /**
