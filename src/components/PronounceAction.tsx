@@ -29,8 +29,8 @@ export default function PronounceAction({ word, languageCode, title, shortcut }:
     abortRef.current = controller;
 
     const toast = await showToast({ style: Toast.Style.Animated, title: "Playing pronunciation…" });
-    const { geminiApiKey, ttsModelPreset, ttsModel } = getPreferenceValues<Preferences>();
-    const model = ttsModel?.trim() || ttsModelPreset || getPreferenceDefault("ttsModelPreset");
+    const { geminiApiKey, ttsModel } = getPreferenceValues<Preferences>();
+    const model = ttsModel.trim() || getPreferenceDefault("ttsModel");
 
     const outcome = await runPronounceWithFallback({
       signal: controller.signal,

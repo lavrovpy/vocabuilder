@@ -7,9 +7,8 @@ describe("getPreferenceDefault", () => {
     // than hardcoding strings — the whole point of this helper is to NOT
     // duplicate the manifest. We assert that we got *some* non-empty string;
     // exact preference values live in the manifest.
-    expect(getPreferenceDefault("translationModelPreset")).toMatch(/\S/);
-    expect(getPreferenceDefault("reasoningLevel")).toMatch(/\S/);
-    expect(getPreferenceDefault("ttsModelPreset")).toMatch(/\S/);
+    expect(getPreferenceDefault("translationModel")).toMatch(/\S/);
+    expect(getPreferenceDefault("ttsModel")).toMatch(/\S/);
   });
 
   it("throws when the preference is not declared", () => {
