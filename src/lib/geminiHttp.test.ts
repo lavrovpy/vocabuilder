@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 
+import { resolveBaseUrl } from "./baseUrl";
 import { throwForHttpError } from "./geminiHttp";
 import { getPreferenceDefault } from "./manifest";
 
 const makeResponse = (status: number, body = ""): Response =>
   new Response(body, { status, statusText: `status-${status}` });
 
-const DEFAULT_BASE_URL = getPreferenceDefault("geminiApiBaseUrl");
+const DEFAULT_BASE_URL = resolveBaseUrl(getPreferenceDefault("geminiApiBaseUrl"), "translate");
 
 describe("throwForHttpError", () => {
   it("returns silently on 2xx", async () => {

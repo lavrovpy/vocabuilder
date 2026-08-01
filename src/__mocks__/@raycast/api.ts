@@ -18,7 +18,7 @@ export const LocalStorage = {
 
 export const getPreferenceValues = vi.fn(() => ({
   geminiApiKey: "test-api-key",
-  geminiApiBaseUrl: "https://generativelanguage.googleapis.com/v1beta/models",
+  geminiApiBaseUrl: "https://generativelanguage.googleapis.com",
   sourceLanguage: "en",
   targetLanguage: "uk",
   translationModel: "gemini-3.5-flash",

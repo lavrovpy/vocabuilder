@@ -2,11 +2,12 @@ import { geminiError, type GeminiErrorSurface } from "./geminiError";
 import { getPreferenceDefault } from "./manifest";
 
 /**
- * Resolution and validation for the user-configurable Gemini API base URL.
+ * Resolution and validation for the user-configurable Gemini API server URL.
  *
- * The preference holds everything up to the model segment — including the API
- * version and the `models` collection — so a proxy can be mounted at any path
- * and the caller only appends `/{model}:generateContent`.
+ * The documented form is a server or gateway root. For compatibility with
+ * other Gemini clients, versioned roots and complete models-collection URLs
+ * are accepted too. Every form resolves to one canonical models URL so request
+ * construction, logs, errors, and the TTS cache all agree on endpoint identity.
  *
  * The endpoint is user-controlled but the API key is not: it travels to
  * whatever host is configured. Plaintext `http` is therefore accepted only for
@@ -18,6 +19,8 @@ import { getPreferenceDefault } from "./manifest";
 // proxies are usually started with, and users type back what they bound; as a
 // destination the kernel routes it to this host, so the request stays local.
 const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]", "0.0.0.0"]);
+const VERSIONED_MODELS_PATH = /\/(?:v1|v1beta)\/models$/u;
+const VERSIONED_API_PATH = /\/(?:v1|v1beta)$/u;
 
 function normalize(raw: string): string {
   return raw.trim().replace(/\/+$/, "");
@@ -28,10 +31,18 @@ function isAllowedOrigin(url: URL): boolean {
   return url.protocol === "http:" && LOOPBACK_HOSTNAMES.has(url.hostname);
 }
 
+function toModelsBaseUrl(candidate: string, url: URL): string {
+  if (VERSIONED_MODELS_PATH.test(url.pathname)) return candidate;
+  if (VERSIONED_API_PATH.test(url.pathname)) return `${candidate}/models`;
+  return `${candidate}/v1beta/models`;
+}
+
 /**
- * Normalize and validate the configured base URL, falling back to the manifest
- * default when the preference is empty. Throws `invalid-base-url` rather than
- * returning a sentinel so a misconfigured endpoint can never reach `fetch`.
+ * Normalize and validate the configured server URL, falling back to the
+ * manifest default when the preference is empty. Returns the complete models
+ * collection prefix expected by the raw REST transports. Throws
+ * `invalid-base-url` rather than returning a sentinel so a misconfigured
+ * endpoint can never reach `fetch`.
  */
 export function resolveBaseUrl(raw: string | undefined, surface: GeminiErrorSurface): string {
   const candidate = normalize(raw ?? "") || normalize(getPreferenceDefault("geminiApiBaseUrl"));
@@ -47,16 +58,15 @@ export function resolveBaseUrl(raw: string | undefined, surface: GeminiErrorSurf
     throw geminiError({ domain: "infrastructure", kind: "invalid-base-url", surface });
   }
 
-  // A query string or fragment swallows the appended `/{model}:generateContent`,
-  // silently POSTing to the base path instead. `?key=…` is the shape Google's
-  // own older snippets use, so it is a likely paste — and it puts a secret in a URL.
-  // Tested on the raw string, not `url.search`/`url.hash`: a trailing `?` parses
-  // to an empty search yet still truncates the path at concatenation time.
+  // A query string or fragment makes appending the Gemini resource path unsafe.
+  // `?key=…` is the shape Google's older snippets use, so it is a likely paste —
+  // and it puts a secret in a URL. Tested on the raw string because a trailing
+  // `?` parses to an empty search but still changes string concatenation.
   if (candidate.includes("?") || candidate.includes("#")) {
     throw geminiError({ domain: "infrastructure", kind: "invalid-base-url", surface });
   }
 
-  return candidate;
+  return toModelsBaseUrl(candidate, url);
 }
 
 /**
@@ -66,7 +76,8 @@ export function resolveBaseUrl(raw: string | undefined, surface: GeminiErrorSurf
  * no path or userinfo can reach user-visible text.
  */
 export function customEndpointHost(resolvedBaseUrl: string): string | undefined {
-  if (resolvedBaseUrl === normalize(getPreferenceDefault("geminiApiBaseUrl"))) return undefined;
+  const defaultBaseUrl = resolveBaseUrl(getPreferenceDefault("geminiApiBaseUrl"), "translate");
+  if (resolvedBaseUrl === defaultBaseUrl) return undefined;
   return hostForLog(resolvedBaseUrl);
 }
 

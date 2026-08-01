@@ -29,15 +29,16 @@ export function defaultToastFor(cause: GeminiErrorCause): ToastSpec {
       // base URL wrong — so name both preferences rather than sending the user
       // to cycle through models that were never the problem.
       const message = cause.endpointHost
-        ? `Model "${model}" was not found at ${cause.endpointHost}. Check "${prefName}" and "API Base URL" in extension preferences.`
+        ? `Model "${model}" or its endpoint was not found at ${cause.endpointHost}. Check "${prefName}" and "Gemini API Server URL" in extension preferences.`
         : `Model "${model}" is unavailable. Update "${prefName}" in extension preferences.`;
-      return { title: `${verb} model not found`, message };
+      const title = cause.endpointHost ? `${verb} model or endpoint not found` : `${verb} model not found`;
+      return { title, message };
     }
 
     case "invalid-base-url":
       return {
         title: "Invalid API URL",
-        message: 'Check "API Base URL" in extension preferences. Use https, or http only for localhost.',
+        message: 'Check "Gemini API Server URL" in extension preferences. Use https, or http only for localhost.',
       };
 
     case "request-failed": {

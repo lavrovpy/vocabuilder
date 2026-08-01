@@ -353,7 +353,14 @@ describe("pronounce", () => {
     const firstPath = vi.mocked(writeFileSync).mock.calls[0][0];
     vi.mocked(existsSync).mockImplementation((p) => p === firstPath);
 
-    const result = await pronounce("hello", API_KEY, "en", undefined, TEST_MODEL, `  ${TEST_BASE_URL}//  `);
+    const result = await pronounce(
+      "hello",
+      API_KEY,
+      "en",
+      undefined,
+      TEST_MODEL,
+      "  https://generativelanguage.googleapis.com//  ",
+    );
 
     expect(result.cached).toBe(true);
     expect(fetch).toHaveBeenCalledOnce();

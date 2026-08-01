@@ -24,7 +24,7 @@ describe("defaultToastFor", () => {
   it("invalid-base-url names the preference to fix and never echoes the URL", () => {
     const spec = infra({ kind: "invalid-base-url", surface: "translate" });
 
-    expect(spec.message).toContain("API Base URL");
+    expect(spec.message).toContain("Gemini API Server URL");
     expect(spec.message).toMatch(/localhost/i);
     expect(spec.message).not.toMatch(/https?:\/\//);
   });
@@ -45,17 +45,20 @@ describe("defaultToastFor", () => {
     const t = infra({ kind: "model-not-found", surface: "translate", model: "X", endpointHost: "gw.corp:8443" });
     const tts = infra({ kind: "model-not-found", surface: "tts", model: "X", endpointHost: "gw.corp:8443" });
 
-    expect(t.message).toContain("API Base URL");
+    expect(t.title).toMatch(/model or endpoint/i);
+    expect(t.message).toMatch(/model .* or its endpoint/i);
+    expect(t.message).toContain("Gemini API Server URL");
     expect(t.message).toContain("Translation Model");
     expect(t.message).toContain("gw.corp:8443");
-    expect(tts.message).toContain("API Base URL");
+    expect(tts.message).toContain("Gemini API Server URL");
     expect(tts.message).toContain("Text-to-Speech Model");
   });
 
   it("model-not-found keeps the single-preference copy on the default endpoint", () => {
     const t = infra({ kind: "model-not-found", surface: "translate", model: "X" });
 
-    expect(t.message).not.toContain("API Base URL");
+    expect(t.title).not.toMatch(/endpoint/i);
+    expect(t.message).not.toContain("Gemini API Server URL");
   });
 
   it("model-not-found falls back when model is missing", () => {

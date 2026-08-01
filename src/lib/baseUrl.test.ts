@@ -17,14 +17,18 @@ function expectRejected(raw: string | undefined) {
 }
 
 describe("resolveBaseUrl", () => {
-  it("returns an https URL unchanged", () => {
-    expect(resolveBaseUrl("https://gw.corp/gemini/v1beta/models", "translate")).toBe(
-      "https://gw.corp/gemini/v1beta/models",
-    );
+  it.each([
+    ["https://gw.corp/gemini", "https://gw.corp/gemini/v1beta/models"],
+    ["https://gw.corp/gemini/v1beta", "https://gw.corp/gemini/v1beta/models"],
+    ["https://gw.corp/gemini/v1", "https://gw.corp/gemini/v1/models"],
+    ["https://gw.corp/gemini/v1beta/models", "https://gw.corp/gemini/v1beta/models"],
+    ["https://gw.corp/gemini/v1/models", "https://gw.corp/gemini/v1/models"],
+  ])("normalizes %s to the models collection %s", (input, expected) => {
+    expect(resolveBaseUrl(input, "translate")).toBe(expected);
   });
 
   it("trims surrounding whitespace from a pasted value", () => {
-    expect(resolveBaseUrl("  https://gw.corp/v1beta/models  ", "translate")).toBe("https://gw.corp/v1beta/models");
+    expect(resolveBaseUrl("  https://gw.corp  ", "translate")).toBe("https://gw.corp/v1beta/models");
   });
 
   it("strips trailing slashes so the appended model segment cannot double up", () => {
@@ -33,26 +37,23 @@ describe("resolveBaseUrl", () => {
 
   it("falls back to the manifest default when the preference is empty or blank", () => {
     const fallback = getPreferenceDefault("geminiApiBaseUrl");
-    expect(resolveBaseUrl("", "translate")).toBe(fallback);
-    expect(resolveBaseUrl("   ", "translate")).toBe(fallback);
-    expect(resolveBaseUrl(undefined, "translate")).toBe(fallback);
-  });
-
-  it("accepts the manifest default itself", () => {
-    const fallback = getPreferenceDefault("geminiApiBaseUrl");
-    expect(resolveBaseUrl(fallback, "translate")).toBe(fallback);
+    const resolvedFallback = resolveBaseUrl(fallback, "translate");
+    expect(resolvedFallback).toMatch(/\/v1beta\/models$/u);
+    expect(resolveBaseUrl("", "translate")).toBe(resolvedFallback);
+    expect(resolveBaseUrl("   ", "translate")).toBe(resolvedFallback);
+    expect(resolveBaseUrl(undefined, "translate")).toBe(resolvedFallback);
   });
 
   describe("plaintext http is limited to true loopback", () => {
     it.each([
-      "http://localhost:4000/v1beta/models",
-      "http://127.0.0.1:8080/v1beta/models",
-      "http://[::1]/v1beta/models",
+      "http://localhost:4000",
+      "http://127.0.0.1:8080",
+      "http://[::1]",
       // The bind address a local proxy is usually started with; as a destination
       // the kernel keeps it on this host.
-      "http://0.0.0.0:4000/v1beta/models",
+      "http://0.0.0.0:4000",
     ])("accepts %s", (url) => {
-      expect(resolveBaseUrl(url, "translate")).toBe(url);
+      expect(resolveBaseUrl(url, "translate")).toBe(`${url}/v1beta/models`);
     });
 
     it("rejects http to a routable host, which would send the API key in cleartext", () => {
@@ -102,14 +103,15 @@ describe("resolveBaseUrl", () => {
   });
 
   it("permits https with userinfo so basic-auth proxies stay usable", () => {
-    const url = "https://user:pass@gw.corp/v1beta/models";
-    expect(resolveBaseUrl(url, "translate")).toBe(url);
+    const url = "https://user:pass@gw.corp";
+    expect(resolveBaseUrl(url, "translate")).toBe(`${url}/v1beta/models`);
   });
 });
 
 describe("customEndpointHost", () => {
   it("returns nothing for the manifest default so default installs keep the original error copy", () => {
-    expect(customEndpointHost(getPreferenceDefault("geminiApiBaseUrl"))).toBeUndefined();
+    const resolvedDefault = resolveBaseUrl(getPreferenceDefault("geminiApiBaseUrl"), "translate");
+    expect(customEndpointHost(resolvedDefault)).toBeUndefined();
   });
 
   it("returns host and port for a configured endpoint", () => {

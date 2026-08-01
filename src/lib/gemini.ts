@@ -314,7 +314,7 @@ if (import.meta.vitest) {
 
     it("sends the request to a custom base URL", async () => {
       await callGemini("hi", "key", undefined, {
-        baseUrl: "http://localhost:4000/v1beta/models",
+        baseUrl: "http://localhost:4000",
         model: "gemini-3.5-flash",
       });
       const [url] = fetchMock.mock.calls[0];
