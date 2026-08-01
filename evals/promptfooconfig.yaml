@@ -1,15 +1,12 @@
 description: Vocabuilder production-path multilingual translation evaluations
 
 env:
-  # Shared by the production-path provider and Promptfoo's Google judge. Both
-  # append the native Gemini /v1beta/models/{model}:generateContent route.
-  GOOGLE_API_BASE_URL: http://127.0.0.1:8317
   PROMPTFOO_PASS_RATE_THRESHOLD: 75
   PROMPTFOO_REQUEST_BACKOFF_MS: 10000
 
 # Each row makes one production translation call, one deterministic contract
-# assertion, and one semantic judge call through CLIProxyAPI. The Pro judge is
-# intentionally distinct from the default Flash translation model.
+# assertion, and one semantic judge call. Their credentials, endpoints, and
+# model/provider selections are independent role-based environment variables.
 commandLineOptions:
   maxConcurrency: 4
   share: false
@@ -19,9 +16,8 @@ prompts:
 
 providers:
   - id: file://promptfoo/provider.ts
-    label: vocabuilder-production
+    label: "vocabuilder-production:{{env.EVAL_TRANSLATION_MODEL}}"
     config:
-      model: gemini-3.5-flash-extra-low
       temperature: 0
 
 defaultTest:
@@ -35,11 +31,10 @@ defaultTest:
     - type: llm-rubric
       metric: translation_quality
       provider:
-        id: google:gemini-3.1-pro-low
+        id: "{{env.EVAL_JUDGE_PROVIDER_ID}}"
         config:
-          apiVersion: v1beta
+          apiBaseUrl: "{{env.EVAL_JUDGE_API_BASE_URL}}"
           temperature: 0
-          maxOutputTokens: 2048
           retries: 3
           timeout: 60000
       value: |

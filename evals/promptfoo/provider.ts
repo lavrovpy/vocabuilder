@@ -18,13 +18,19 @@ export function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown, prefix: str
 }
 
 export const ProviderConfigSchema = z.object({
-  model: z.string().trim().min(1),
   temperature: z.number(),
 });
 
 export const EvalEnvironmentSchema = z.object({
-  GEMINI_API_KEY: z.string().trim().min(1),
-  GOOGLE_API_BASE_URL: z.string().trim().url(),
+  EVAL_TRANSLATION_API_KEY: z.string().trim().min(1),
+  EVAL_TRANSLATION_API_BASE_URL: z.string().trim().url(),
+  EVAL_TRANSLATION_MODEL: z.string().trim().min(1),
+  EVAL_JUDGE_API_KEY: z.string().trim().min(1),
+  EVAL_JUDGE_API_BASE_URL: z.string().trim().url(),
+  EVAL_JUDGE_PROVIDER_ID: z
+    .string()
+    .trim()
+    .regex(/^[^\s:]+(?::[^\s:]+)+$/),
 });
 
 export function parseEvalEnvironment(env: NodeJS.ProcessEnv) {
@@ -32,7 +38,7 @@ export function parseEvalEnvironment(env: NodeJS.ProcessEnv) {
     EvalEnvironmentSchema,
     env,
     "Invalid eval environment",
-    "set GEMINI_API_KEY in .env and keep env.GOOGLE_API_BASE_URL in promptfooconfig.yaml.",
+    "set all EVAL_TRANSLATION_* and EVAL_JUDGE_* variables listed in .env.example.",
   );
 }
 
@@ -106,24 +112,22 @@ export function describeFailure(err: unknown): string {
 }
 
 export default class VocabuilderTranslateWordProvider implements ApiProvider {
-  private model: string;
   private temperature: number;
-  private environment: NodeJS.ProcessEnv;
+  private environment: z.infer<typeof EvalEnvironmentSchema>;
 
   constructor(options: ProviderOptions = {}) {
     const config = parseOrThrow(
       ProviderConfigSchema,
       options.config ?? {},
       "Invalid provider config",
-      "promptfooconfig.yaml must set provider config.model and config.temperature.",
+      "promptfooconfig.yaml must set provider config.temperature.",
     );
-    this.model = config.model;
     this.temperature = config.temperature;
-    this.environment = { ...process.env, ...options.env };
+    this.environment = parseEvalEnvironment({ ...process.env, ...options.env });
   }
 
   id(): string {
-    return "vocabuilder-production";
+    return `vocabuilder-production:${this.environment.EVAL_TRANSLATION_MODEL}`;
   }
 
   async callApi(prompt: string, context?: CallApiContextParams): Promise<ProviderResponse> {
@@ -134,17 +138,11 @@ export default class VocabuilderTranslateWordProvider implements ApiProvider {
       "every test case in promptfooconfig.yaml must declare its language pair.",
     );
     const input = inputVar ?? prompt.trim();
-    let environment: z.infer<typeof EvalEnvironmentSchema>;
-    try {
-      environment = parseEvalEnvironment(this.environment);
-    } catch (err) {
-      return { error: err instanceof Error ? err.message : String(err) };
-    }
 
     try {
-      const response = await translateWord(input, environment.GEMINI_API_KEY, pair, undefined, {
-        model: this.model,
-        baseUrl: environment.GOOGLE_API_BASE_URL,
+      const response = await translateWord(input, this.environment.EVAL_TRANSLATION_API_KEY, pair, undefined, {
+        model: this.environment.EVAL_TRANSLATION_MODEL,
+        baseUrl: this.environment.EVAL_TRANSLATION_API_BASE_URL,
         temperature: this.temperature,
       });
       return { output: JSON.stringify(projectSuccess(input, pair, response), null, 2) };

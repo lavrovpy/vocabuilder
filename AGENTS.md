@@ -109,11 +109,12 @@ A Promptfoo-driven end-to-end harness over the production `translateWord` path. 
 
 ## Layout
 
-- `evals/promptfooconfig.yaml` — suite settings plus deterministic and model-graded assertions; both `gemini-3.5-flash-extra-low` candidate and `google:gemini-3.1-pro-low` judge calls use the shared CLIProxyAPI URL
+- `evals/promptfooconfig.yaml` — suite settings plus deterministic and model-graded assertions; candidate and judge credentials, endpoints, and model/provider selections come from independent `EVAL_TRANSLATION_*` and `EVAL_JUDGE_*` variables
 - `evals/promptfoo/cases.cjs` — generated 96-case risk-based dataset plus an optional 272-case common-word matrix covering every directed language pair
 - `evals/promptfoo/assert-output.cjs` — deterministic application-contract assertion for projections, corrections, rejections, sense uniqueness, exact source-form examples, and known-wrong translations
 - `evals/promptfoo/judge-prompt.txt` — isolated, injection-resistant judge wrapper
 - `evals/promptfoo/provider.ts` — custom Promptfoo provider that calls production `translateWord`
+- `evals/promptfoo/run.ts` — Promptfoo launcher that maps the generic judge credential to the selected key-based provider's native environment variable without placing secrets in serialized provider config
 - `evals/promptfoo/transform-vars.cjs` — `JSON.stringify` of each case's `expect` block, surfaced to the rubric template as `{{expectJson}}`
 - `evals/promptfoo/report.ts` — Markdown summaries grouped by language pair, category, difficulty, and tier
 - `evals/promptfoo/provider.test.ts` — Vitest coverage for the Zod schemas, the `parseOrThrow` helper, and the provider constructor
@@ -136,8 +137,9 @@ A Promptfoo-driven end-to-end harness over the production `translateWord` path. 
 
 **Suite configuration**
 
-- **Suite-wide settings live in `evals/promptfooconfig.yaml`, not in `package.json` scripts or `.env`.** The shared CLIProxyAPI endpoint (`GOOGLE_API_BASE_URL`) and Promptfoo `PROMPTFOO_*` env vars belong in the top-level `env:` block; CLI-flag defaults belong under `commandLineOptions:` (`maxConcurrency`, `delay`, `share: false`). `.env` holds only the uncommitted `GEMINI_API_KEY` client credential. One source of truth so CI, the IDE plugin, and ad-hoc `promptfoo eval -c …` runs all behave the same.
-- **Precedence: CLI flags > YAML `env:` block > `process.env` (loaded from `.env`) > built-in defaults.** A CLI flag like `--max-concurrency 4` overrides the YAML for one-off tuning, but a `.env` value cannot override anything pinned in the YAML `env:` block — to change a pinned var, edit the YAML. `.env` only takes effect for `PROMPTFOO_*` vars *not* set in the YAML.
+- **Keep role configuration explicit and independent.** `.env` must define `EVAL_TRANSLATION_API_KEY`, `EVAL_TRANSLATION_API_BASE_URL`, and `EVAL_TRANSLATION_MODEL` for the production-path candidate plus `EVAL_JUDGE_API_KEY`, `EVAL_JUDGE_API_BASE_URL`, and the atomic Promptfoo `EVAL_JUDGE_PROVIDER_ID` for the semantic judge. The roles may point to the same proxy, but neither may fall back to the other's values or to extension preferences.
+- **Keep judge credentials out of Promptfoo config.** `evals/promptfoo/run.ts` maps the generic judge key to the native variable for supported key-based `google`, `openai`, and `anthropic` provider prefixes. Add a deliberate mapping when supporting another key-based provider; never interpolate `EVAL_JUDGE_API_KEY` into YAML because raw Promptfoo JSON can retain assertion-provider config.
+- **Suite-wide policy lives in `evals/promptfooconfig.yaml`.** Promptfoo `PROMPTFOO_*` variables belong in the top-level `env:` block; CLI-flag defaults belong under `commandLineOptions:` (`maxConcurrency`, `delay`, `share: false`). Provider selection, models, endpoints, and credentials are run-specific environment configuration documented in `.env.example` so local and CI comparisons can vary without editing the suite.
 - **Pass-rate threshold sits at 75%** as a permissive compatibility gate while model-graded and provider-service variance is uncalibrated. It is not sufficient release evidence: review every zero-pass pair and every reported subgroup below 75%. The built-in Promptfoo default is `100`, so removing the YAML entry silently changes project policy. Tighten it using repeated-run and human-calibration data once the judge layer is reliable.
 - **Do not write tests that assert literal strings appear in config files** (`package.json`, YAML, etc.). They have no oracle: editing the config means editing the test, no bug ever caught. Promptfoo's loader catches broken file references when the eval actually runs.
 

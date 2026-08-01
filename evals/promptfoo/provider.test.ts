@@ -76,22 +76,44 @@ describe("parseOrThrow", () => {
 });
 
 describe("parseEvalEnvironment", () => {
-  it("uses the configured client key and shared Gemini base URL", () => {
+  const completeEnvironment = {
+    EVAL_TRANSLATION_API_KEY: "translation-key",
+    EVAL_TRANSLATION_API_BASE_URL: "http://127.0.0.1:8317",
+    EVAL_TRANSLATION_MODEL: "gemini-3.5-flash-extra-low",
+    EVAL_JUDGE_API_KEY: "judge-key",
+    EVAL_JUDGE_API_BASE_URL: "https://api.openai.com",
+    EVAL_JUDGE_PROVIDER_ID: "openai:responses:gpt-5",
+  };
+
+  it("keeps translation and judge configuration independent", () => {
     expect(
       parseEvalEnvironment({
-        GEMINI_API_KEY: " google-api-key ",
-        GOOGLE_API_BASE_URL: " https://generativelanguage.googleapis.com ",
+        EVAL_TRANSLATION_API_KEY: " translation-key ",
+        EVAL_TRANSLATION_API_BASE_URL: " http://127.0.0.1:8317 ",
+        EVAL_TRANSLATION_MODEL: " gemini-3.5-flash-extra-low ",
+        EVAL_JUDGE_API_KEY: " judge-key ",
+        EVAL_JUDGE_API_BASE_URL: " https://api.openai.com ",
+        EVAL_JUDGE_PROVIDER_ID: " openai:responses:gpt-5 ",
       }),
-    ).toEqual({
-      GEMINI_API_KEY: "google-api-key",
-      GOOGLE_API_BASE_URL: "https://generativelanguage.googleapis.com",
-    });
+    ).toEqual(completeEnvironment);
   });
 
-  it("fails loudly instead of routing eval traffic to the manifest default", () => {
-    expect(() => parseEvalEnvironment({ GEMINI_API_KEY: "proxy-client-key" })).toThrow(
-      /GOOGLE_API_BASE_URL.*promptfooconfig\.yaml/,
+  it("fails loudly instead of falling back to app preferences or provider defaults", () => {
+    expect(() =>
+      parseEvalEnvironment({
+        ...completeEnvironment,
+        EVAL_TRANSLATION_MODEL: undefined,
+        EVAL_JUDGE_PROVIDER_ID: undefined,
+      }),
+    ).toThrow(
+      /EVAL_TRANSLATION_MODEL, EVAL_JUDGE_PROVIDER_ID.*\.env\.example/,
     );
+  });
+
+  it("requires the judge provider ID to include its model", () => {
+    expect(() =>
+      parseEvalEnvironment({ ...completeEnvironment, EVAL_JUDGE_PROVIDER_ID: "google" }),
+    ).toThrow(/EVAL_JUDGE_PROVIDER_ID/);
   });
 });
 
@@ -182,28 +204,33 @@ describe("describeFailure", () => {
 });
 
 describe("VocabuilderTranslateWordProvider constructor", () => {
-  // Promptfoo silently defaulting either field would mask config bugs and let
-  // the actual candidate diverge from the documented eval setup. Fail loud.
+  const environment = {
+    EVAL_TRANSLATION_API_KEY: "translation-key",
+    EVAL_TRANSLATION_API_BASE_URL: "http://127.0.0.1:8317",
+    EVAL_TRANSLATION_MODEL: "gemini-3.5-flash-extra-low",
+    EVAL_JUDGE_API_KEY: "judge-key",
+    EVAL_JUDGE_API_BASE_URL: "http://127.0.0.1:8317",
+    EVAL_JUDGE_PROVIDER_ID: "google:gemini-3.1-pro-low",
+  };
+
+  // Promptfoo silently defaulting the temperature or any role configuration
+  // would mask config bugs and make the evaluated models ambiguous. Fail loud.
   it("throws when promptfoo passes no config", () => {
     expect(() => new VocabuilderTranslateWordProvider()).toThrow(/temperature/);
   });
 
   it("throws when promptfoo passes a config without temperature", () => {
-    expect(() => new VocabuilderTranslateWordProvider({ config: { model: "gemini-3.5-flash-extra-low" } })).toThrow(
-      /temperature/,
-    );
+    expect(() => new VocabuilderTranslateWordProvider({ config: {}, env: environment })).toThrow(/temperature/);
   });
 
-  it("throws when promptfoo passes a config without a model", () => {
-    expect(() => new VocabuilderTranslateWordProvider({ config: { temperature: 0 } })).toThrow(/model/);
-  });
-
-  it("accepts a valid config", () => {
+  it("throws when the role-based eval environment is incomplete", () => {
     expect(
-      () =>
-        new VocabuilderTranslateWordProvider({
-          config: { model: "gemini-3.5-flash-extra-low", temperature: 0 },
-        }),
-    ).not.toThrow();
+      () => new VocabuilderTranslateWordProvider({ config: { temperature: 0 }, env: {} }),
+    ).toThrow(/EVAL_TRANSLATION_API_KEY/);
+  });
+
+  it("accepts complete role-based configuration and identifies the candidate model", () => {
+    const provider = new VocabuilderTranslateWordProvider({ config: { temperature: 0 }, env: environment });
+    expect(provider.id()).toBe("vocabuilder-production:gemini-3.5-flash-extra-low");
   });
 });
