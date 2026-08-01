@@ -328,6 +328,18 @@ if (import.meta.vitest) {
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
+    it("rejects URL-embedded credentials before issuing a request", async () => {
+      await expect(
+        callGemini("hi", "key", undefined, {
+          baseUrl: "https://user:pass@gw.corp",
+          model: "gemini-3.5-flash",
+        }),
+      ).rejects.toMatchObject({
+        cause: { domain: "infrastructure", kind: "invalid-base-url", surface: "translate" },
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
     // Pins the base URL threading through fetchGeminiOnce: passing the full
     // request URL instead would name a host built from the model segment.
     it("names the endpoint host when a custom base URL returns 404", async () => {

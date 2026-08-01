@@ -26,6 +26,7 @@ describe("defaultToastFor", () => {
 
     expect(spec.message).toContain("Gemini API Server URL");
     expect(spec.message).toMatch(/localhost/i);
+    expect(spec.message).toMatch(/credentials/i);
     expect(spec.message).not.toMatch(/https?:\/\//);
   });
 

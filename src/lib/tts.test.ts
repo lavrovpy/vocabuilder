@@ -366,13 +366,17 @@ describe("pronounce", () => {
     expect(fetch).toHaveBeenCalledOnce();
   });
 
-  it("rejects an unusable base URL even when cached audio exists", async () => {
-    vi.mocked(existsSync).mockReturnValue(true);
+  it.each(["http://gw.corp/v1beta/models", "https://user:pass@gw.corp"])(
+    "rejects an unusable base URL even when cached audio exists: %s",
+    async (baseUrl) => {
+      vi.mocked(existsSync).mockReturnValue(true);
 
-    await expect(
-      pronounce("hello", API_KEY, "en", undefined, TEST_MODEL, "http://gw.corp/v1beta/models"),
-    ).rejects.toThrow("invalid-base-url");
-  });
+      await expect(pronounce("hello", API_KEY, "en", undefined, TEST_MODEL, baseUrl)).rejects.toMatchObject({
+        cause: { domain: "infrastructure", kind: "invalid-base-url", surface: "tts" },
+      });
+      expect(fetch).not.toHaveBeenCalled();
+    },
+  );
 
   it("names the endpoint host when a custom base URL returns 404", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("Not Found", { status: 404 }));

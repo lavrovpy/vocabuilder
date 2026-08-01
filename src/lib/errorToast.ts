@@ -38,7 +38,8 @@ export function defaultToastFor(cause: GeminiErrorCause): ToastSpec {
     case "invalid-base-url":
       return {
         title: "Invalid API URL",
-        message: 'Check "Gemini API Server URL" in extension preferences. Use https, or http only for localhost.',
+        message:
+          'Check "Gemini API Server URL" in extension preferences. Use https, or http only for localhost, without embedded credentials.',
       };
 
     case "request-failed": {

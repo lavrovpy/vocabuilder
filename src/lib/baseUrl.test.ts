@@ -102,9 +102,15 @@ describe("resolveBaseUrl", () => {
     }
   });
 
-  it("permits https with userinfo so basic-auth proxies stay usable", () => {
-    const url = "https://user:pass@gw.corp";
-    expect(resolveBaseUrl(url, "translate")).toBe(`${url}/v1beta/models`);
+  it.each(["https://user@gw.corp", "https://user:pass@gw.corp"])(
+    "rejects URL-embedded credentials before they can reach fetch: %s",
+    (url) => {
+      expectRejected(url);
+    },
+  );
+
+  it("rejects an encoded password too", () => {
+    expectRejected("https://user:p%40ss@gw.corp");
   });
 });
 

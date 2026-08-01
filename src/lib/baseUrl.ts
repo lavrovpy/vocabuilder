@@ -58,6 +58,13 @@ export function resolveBaseUrl(raw: string | undefined, surface: GeminiErrorSurf
     throw geminiError({ domain: "infrastructure", kind: "invalid-base-url", surface });
   }
 
+  // Node's fetch rejects credential-bearing URLs before issuing a request.
+  // Reject them here so translation reports the configured URL honestly and
+  // TTS cannot misclassify the TypeError as an offline failure and fall back.
+  if (url.username || url.password) {
+    throw geminiError({ domain: "infrastructure", kind: "invalid-base-url", surface });
+  }
+
   // A query string or fragment makes appending the Gemini resource path unsafe.
   // `?key=…` is the shape Google's older snippets use, so it is a likely paste —
   // and it puts a secret in a URL. Tested on the raw string because a trailing
