@@ -7,7 +7,6 @@ import type {
 } from "promptfoo";
 import { translateWord } from "../../src/lib/gemini";
 import { isGeminiError, isOutcome } from "../../src/lib/geminiError";
-import { getPreferenceDefault } from "../../src/lib/manifest";
 import type { LanguagePair } from "../../src/lib/languages";
 import type { GeminiWordResponse } from "../../src/lib/types";
 
@@ -19,8 +18,23 @@ export function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown, prefix: str
 }
 
 export const ProviderConfigSchema = z.object({
+  model: z.string().trim().min(1),
   temperature: z.number(),
 });
+
+export const EvalEnvironmentSchema = z.object({
+  GEMINI_API_KEY: z.string().trim().min(1),
+  GOOGLE_API_BASE_URL: z.string().trim().url(),
+});
+
+export function parseEvalEnvironment(env: NodeJS.ProcessEnv) {
+  return parseOrThrow(
+    EvalEnvironmentSchema,
+    env,
+    "Invalid eval environment",
+    "set GEMINI_API_KEY in .env and keep env.GOOGLE_API_BASE_URL in promptfooconfig.yaml.",
+  );
+}
 
 export const EvalVarsSchema = z
   .object({
@@ -92,15 +106,20 @@ export function describeFailure(err: unknown): string {
 }
 
 export default class VocabuilderTranslateWordProvider implements ApiProvider {
+  private model: string;
   private temperature: number;
+  private environment: NodeJS.ProcessEnv;
 
   constructor(options: ProviderOptions = {}) {
-    this.temperature = parseOrThrow(
+    const config = parseOrThrow(
       ProviderConfigSchema,
       options.config ?? {},
       "Invalid provider config",
-      "promptfooconfig.yaml must set provider config.temperature.",
-    ).temperature;
+      "promptfooconfig.yaml must set provider config.model and config.temperature.",
+    );
+    this.model = config.model;
+    this.temperature = config.temperature;
+    this.environment = { ...process.env, ...options.env };
   }
 
   id(): string {
@@ -115,16 +134,17 @@ export default class VocabuilderTranslateWordProvider implements ApiProvider {
       "every test case in promptfooconfig.yaml must declare its language pair.",
     );
     const input = inputVar ?? prompt.trim();
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    if (!apiKey) {
-      return { error: "GEMINI_API_KEY is not set" };
+    let environment: z.infer<typeof EvalEnvironmentSchema>;
+    try {
+      environment = parseEvalEnvironment(this.environment);
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : String(err) };
     }
 
     try {
-      const response = await translateWord(input, apiKey, pair, undefined, {
-        model: getPreferenceDefault("translationModel"),
-        baseUrl: getPreferenceDefault("geminiApiBaseUrl"),
+      const response = await translateWord(input, environment.GEMINI_API_KEY, pair, undefined, {
+        model: this.model,
+        baseUrl: environment.GOOGLE_API_BASE_URL,
         temperature: this.temperature,
       });
       return { output: JSON.stringify(projectSuccess(input, pair, response), null, 2) };

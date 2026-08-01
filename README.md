@@ -71,6 +71,8 @@ Built with the [Raycast API](https://developers.raycast.com), TypeScript + React
 
 The production `translateWord` path is evaluated with a 96-case risk-based Promptfoo suite plus an optional 272-case matrix covering every directed language pair. The standard suite covers all 17 supported languages, common vocabulary, ambiguity, idioms, phrasal verbs, lexical gaps, false friends, typo correction, and rejection behavior. Results include a Markdown breakdown by language pair, category, difficulty, and tier.
 
+Live evals route both the production translation call and the semantic judge through CLIProxyAPI at `http://127.0.0.1:8317` using its native Gemini-compatible API. Start CLIProxyAPI and put one of its configured client keys in `.env` as `GEMINI_API_KEY` before running them.
+
 ```bash
 npm run eval:validate # validate configuration without model calls
 npm run eval:smoke    # stable 12-case developer check

@@ -69,7 +69,7 @@ function checkOutput(rawOutput, context) {
 
     const sourceForm = expectedCorrection ?? vars.input;
     add(
-      senses.every((sense) => sense.exampleTranslation.includes(sourceForm)),
+      senses.every((sense) => normalized(sense.exampleTranslation).includes(normalized(sourceForm))),
       `Every source-language example must contain the exact source form ${sourceForm}.`,
     );
 
