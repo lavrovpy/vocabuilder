@@ -80,7 +80,12 @@ function extractRows(document: unknown): EvaluationRow[] {
   return rowsFromDocument(document).map((value, index) => {
     if (!isRecord(value)) throw new Error(`Promptfoo result row ${index + 1} is not an object.`);
     const testCase = recordAt(value, "testCase") ?? recordAt(value, "test") ?? {};
-    const error = typeof value.error === "string" ? value.error.length > 0 : value.error === true;
+    const response = recordAt(value, "response");
+    const responseError = response?.error;
+    const error =
+      responseError === true ||
+      (typeof responseError === "string" && responseError.length > 0) ||
+      (response === undefined && value.error === true);
     return {
       description:
         stringAt(value, "description") ?? stringAt(testCase, "description") ?? `Result ${index + 1}`,
@@ -226,9 +231,39 @@ if (import.meta.vitest) {
       expect(report).toContain("Literal translation.");
     });
 
+    it("classifies Promptfoo assertion reasons as failures rather than provider errors", () => {
+      const report = buildEvaluationReport({
+        results: {
+          results: [
+            {
+              success: false,
+              error: "Translation quality assertion failed.",
+              response: { output: '{"status":"ok"}' },
+              gradingResult: { reason: "Translation quality assertion failed." },
+            },
+            {
+              success: false,
+              error: "Proxy request failed.",
+              response: { error: "Proxy request failed." },
+            },
+          ],
+        },
+      });
+
+      expect(report).toContain("Overall: **0/2 passed (0.0%)**, 1 failed, 1 provider errors.");
+      expect(report).toContain("| failure | Translation quality assertion failed. |");
+      expect(report).toContain("| error | Proxy request failed. |");
+    });
+
     it("redacts likely API keys from failure reasons", () => {
       const report = buildEvaluationReport({
-        results: [{ success: false, error: "request failed for AIza1234567890abcdef" }],
+        results: [
+          {
+            success: false,
+            error: "request failed for AIza1234567890abcdef",
+            response: { error: "request failed for AIza1234567890abcdef" },
+          },
+        ],
       });
       expect(report).toContain("[REDACTED]");
       expect(report).not.toContain("AIza1234567890abcdef");

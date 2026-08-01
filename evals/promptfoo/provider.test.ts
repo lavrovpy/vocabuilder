@@ -3,6 +3,7 @@ import { z } from "zod";
 import VocabuilderTranslateWordProvider, {
   EvalVarsSchema,
   describeFailure,
+  parseEvalEnvironment,
   parseOrThrow,
   projectKnownErrorOrNull,
 } from "./provider";
@@ -70,6 +71,26 @@ describe("parseOrThrow", () => {
   it("throws with prefix, dotted field paths, and hint on failure", () => {
     expect(() => parseOrThrow(schema, { a: 1 }, "Bad input", "set a and b in the config.")).toThrow(
       /^Bad input \(a, b\) — set a and b in the config\.$/,
+    );
+  });
+});
+
+describe("parseEvalEnvironment", () => {
+  it("uses the configured client key and shared Gemini base URL", () => {
+    expect(
+      parseEvalEnvironment({
+        GEMINI_API_KEY: " google-api-key ",
+        GOOGLE_API_BASE_URL: " https://generativelanguage.googleapis.com ",
+      }),
+    ).toEqual({
+      GEMINI_API_KEY: "google-api-key",
+      GOOGLE_API_BASE_URL: "https://generativelanguage.googleapis.com",
+    });
+  });
+
+  it("fails loudly instead of routing eval traffic to the manifest default", () => {
+    expect(() => parseEvalEnvironment({ GEMINI_API_KEY: "proxy-client-key" })).toThrow(
+      /GOOGLE_API_BASE_URL.*promptfooconfig\.yaml/,
     );
   });
 });
@@ -161,17 +182,28 @@ describe("describeFailure", () => {
 });
 
 describe("VocabuilderTranslateWordProvider constructor", () => {
-  // Promptfoo silently treating a missing temperature as 0 would mask config bugs
-  // and let two YAMLs diverge from the documented eval setup. Fail loud at load.
+  // Promptfoo silently defaulting either field would mask config bugs and let
+  // the actual candidate diverge from the documented eval setup. Fail loud.
   it("throws when promptfoo passes no config", () => {
     expect(() => new VocabuilderTranslateWordProvider()).toThrow(/temperature/);
   });
 
   it("throws when promptfoo passes a config without temperature", () => {
-    expect(() => new VocabuilderTranslateWordProvider({ config: {} })).toThrow(/temperature/);
+    expect(() => new VocabuilderTranslateWordProvider({ config: { model: "gemini-3.5-flash-extra-low" } })).toThrow(
+      /temperature/,
+    );
+  });
+
+  it("throws when promptfoo passes a config without a model", () => {
+    expect(() => new VocabuilderTranslateWordProvider({ config: { temperature: 0 } })).toThrow(/model/);
   });
 
   it("accepts a valid config", () => {
-    expect(() => new VocabuilderTranslateWordProvider({ config: { temperature: 0 } })).not.toThrow();
+    expect(
+      () =>
+        new VocabuilderTranslateWordProvider({
+          config: { model: "gemini-3.5-flash-extra-low", temperature: 0 },
+        }),
+    ).not.toThrow();
   });
 });

@@ -109,7 +109,7 @@ A Promptfoo-driven end-to-end harness over the production `translateWord` path. 
 
 ## Layout
 
-- `evals/promptfooconfig.yaml` — suite settings plus deterministic and model-graded assertions; semantic quality is judged by `google:gemini-3.1-pro-preview`
+- `evals/promptfooconfig.yaml` — suite settings plus deterministic and model-graded assertions; both `gemini-3.5-flash-extra-low` candidate and `google:gemini-3.1-pro-low` judge calls use the shared CLIProxyAPI URL
 - `evals/promptfoo/cases.cjs` — generated 96-case risk-based dataset plus an optional 272-case common-word matrix covering every directed language pair
 - `evals/promptfoo/assert-output.cjs` — deterministic application-contract assertion for projections, corrections, rejections, sense uniqueness, exact source-form examples, and known-wrong translations
 - `evals/promptfoo/judge-prompt.txt` — isolated, injection-resistant judge wrapper
@@ -123,7 +123,7 @@ A Promptfoo-driven end-to-end harness over the production `translateWord` path. 
 **Schemas and types**
 
 - **Import Promptfoo's exported types, don't reinvent them.** `ApiProvider`, `ProviderOptions`, `ProviderResponse`, and `CallApiContextParams` are exported from `promptfoo`. Hand-rolled equivalents drift from the library's contract and silently lose updates.
-- **Validate every YAML-sourced input through a Zod schema.** Both provider config (`ProviderConfigSchema`) and per-case vars (`EvalVarsSchema`) go through the shared `parseOrThrow(schema, data, prefix, hint)` helper. Promptfoo types `ProviderOptions.config` as `any` by design — that's the boundary the schema is meant to fill. Do not paper over missing fields with `?? defaults`; fail loud at the boundary.
+- **Validate every YAML-sourced input through a Zod schema.** Provider config (`ProviderConfigSchema`), suite environment (`EvalEnvironmentSchema`), and per-case vars (`EvalVarsSchema`) go through the shared `parseOrThrow(schema, data, prefix, hint)` helper. Promptfoo types `ProviderOptions.config` as `any` by design — that's the boundary the schema is meant to fill. Do not paper over missing fields with `?? defaults`; fail loud at the boundary.
 - **Schemas first, types from schemas.** Declare the Zod schema, then derive TS types via `z.infer<>` when needed. Mirrors the `src/lib/types.ts` pattern; never duplicate a schema's shape into a hand-written interface.
 
 **Evaluation scope**
@@ -136,7 +136,7 @@ A Promptfoo-driven end-to-end harness over the production `translateWord` path. 
 
 **Suite configuration**
 
-- **Suite-wide settings live in `evals/promptfooconfig.yaml`, not in `package.json` scripts or `.env`.** Promptfoo `PROMPTFOO_*` env vars belong in the top-level `env:` block (currently `PROMPTFOO_PASS_RATE_THRESHOLD` and `PROMPTFOO_REQUEST_BACKOFF_MS`); CLI-flag defaults belong under `commandLineOptions:` (`maxConcurrency`, `delay`, `share: false`). One source of truth so CI, the IDE plugin, and ad-hoc `promptfoo eval -c …` runs all behave the same.
+- **Suite-wide settings live in `evals/promptfooconfig.yaml`, not in `package.json` scripts or `.env`.** The shared CLIProxyAPI endpoint (`GOOGLE_API_BASE_URL`) and Promptfoo `PROMPTFOO_*` env vars belong in the top-level `env:` block; CLI-flag defaults belong under `commandLineOptions:` (`maxConcurrency`, `delay`, `share: false`). `.env` holds only the uncommitted `GEMINI_API_KEY` client credential. One source of truth so CI, the IDE plugin, and ad-hoc `promptfoo eval -c …` runs all behave the same.
 - **Precedence: CLI flags > YAML `env:` block > `process.env` (loaded from `.env`) > built-in defaults.** A CLI flag like `--max-concurrency 4` overrides the YAML for one-off tuning, but a `.env` value cannot override anything pinned in the YAML `env:` block — to change a pinned var, edit the YAML. `.env` only takes effect for `PROMPTFOO_*` vars *not* set in the YAML.
 - **Pass-rate threshold sits at 75%** as a permissive compatibility gate while model-graded and provider-service variance is uncalibrated. It is not sufficient release evidence: review every zero-pass pair and every reported subgroup below 75%. The built-in Promptfoo default is `100`, so removing the YAML entry silently changes project policy. Tighten it using repeated-run and human-calibration data once the judge layer is reliable.
 - **Do not write tests that assert literal strings appear in config files** (`package.json`, YAML, etc.). They have no oracle: editing the config means editing the test, no bug ever caught. Promptfoo's loader catches broken file references when the eval actually runs.

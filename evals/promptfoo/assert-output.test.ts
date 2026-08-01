@@ -49,6 +49,24 @@ describe("evaluation output contract assertion", () => {
     });
   });
 
+  it("accepts the evaluated source form capitalized at the start of a sentence", () => {
+    const result = assertOutput(
+      successOutput({
+        senses: [
+          {
+            translation: "привіт",
+            partOfSpeech: "interjection",
+            example: "Привіт, як справи?",
+            exampleTranslation: "Hello, how are you?",
+          },
+        ],
+      }),
+      { vars: baseVars },
+    );
+
+    expect(result.pass).toBe(true);
+  });
+
   it("rejects duplicate senses and source examples that omit the exact evaluated form", () => {
     const duplicate = {
       translation: "привіт",

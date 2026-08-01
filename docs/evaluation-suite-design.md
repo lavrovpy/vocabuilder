@@ -48,7 +48,7 @@ The implementation follows current primary guidance:
 - [Promptfoo JavaScript assertions](https://www.promptfoo.dev/docs/configuration/expected-outputs/javascript/) support reusable deterministic checks with component-level reasons. These now own contracts that do not require linguistic judgment.
 - [Promptfoo output guidance](https://www.promptfoo.dev/docs/configuration/outputs/) documents structured JSON results and recommends automated summaries; the new report consumes that export.
 - [MQM's translation error typology](https://themqm.org/error-types-2/typology/) separates accuracy, terminology, linguistic conventions, style, locale conventions, and audience appropriateness. The semantic rubric uses the dimensions relevant to a vocabulary application: accuracy/sense selection, misleading additions, target-language conventions, example fidelity, and learner usefulness.
-- Google's current model documentation identifies [`gemini-3.5-flash`](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash) as the stable default used by the app and [`gemini-3.1-pro-preview`](https://ai.google.dev/gemini-api/docs/models/gemini-3.1-pro-preview) as its Pro-tier preview. The latter is used as the semantic judge so routine evaluation does not use the same default model as both candidate and judge. Product tier alone does not prove judge fitness; human agreement and holdout calibration remain required.
+- The `gemini-3.5-flash-extra-low` candidate and distinct `gemini-3.1-pro-low` semantic judge are both routed through the same local CLIProxyAPI Gemini-compatible endpoint. Keeping the judge distinct avoids using the same model as both candidate and grader. Product tier alone does not prove judge fitness; human agreement and holdout calibration remain required.
 
 ## Implemented suite architecture
 
@@ -208,7 +208,7 @@ When adding a supported language, the suite test should fail until both its risk
 2. **The matrix is intentionally shallow.** A passing water translation does not establish idiom or morphology quality for that pair; it establishes basic pair viability.
 3. **Non-English↔non-English pairs are absent from the standard suite.** They are covered only by explicit matrix/all runs. Promote real matrix failures into focused standard regression cases.
 4. **The harness evaluates word/short-expression translation, not `translateText`.** This matches the existing production eval target and the vocabulary-focused brief. Sentence/document evaluation should be a separate provider and dataset because its contracts and error taxonomy differ.
-5. **The judge is a preview model.** Review the pinned judge when Google changes availability, pricing, or deprecation status. A cheaper judge may be used for development only after measured agreement with the calibrated judge.
+5. **The judge is a pinned CLIProxyAPI model alias.** Review the alias when the proxy's available models change. Another judge may be used for development only after measured agreement with the calibrated judge.
 6. **Aggregate gating is insufficient by itself.** Once enough repeated results exist, add explicit minimums for critical categories and languages using historical variance rather than arbitrary thresholds.
 
 ## Implementation and verification status
@@ -221,7 +221,7 @@ Structurally implemented and verified on 2026-07-13:
 - `npm run build`: Raycast extension build passed.
 - `npm run eval:validate`: Promptfoo configuration passed without Gemini calls.
 
-The smoke, standard, matrix, and all live evaluations were not run as part of this implementation pass because they make external Gemini calls, the Pro judge has no free API tier, and the combined run requires 736 candidate/judge calls. The suite is structurally implemented; it is not yet linguistically accepted until live runs and human calibration are completed.
+The smoke suite was exercised end to end through CLIProxyAPI on 2026-08-01 and completed at the configured 75% threshold with zero provider errors. The standard, matrix, and all live evaluations were not run because the combined run requires 736 candidate/judge calls through the local proxy. The suite is structurally implemented; it is not yet linguistically accepted until the broader live runs and human calibration are completed.
 
 ## Acceptance criteria
 
