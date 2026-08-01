@@ -22,8 +22,6 @@ export const ProviderConfigSchema = z.object({
   temperature: z.number(),
 });
 
-export const ReasoningLevelSchema = z.enum(["none", "low", "medium", "high"]);
-
 export const EvalVarsSchema = z
   .object({
     sourceLanguageCode: z.string().trim().min(1),
@@ -125,8 +123,7 @@ export default class VocabuilderTranslateWordProvider implements ApiProvider {
 
     try {
       const response = await translateWord(input, apiKey, pair, undefined, {
-        model: getPreferenceDefault("translationModelPreset"),
-        reasoningLevel: ReasoningLevelSchema.parse(getPreferenceDefault("reasoningLevel")),
+        model: getPreferenceDefault("translationModel"),
         temperature: this.temperature,
       });
       return { output: JSON.stringify(projectSuccess(input, pair, response), null, 2) };

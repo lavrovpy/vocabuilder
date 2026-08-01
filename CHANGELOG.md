@@ -1,10 +1,9 @@
 VocaBuilder Changelog
 
-## [Configurable models and reasoning] - {PR_MERGE_DATE}
+## [Model and pronunciation updates] - {PR_MERGE_DATE}
 
-- Added a `Reasoning Level` preference for translations, defaulting to `Minimum` for the fastest Gemini responses.
-- Replaced the free-form translation model default with a curated Gemini model dropdown plus an advanced custom model override.
-- Replaced the free-form text-to-speech model default with a curated Gemini TTS dropdown plus an advanced custom model override.
+- Simplified translation and text-to-speech model preferences to accept any Gemini model ID without relying on hardcoded dropdown options.
+- Removed the separate reasoning preference so reasoning behavior follows the configured model.
 - Refreshed the extension icon.
 - Tightened the pronunciation prompt for more accurate text-to-speech output.
 
