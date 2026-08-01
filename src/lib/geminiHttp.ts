@@ -1,3 +1,4 @@
+import { customEndpointHost } from "./baseUrl";
 import { geminiError, type GeminiErrorSurface, type GeminiRateLimitDiagnostics } from "./geminiError";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -48,13 +49,28 @@ function safeRateLimitDiagnostics(body: string): GeminiRateLimitDiagnostics | un
  * Returns silently on `response.ok` so the caller can read the body.
  * Shared by translate (`gemini.ts`) and TTS (`tts.ts`) — keep status-code
  * handling in one place so the two transports stay in sync.
+ *
+ * `resolvedBaseUrl` is the value `resolveBaseUrl` returned for this request.
+ * A 404 cannot distinguish a retired model from a base URL pointing at the
+ * wrong path, so the endpoint is named in the error when it is not Google's.
  */
-export async function throwForHttpError(response: Response, surface: GeminiErrorSurface, model: string): Promise<void> {
+export async function throwForHttpError(
+  response: Response,
+  surface: GeminiErrorSurface,
+  model: string,
+  resolvedBaseUrl: string,
+): Promise<void> {
   if (response.status === 401 || response.status === 403) {
     throw geminiError({ domain: "infrastructure", kind: "invalid-api-key", surface });
   }
   if (response.status === 404) {
-    throw geminiError({ domain: "infrastructure", kind: "model-not-found", surface, model });
+    throw geminiError({
+      domain: "infrastructure",
+      kind: "model-not-found",
+      surface,
+      model,
+      endpointHost: customEndpointHost(resolvedBaseUrl),
+    });
   }
   if (!response.ok) {
     let rawBody = "";

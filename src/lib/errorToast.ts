@@ -25,11 +25,22 @@ export function defaultToastFor(cause: GeminiErrorCause): ToastSpec {
       const prefName = cause.surface === "tts" ? "Text-to-Speech Model" : "Translation Model";
       const verb = cause.surface === "tts" ? "TTS" : "Translation";
       const model = cause.model ?? "the configured model";
-      return {
-        title: `${verb} model not found`,
-        message: `Model "${model}" is unavailable. Update "${prefName}" in extension preferences.`,
-      };
+      // A custom endpoint makes 404 ambiguous — the model may be fine and the
+      // base URL wrong — so name both preferences rather than sending the user
+      // to cycle through models that were never the problem.
+      const message = cause.endpointHost
+        ? `Model "${model}" or its endpoint was not found at ${cause.endpointHost}. Check "${prefName}" and "Gemini API Server URL" in extension preferences.`
+        : `Model "${model}" is unavailable. Update "${prefName}" in extension preferences.`;
+      const title = cause.endpointHost ? `${verb} model or endpoint not found` : `${verb} model not found`;
+      return { title, message };
     }
+
+    case "invalid-base-url":
+      return {
+        title: "Invalid API URL",
+        message:
+          'Check "Gemini API Server URL" in extension preferences. Use https, or http only for localhost, without embedded credentials.',
+      };
 
     case "request-failed": {
       const title = cause.surface === "tts" ? "Pronunciation request failed" : "Translation failed";

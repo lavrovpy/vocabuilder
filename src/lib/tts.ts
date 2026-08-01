@@ -4,7 +4,8 @@ import { createHash } from "crypto";
 import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from "fs";
 import path from "path";
 import { z } from "zod";
-import { BASE_URL, TTS_BITS_PER_SAMPLE, TTS_DEFAULT_VOICE, TTS_NUM_CHANNELS, TTS_SAMPLE_RATE } from "./gemini-config";
+import { TTS_BITS_PER_SAMPLE, TTS_DEFAULT_VOICE, TTS_NUM_CHANNELS, TTS_SAMPLE_RATE } from "./gemini-config";
+import { hostForLog, resolveBaseUrl } from "./baseUrl";
 import { geminiError, geminiErrorLogFields } from "./geminiError";
 import { throwForHttpError } from "./geminiHttp";
 import { createLogger } from "./logger";
@@ -135,10 +136,14 @@ function getCacheDir(): string {
   return dir;
 }
 
-function cacheKey(word: string, langCode: string, model: string): string {
-  const modelHash = createHash("sha256").update(`${model.trim()}:${TTS_PROMPT_VERSION}`).digest("hex").slice(0, 8);
+// Keyed on everything that decides what the audio sounds like except the word
+// itself — including the endpoint, since a non-passthrough backend behind a
+// custom base URL renders the same word differently.
+function cacheKey(word: string, langCode: string, model: string, resolvedBaseUrl: string): string {
+  const variant = `${model.trim()}:${TTS_PROMPT_VERSION}:${resolvedBaseUrl}`;
+  const variantHash = createHash("sha256").update(variant).digest("hex").slice(0, 8);
   const wordHash = createHash("sha256").update(word.toLowerCase()).digest("hex").slice(0, 32);
-  return `${langCode}-${modelHash}-${wordHash}.wav`;
+  return `${langCode}-${variantHash}-${wordHash}.wav`;
 }
 
 function geminiTtsLanguageCodeFor(langCode: string): string | undefined {
@@ -198,12 +203,19 @@ async function generateSpeechGemini(
   apiKey: string,
   signal: AbortSignal | undefined,
   model: string,
+  baseUrl: string,
 ): Promise<Buffer> {
   const normalizedModel = model.trim();
-  const url = `${BASE_URL}/${normalizedModel}:generateContent`;
+  const resolvedBaseUrl = resolveBaseUrl(baseUrl, "tts");
+  const url = `${resolvedBaseUrl}/${normalizedModel}:generateContent`;
   const requestMs = log.timer();
   const languageCode = geminiTtsLanguageCodeFor(langCode);
-  log.debug("gemini tts request started", { model: normalizedModel, langCode, textChars: text.length });
+  log.debug("gemini tts request started", {
+    model: normalizedModel,
+    host: hostForLog(resolvedBaseUrl),
+    langCode,
+    textChars: text.length,
+  });
 
   let response: Response;
   try {
@@ -245,7 +257,7 @@ async function generateSpeechGemini(
   }
 
   try {
-    await throwForHttpError(response, "tts", normalizedModel);
+    await throwForHttpError(response, "tts", normalizedModel, resolvedBaseUrl);
   } catch (err) {
     log.warn("gemini tts request failed", {
       model: normalizedModel,
@@ -301,10 +313,14 @@ export async function pronounce(
   langCode: string,
   signal: AbortSignal | undefined,
   model: string,
+  baseUrl: string,
 ): Promise<{ cached: boolean }> {
-  const dir = getCacheDir();
   const normalizedModel = model.trim();
-  const fileName = cacheKey(word, langCode, normalizedModel);
+  // Resolved before the cache lookup so the key is per-endpoint and a cache hit
+  // cannot skip validation of a misconfigured base URL.
+  const resolvedBaseUrl = resolveBaseUrl(baseUrl, "tts");
+  const dir = getCacheDir();
+  const fileName = cacheKey(word, langCode, normalizedModel, resolvedBaseUrl);
   const filePath = path.join(dir, fileName);
 
   signal?.throwIfAborted();
@@ -312,7 +328,7 @@ export async function pronounce(
   let cached = true;
   if (!existsSync(filePath)) {
     cached = false;
-    const wavBuffer = await generateSpeechGemini(word, langCode, apiKey, signal, normalizedModel);
+    const wavBuffer = await generateSpeechGemini(word, langCode, apiKey, signal, normalizedModel, baseUrl);
     writeFileSync(filePath, wavBuffer);
     evictOldestCacheFiles(dir, MAX_CACHE_FILES);
   }
@@ -389,37 +405,44 @@ if (import.meta.vitest) {
 
   describe("cacheKey", () => {
     const MODEL = "gemini-3.1-flash-tts-preview";
+    const BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
     it("produces deterministic filesystem-safe names with fixed length", () => {
-      const key = cacheKey("hello", "en", MODEL);
-      // lang(2) + dash(1) + model-prefix(8) + dash(1) + word-prefix(32) + .wav(4) = 48 chars
+      const key = cacheKey("hello", "en", MODEL, BASE);
+      // lang(2) + dash(1) + variant-prefix(8) + dash(1) + word-prefix(32) + .wav(4) = 48 chars
       expect(key).toMatch(/^en-[0-9a-f]{8}-[0-9a-f]{32}\.wav$/);
       expect(key.length).toBe(48);
     });
 
     it("is case-insensitive on the word", () => {
-      expect(cacheKey("Hello", "en", MODEL)).toBe(cacheKey("hello", "en", MODEL));
+      expect(cacheKey("Hello", "en", MODEL, BASE)).toBe(cacheKey("hello", "en", MODEL, BASE));
     });
 
     it("handles unicode words", () => {
-      const key = cacheKey("привіт", "uk", MODEL);
+      const key = cacheKey("привіт", "uk", MODEL, BASE);
       expect(key).toMatch(/^uk-[0-9a-f]{8}-[0-9a-f]{32}\.wav$/);
     });
 
     it("keeps filenames short even for long text", () => {
       const longText = "a".repeat(1000);
-      const key = cacheKey(longText, "en", MODEL);
+      const key = cacheKey(longText, "en", MODEL, BASE);
       expect(key.length).toBe(48);
     });
 
     it("changes when the model changes — switching models invalidates cache", () => {
-      const a = cacheKey("hello", "en", "gemini-2.5-flash-preview-tts");
-      const b = cacheKey("hello", "en", "gemini-3.1-flash-tts-preview");
+      const a = cacheKey("hello", "en", "gemini-2.5-flash-preview-tts", BASE);
+      const b = cacheKey("hello", "en", "gemini-3.1-flash-tts-preview", BASE);
       expect(a).not.toBe(b);
     });
 
+    it("changes when the endpoint changes so another backend's audio is not replayed", () => {
+      expect(cacheKey("hello", "en", MODEL, BASE)).not.toBe(
+        cacheKey("hello", "en", MODEL, "http://localhost:4000/v1beta/models"),
+      );
+    });
+
     it("changes when the language changes so cross-language homographs do not share audio", () => {
-      expect(cacheKey("but", "en", MODEL)).not.toBe(cacheKey("but", "pl", MODEL));
+      expect(cacheKey("but", "en", MODEL, BASE)).not.toBe(cacheKey("but", "pl", MODEL, BASE));
     });
   });
 

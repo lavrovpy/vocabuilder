@@ -29,12 +29,12 @@ export default function PronounceAction({ word, languageCode, title, shortcut }:
     abortRef.current = controller;
 
     const toast = await showToast({ style: Toast.Style.Animated, title: "Playing pronunciation…" });
-    const { geminiApiKey, ttsModel } = getPreferenceValues<Preferences>();
+    const { geminiApiKey, geminiApiBaseUrl, ttsModel } = getPreferenceValues<Preferences>();
     const model = ttsModel.trim() || getPreferenceDefault("ttsModel");
 
     const outcome = await runPronounceWithFallback({
       signal: controller.signal,
-      attemptPrimary: () => pronounce(word, geminiApiKey, languageCode, controller.signal, model),
+      attemptPrimary: () => pronounce(word, geminiApiKey, languageCode, controller.signal, model, geminiApiBaseUrl),
       attemptFallback: hasMacOsFallback(languageCode) ? () => pronounceFallback(word, languageCode) : null,
       routeError: (err) => routeTtsError(err, languageCode),
     });

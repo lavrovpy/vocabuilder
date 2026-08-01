@@ -1,17 +1,21 @@
 import { describe, expect, it } from "vitest";
 
+import { resolveBaseUrl } from "./baseUrl";
 import { throwForHttpError } from "./geminiHttp";
+import { getPreferenceDefault } from "./manifest";
 
 const makeResponse = (status: number, body = ""): Response =>
   new Response(body, { status, statusText: `status-${status}` });
 
+const DEFAULT_BASE_URL = resolveBaseUrl(getPreferenceDefault("geminiApiBaseUrl"), "translate");
+
 describe("throwForHttpError", () => {
   it("returns silently on 2xx", async () => {
-    await expect(throwForHttpError(makeResponse(200), "translate", "m")).resolves.toBeUndefined();
+    await expect(throwForHttpError(makeResponse(200), "translate", "m", DEFAULT_BASE_URL)).resolves.toBeUndefined();
   });
 
   it.each([401, 403])("maps %d to invalid-api-key with the caller's surface", async (status) => {
-    await expect(throwForHttpError(makeResponse(status), "tts", "m")).rejects.toMatchObject({
+    await expect(throwForHttpError(makeResponse(status), "tts", "m", DEFAULT_BASE_URL)).rejects.toMatchObject({
       cause: {
         domain: "infrastructure",
         kind: "invalid-api-key",
@@ -21,7 +25,9 @@ describe("throwForHttpError", () => {
   });
 
   it("maps 404 to model-not-found and includes the model id", async () => {
-    await expect(throwForHttpError(makeResponse(404), "translate", "gemini-bogus")).rejects.toMatchObject({
+    await expect(
+      throwForHttpError(makeResponse(404), "translate", "gemini-bogus", DEFAULT_BASE_URL),
+    ).rejects.toMatchObject({
       cause: {
         domain: "infrastructure",
         kind: "model-not-found",
@@ -31,8 +37,27 @@ describe("throwForHttpError", () => {
     });
   });
 
+  // 404 cannot tell a retired model from a base URL pointing at the wrong path.
+  // The endpoint is named only when it is the user's, so default installs keep
+  // the narrower "update your model" copy.
+  it("names the endpoint host on a 404 from a custom base URL", async () => {
+    await expect(
+      throwForHttpError(makeResponse(404), "tts", "gemini-tts", "https://gw.corp:8443/gemini/v1beta/models"),
+    ).rejects.toMatchObject({
+      cause: { kind: "model-not-found", endpointHost: "gw.corp:8443" },
+    });
+  });
+
+  it("leaves the endpoint host unset on a 404 from the default base URL", async () => {
+    await expect(throwForHttpError(makeResponse(404), "translate", "m", DEFAULT_BASE_URL)).rejects.toMatchObject({
+      cause: { kind: "model-not-found", endpointHost: undefined },
+    });
+  });
+
   it.each([429, 500, 503])("maps other non-ok %d to request-failed with status + body", async (status) => {
-    await expect(throwForHttpError(makeResponse(status, "server said no"), "translate", "m")).rejects.toMatchObject({
+    await expect(
+      throwForHttpError(makeResponse(status, "server said no"), "translate", "m", DEFAULT_BASE_URL),
+    ).rejects.toMatchObject({
       cause: {
         domain: "infrastructure",
         kind: "request-failed",
@@ -69,7 +94,7 @@ describe("throwForHttpError", () => {
       },
     });
 
-    await expect(throwForHttpError(makeResponse(429, body), "translate", "m")).rejects.toMatchObject({
+    await expect(throwForHttpError(makeResponse(429, body), "translate", "m", DEFAULT_BASE_URL)).rejects.toMatchObject({
       cause: {
         status: 429,
         rateLimit: {
@@ -86,7 +111,7 @@ describe("throwForHttpError", () => {
 
   it("truncates oversized error bodies to 500 chars", async () => {
     const big = "x".repeat(2000);
-    await expect(throwForHttpError(makeResponse(500, big), "tts", "m")).rejects.toMatchObject({
+    await expect(throwForHttpError(makeResponse(500, big), "tts", "m", DEFAULT_BASE_URL)).rejects.toMatchObject({
       cause: {
         body: expect.stringMatching(/^x{500}$/),
       },

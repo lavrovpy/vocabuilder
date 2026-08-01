@@ -12,12 +12,22 @@ describe("defaultToastFor", () => {
   it.each([
     ["network-offline", /internet/i],
     ["invalid-api-key", /api key/i],
+    ["invalid-base-url", /api url/i],
   ] as const)("%s is surface-agnostic", (kind, titlePattern) => {
     const a = infra({ kind, surface: "translate" });
     const b = infra({ kind, surface: "tts" });
 
     expect(a).toEqual(b);
     expect(a.title).toMatch(titlePattern);
+  });
+
+  it("invalid-base-url names the preference to fix and never echoes the URL", () => {
+    const spec = infra({ kind: "invalid-base-url", surface: "translate" });
+
+    expect(spec.message).toContain("Gemini API Server URL");
+    expect(spec.message).toMatch(/localhost/i);
+    expect(spec.message).toMatch(/credentials/i);
+    expect(spec.message).not.toMatch(/https?:\/\//);
   });
 
   it("model-not-found references the correct preference name per surface", () => {
@@ -28,6 +38,28 @@ describe("defaultToastFor", () => {
     expect(tts.message).toContain("Text-to-Speech Model");
     expect(t.message).toContain("X");
     expect(tts.message).toContain("X");
+  });
+
+  // Against a custom endpoint a 404 is ambiguous, so the copy must not send the
+  // user off to cycle through models when the base URL is what is wrong.
+  it("model-not-found names both preferences when a custom endpoint is configured", () => {
+    const t = infra({ kind: "model-not-found", surface: "translate", model: "X", endpointHost: "gw.corp:8443" });
+    const tts = infra({ kind: "model-not-found", surface: "tts", model: "X", endpointHost: "gw.corp:8443" });
+
+    expect(t.title).toMatch(/model or endpoint/i);
+    expect(t.message).toMatch(/model .* or its endpoint/i);
+    expect(t.message).toContain("Gemini API Server URL");
+    expect(t.message).toContain("Translation Model");
+    expect(t.message).toContain("gw.corp:8443");
+    expect(tts.message).toContain("Gemini API Server URL");
+    expect(tts.message).toContain("Text-to-Speech Model");
+  });
+
+  it("model-not-found keeps the single-preference copy on the default endpoint", () => {
+    const t = infra({ kind: "model-not-found", surface: "translate", model: "X" });
+
+    expect(t.title).not.toMatch(/endpoint/i);
+    expect(t.message).not.toContain("Gemini API Server URL");
   });
 
   it("model-not-found falls back when model is missing", () => {

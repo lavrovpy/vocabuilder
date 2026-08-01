@@ -107,7 +107,8 @@ function ToggleLanguagesAction({ onAction }: { onAction: () => void }) {
 }
 
 export default function Translate() {
-  const { geminiApiKey, readClipboardOnOpen, translationModel } = getPreferenceValues<Preferences.Translate>();
+  const { geminiApiKey, geminiApiBaseUrl, readClipboardOnOpen, translationModel } =
+    getPreferenceValues<Preferences.Translate>();
   const model = translationModel.trim() || getPreferenceDefault("translationModel");
   const langResult = useLanguagePair();
   const { push } = useNavigation();
@@ -361,6 +362,7 @@ export default function Translate() {
     try {
       const geminiResult = await translateWord(word, geminiApiKey, languagePair, controller.signal, {
         model,
+        baseUrl: geminiApiBaseUrl,
       });
 
       if (controller.signal.aborted) return;
@@ -403,6 +405,7 @@ export default function Translate() {
     try {
       const geminiResult = await translateText(text, geminiApiKey, languagePair, controller.signal, {
         model,
+        baseUrl: geminiApiBaseUrl,
       });
 
       if (controller.signal.aborted) return;

@@ -14,12 +14,15 @@ import { geminiError, geminiErrorLogFields, isGeminiError, isTransient } from ".
 import { throwForHttpError } from "./geminiHttp";
 import type { LanguagePair } from "./languages";
 import { createLogger } from "./logger";
-import { BASE_URL, BASE_RETRY_DELAY_MS, MAX_RETRY_ATTEMPTS } from "./gemini-config";
+import { BASE_RETRY_DELAY_MS, MAX_RETRY_ATTEMPTS } from "./gemini-config";
+import { hostForLog, resolveBaseUrl } from "./baseUrl";
 
 const log = createLogger("gemini");
 
 export type GenerationOptions = {
   model: string;
+  /** Raw `geminiApiBaseUrl` preference; validated by `resolveBaseUrl` at request time. */
+  baseUrl: string;
   temperature?: number;
 };
 
@@ -61,6 +64,7 @@ async function fetchGeminiOnce(
   body: Record<string, unknown>,
   signal: AbortSignal | undefined,
   model: string,
+  resolvedBaseUrl: string,
 ): Promise<Response> {
   let response: Response;
   try {
@@ -80,7 +84,7 @@ async function fetchGeminiOnce(
     throw err;
   }
 
-  await throwForHttpError(response, "translate", model);
+  await throwForHttpError(response, "translate", model, resolvedBaseUrl);
   return response;
 }
 
@@ -91,7 +95,8 @@ async function callGemini(
   options: GeminiCallOptions,
 ): Promise<string> {
   const model = options.model.trim();
-  const url = `${BASE_URL}/${model}:generateContent`;
+  const baseUrl = resolveBaseUrl(options.baseUrl, "translate");
+  const url = `${baseUrl}/${model}:generateContent`;
 
   const generationConfig: Record<string, unknown> = {};
   if (options.temperature !== undefined) generationConfig.temperature = options.temperature;
@@ -109,6 +114,7 @@ async function callGemini(
   const totalMs = log.timer();
   log.debug("translation request started", {
     model,
+    host: hostForLog(baseUrl),
     promptChars: prompt.length,
     structuredJson: options.responseJsonSchema !== undefined,
   });
@@ -116,7 +122,7 @@ async function callGemini(
   for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
     const attemptMs = log.timer();
     try {
-      response = await fetchGeminiOnce(url, apiKey, body, signal, model);
+      response = await fetchGeminiOnce(url, apiKey, body, signal, model, baseUrl);
       log.debug("translation attempt succeeded", {
         model,
         attempt,
@@ -260,6 +266,7 @@ if (import.meta.vitest) {
 
   describe("callGemini generationConfig wiring", () => {
     let fetchMock: ReturnType<typeof vi.fn>;
+    const TEST_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
     const fakeApiResponse = {
       candidates: [{ content: { parts: [{ text: "{}" }] } }],
     };
@@ -280,13 +287,13 @@ if (import.meta.vitest) {
     });
 
     it("omits generationConfig when no options are passed", async () => {
-      await callGemini("hi", "key", undefined, { model: "test-model" });
+      await callGemini("hi", "key", undefined, { baseUrl: TEST_BASE_URL, model: "test-model" });
       const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
       expect(body.generationConfig).toBeUndefined();
     });
 
     it("includes temperature when supplied", async () => {
-      await callGemini("hi", "key", undefined, { model: "test-model", temperature: 0.7 });
+      await callGemini("hi", "key", undefined, { baseUrl: TEST_BASE_URL, model: "test-model", temperature: 0.7 });
       const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
       expect(body.generationConfig).toEqual({ temperature: 0.7 });
     });
@@ -297,7 +304,7 @@ if (import.meta.vitest) {
         properties: { translation: { type: "string" } },
         required: ["translation"],
       };
-      await callGemini("hi", "key", undefined, { model: "test-model", responseJsonSchema });
+      await callGemini("hi", "key", undefined, { baseUrl: TEST_BASE_URL, model: "test-model", responseJsonSchema });
       const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
       expect(body.generationConfig).toEqual({
         responseMimeType: "application/json",
@@ -305,8 +312,62 @@ if (import.meta.vitest) {
       });
     });
 
+    it("sends the request to a custom base URL", async () => {
+      await callGemini("hi", "key", undefined, {
+        baseUrl: "http://localhost:4000",
+        model: "gemini-3.5-flash",
+      });
+      const [url] = fetchMock.mock.calls[0];
+      expect(url).toBe("http://localhost:4000/v1beta/models/gemini-3.5-flash:generateContent");
+    });
+
+    it("rejects an unusable base URL before issuing a request", async () => {
+      await expect(
+        callGemini("hi", "key", undefined, { baseUrl: "http://gw.corp/v1beta/models", model: "gemini-3.5-flash" }),
+      ).rejects.toThrow("invalid-base-url");
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects URL-embedded credentials before issuing a request", async () => {
+      await expect(
+        callGemini("hi", "key", undefined, {
+          baseUrl: "https://user:pass@gw.corp",
+          model: "gemini-3.5-flash",
+        }),
+      ).rejects.toMatchObject({
+        cause: { domain: "infrastructure", kind: "invalid-base-url", surface: "translate" },
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    // Pins the base URL threading through fetchGeminiOnce: passing the full
+    // request URL instead would name a host built from the model segment.
+    it("names the endpoint host when a custom base URL returns 404", async () => {
+      fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
+
+      await expect(
+        callGemini("hi", "key", undefined, {
+          baseUrl: "https://gw.corp:8443/gemini/v1beta/models",
+          model: "gemini-3.5-flash",
+        }),
+      ).rejects.toMatchObject({
+        cause: { kind: "model-not-found", surface: "translate", endpointHost: "gw.corp:8443" },
+      });
+    });
+
+    it("leaves the endpoint host unset when the default base URL returns 404", async () => {
+      fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
+
+      await expect(
+        callGemini("hi", "key", undefined, { baseUrl: TEST_BASE_URL, model: "gemini-3.5-flash" }),
+      ).rejects.toMatchObject({
+        cause: { kind: "model-not-found", endpointHost: undefined },
+      });
+    });
+
     it("trims custom model IDs before building the request", async () => {
       await callGemini("hi", "key", undefined, {
+        baseUrl: TEST_BASE_URL,
         model: " gemini-3.5-flash ",
       });
       const [url, init] = fetchMock.mock.calls[0];
