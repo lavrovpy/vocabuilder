@@ -48,7 +48,9 @@ The implementation follows current primary guidance:
 - [Promptfoo JavaScript assertions](https://www.promptfoo.dev/docs/configuration/expected-outputs/javascript/) support reusable deterministic checks with component-level reasons. These now own contracts that do not require linguistic judgment.
 - [Promptfoo output guidance](https://www.promptfoo.dev/docs/configuration/outputs/) documents structured JSON results and recommends automated summaries; the new report consumes that export.
 - [MQM's translation error typology](https://themqm.org/error-types-2/typology/) separates accuracy, terminology, linguistic conventions, style, locale conventions, and audience appropriateness. The semantic rubric uses the dimensions relevant to a vocabulary application: accuracy/sense selection, misleading additions, target-language conventions, example fidelity, and learner usefulness.
-- The `gemini-3.5-flash-extra-low` candidate and distinct `gemini-3.1-pro-low` semantic judge are both routed through the same local CLIProxyAPI Gemini-compatible endpoint. Keeping the judge distinct avoids using the same model as both candidate and grader. Product tier alone does not prove judge fitness; human agreement and holdout calibration remain required.
+- Candidate and judge configuration is separated by role. The production-path target uses `EVAL_TRANSLATION_API_KEY`, `EVAL_TRANSLATION_API_BASE_URL`, and `EVAL_TRANSLATION_MODEL`; the semantic judge uses its own key and endpoint plus an atomic `EVAL_JUDGE_PROVIDER_ID` such as `google:gemini-3.1-pro-low` or `openai:responses:gpt-5`. The roles may share CLIProxyAPI today without coupling future provider choices. Product tier alone does not prove judge fitness; human agreement and holdout calibration remain required.
+
+The Promptfoo launcher maps `EVAL_JUDGE_API_KEY` at process startup to the selected key-based provider's native credential variable (`GOOGLE_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY`). The key is intentionally absent from `promptfooconfig.yaml`: Promptfoo exports assertion-provider configuration in raw result JSON, so interpolating a secret into `config.apiKey` would persist it in an artifact. Endpoints and resolved provider/model identities remain in the results because they are non-secret and necessary for reproducibility.
 
 ## Implemented suite architecture
 
@@ -208,20 +210,20 @@ When adding a supported language, the suite test should fail until both its risk
 2. **The matrix is intentionally shallow.** A passing water translation does not establish idiom or morphology quality for that pair; it establishes basic pair viability.
 3. **Non-English↔non-English pairs are absent from the standard suite.** They are covered only by explicit matrix/all runs. Promote real matrix failures into focused standard regression cases.
 4. **The harness evaluates word/short-expression translation, not `translateText`.** This matches the existing production eval target and the vocabulary-focused brief. Sentence/document evaluation should be a separate provider and dataset because its contracts and error taxonomy differ.
-5. **The judge is a pinned CLIProxyAPI model alias.** Review the alias when the proxy's available models change. Another judge may be used for development only after measured agreement with the calibrated judge.
+5. **Judge selection is run-specific.** `EVAL_JUDGE_PROVIDER_ID` keeps provider and model atomic so they cannot drift independently, but every result must retain the resolved provider ID for reproducibility. Another judge should be used for development only after measured agreement with the calibrated judge.
 6. **Aggregate gating is insufficient by itself.** Once enough repeated results exist, add explicit minimums for critical categories and languages using historical variance rather than arbitrary thresholds.
 
 ## Implementation and verification status
 
-Structurally implemented and verified on 2026-07-13:
+Structurally implemented and verified on 2026-08-01:
 
-- `npm test`: 25 files and 304 tests passed.
+- `npm test`: 27 files and 357 tests passed.
 - `npm run typecheck`: passed.
 - `npm run lint`: Raycast metadata, ESLint, and Prettier checks passed.
 - `npm run build`: Raycast extension build passed.
 - `npm run eval:validate`: Promptfoo configuration passed without Gemini calls.
 
-The smoke suite was exercised end to end through CLIProxyAPI on 2026-08-01 and completed at the configured 75% threshold with zero provider errors. The standard, matrix, and all live evaluations were not run because the combined run requires 736 candidate/judge calls through the local proxy. The suite is structurally implemented; it is not yet linguistically accepted until the broader live runs and human calibration are completed.
+The smoke suite was exercised end to end through independently configured translation and judge roles on CLIProxyAPI on 2026-08-01; the latest verification passed all 12 cases with zero provider errors. The standard, matrix, and all live evaluations were not run because the combined run requires 736 candidate/judge calls. The suite is structurally implemented; it is not yet linguistically accepted until the broader live runs and human calibration are completed.
 
 ## Acceptance criteria
 
