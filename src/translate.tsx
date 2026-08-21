@@ -60,6 +60,45 @@ function scheduleWordTranslation(callback: () => void): ReturnType<typeof setTim
   return setTimeout(callback, WORD_TRANSLATION_DEBOUNCE_MS);
 }
 
+const LOADING_TICK_MS = 220;
+
+// Built-in icons only. The docs recommend built-in icons in lists, and these four
+// frames animate without pulling in @raycast/utils just to generate an SVG ring.
+// Starts at 25%: Icon.CircleProgress (0%) is a hollow outline that reads as an
+// empty checkbox rather than as work in progress.
+const LOADING_ICON_FRAMES: Icon[] = [
+  Icon.CircleProgress25,
+  Icon.CircleProgress50,
+  Icon.CircleProgress75,
+  Icon.CircleProgress100,
+];
+
+function loadingIcon(tick: number): Icon {
+  return LOADING_ICON_FRAMES[tick % LOADING_ICON_FRAMES.length];
+}
+
+function useLoadingTick(active: boolean): number {
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    if (!active) {
+      setTick(0);
+      return;
+    }
+    const id = setInterval(() => setTick((t) => t + 1), LOADING_TICK_MS);
+    return () => clearInterval(id);
+  }, [active]);
+
+  return tick;
+}
+
+// Recent stays mounted while a translation is in flight: collapsing the whole list
+// to an empty view for the length of a Gemini round-trip throws away the user's
+// context and makes the result arrival a hard layout jump.
+function shouldShowRecent(hasRecent: boolean, isEmptyInput: boolean, isLoading: boolean): boolean {
+  return hasRecent && (isEmptyInput || isLoading);
+}
+
 function isSafeClipboardSuggestion(raw: string): boolean {
   const text = raw.trim();
   if (!text || text.includes("\n")) return false;
@@ -123,6 +162,8 @@ export default function Translate() {
   const [clipboardSuggestion, setClipboardSuggestion] = useState("");
   const [recentShowingDetail, setRecentShowingDetail] = useState(false);
 
+  const loadingTick = useLoadingTick(isLoading);
+
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -163,7 +204,7 @@ export default function Translate() {
 
   const activePair = languagePair;
   const activeDefaultPair = defaultPair;
-  const { source } = activePair;
+  const { source, target } = activePair;
 
   function clearDebounce() {
     if (debounceRef.current) {
@@ -449,20 +490,19 @@ export default function Translate() {
   }
 
   const showEmpty = !searchText.trim();
-  const showRecent = showEmpty && recentHistory.length > 0;
+  const showRecent = shouldShowRecent(recentHistory.length > 0, showEmpty, isLoading);
   const showResult = !!result && !isLoading;
   const isTextResult = result?.type === "text";
   const isWordInput = normalizeWordInput(searchText) !== null;
   const showSensePicker = !!pendingWord && !isLoading;
   const showManualSubmitItem = !showEmpty && !error && !showResult && !isLoading && !showSensePicker;
+  const showLoadingRow = isLoading && !showEmpty;
 
   return (
     <List
       navigationTitle={`${languagePair.source.name} → ${languagePair.target.name}`}
       isLoading={isLoading || langResult.isLoading}
-      isShowingDetail={
-        (showResult && isTextResult) || showSensePicker || (showEmpty && showRecent && recentShowingDetail)
-      }
+      isShowingDetail={(showResult && isTextResult) || showSensePicker || (showRecent && recentShowingDetail)}
       searchBarPlaceholder={`Type a ${source.name} word or text...`}
       searchText={searchText}
       onSearchTextChange={handleSearchChange}
@@ -603,95 +643,99 @@ export default function Translate() {
             }
           />
         </List.Section>
+      ) : showLoadingRow ? (
+        <List.Section title="Translation">
+          <List.Item
+            title={`Translating "${truncate(searchText.trim(), 40)}"…`}
+            icon={{ source: loadingIcon(loadingTick), tintColor: Color.SecondaryText }}
+            accessories={[{ text: `${source.code.toUpperCase()} → ${target.code.toUpperCase()}` }]}
+          />
+        </List.Section>
       ) : showEmpty ? (
-        <>
-          <List.Section title="Clipboard">
+        <List.Section title="Clipboard">
+          <List.Item
+            title={clipboardSuggestion || "Read Clipboard"}
+            subtitle={clipboardSuggestion ? "Use the suggested clipboard word" : "Read clipboard and validate safely"}
+            icon={Icon.Clipboard}
+            detail={<List.Item.Detail markdown={clipboardSuggestion ? `**${clipboardSuggestion}**` : ""} />}
+            actions={
+              <ActionPanel>
+                {clipboardSuggestion ? (
+                  <Action
+                    title="Translate Clipboard Word"
+                    icon={Icon.Book}
+                    onAction={() => {
+                      setSearchText(clipboardSuggestion);
+                      fetchWordTranslation(clipboardSuggestion);
+                    }}
+                  />
+                ) : (
+                  <Action title="Read Clipboard" icon={Icon.Clipboard} onAction={handleReadClipboard} />
+                )}
+                <Action title="Refresh Clipboard" icon={Icon.ArrowClockwise} onAction={handleReadClipboard} />
+                <ToggleLanguagesAction onAction={handleToggleLanguages} />
+              </ActionPanel>
+            }
+          />
+        </List.Section>
+      ) : null}
+      {showRecent && (
+        <List.Section title="Recent">
+          {recentHistory.map((item) => (
             <List.Item
-              title={clipboardSuggestion || "Read Clipboard"}
-              subtitle={clipboardSuggestion ? "Use the suggested clipboard word" : "Read clipboard and validate safely"}
-              icon={Icon.Clipboard}
-              detail={<List.Item.Detail markdown={clipboardSuggestion ? `**${clipboardSuggestion}**` : ""} />}
+              key={item.id}
+              title={item.type === "text" ? truncate(item.word, 60) : item.word}
+              subtitle={
+                recentShowingDetail
+                  ? undefined
+                  : item.type === "text"
+                    ? truncate(item.translation, 60)
+                    : item.translation
+              }
+              accessories={[
+                item.type === "text"
+                  ? { tag: { value: "text", color: Color.Purple } }
+                  : { tag: { value: item.partOfSpeech, color: posColor(item.partOfSpeech) } },
+                { text: relativeTime(item.timestamp) },
+              ]}
+              detail={<TranslationDetail item={item} />}
               actions={
                 <ActionPanel>
-                  {clipboardSuggestion ? (
-                    <Action
-                      title="Translate Clipboard Word"
-                      icon={Icon.Book}
-                      onAction={() => {
-                        setSearchText(clipboardSuggestion);
-                        fetchWordTranslation(clipboardSuggestion);
-                      }}
-                    />
-                  ) : (
-                    <Action title="Read Clipboard" icon={Icon.Clipboard} onAction={handleReadClipboard} />
-                  )}
-                  <Action title="Refresh Clipboard" icon={Icon.ArrowClockwise} onAction={handleReadClipboard} />
+                  <Action
+                    title={recentShowingDetail ? "Hide Detail" : "Show Detail"}
+                    icon={Icon.Sidebar}
+                    onAction={() => setRecentShowingDetail((v) => !v)}
+                  />
+                  <Action.CopyToClipboard
+                    title="Copy Translation"
+                    content={item.translation}
+                    shortcut={{ modifiers: ["cmd"], key: "c" }}
+                  />
+                  <PronounceAction
+                    word={item.word}
+                    languageCode={languagePair.source.code}
+                    title="Pronounce Word"
+                    shortcut={{ modifiers: ["cmd"], key: "o" }}
+                  />
+                  <PronounceAction
+                    word={item.translation}
+                    languageCode={languagePair.target.code}
+                    title="Pronounce Translation"
+                    shortcut={{ modifiers: ["cmd", "shift"], key: "o" }}
+                  />
+                  <Action
+                    title="Open History"
+                    icon={Icon.Clock}
+                    shortcut={{ modifiers: ["cmd", "shift"], key: "h" }}
+                    onAction={() => push(<History languagePair={languagePair} />)}
+                  />
                   <ToggleLanguagesAction onAction={handleToggleLanguages} />
                 </ActionPanel>
               }
             />
-          </List.Section>
-          {showRecent && (
-            <List.Section title="Recent">
-              {recentHistory.map((item) => (
-                <List.Item
-                  key={item.id}
-                  title={item.type === "text" ? truncate(item.word, 60) : item.word}
-                  subtitle={
-                    recentShowingDetail
-                      ? undefined
-                      : item.type === "text"
-                        ? truncate(item.translation, 60)
-                        : item.translation
-                  }
-                  accessories={[
-                    item.type === "text"
-                      ? { tag: { value: "text", color: Color.Purple } }
-                      : { tag: { value: item.partOfSpeech, color: posColor(item.partOfSpeech) } },
-                    { text: relativeTime(item.timestamp) },
-                  ]}
-                  detail={<TranslationDetail item={item} />}
-                  actions={
-                    <ActionPanel>
-                      <Action
-                        title={recentShowingDetail ? "Hide Detail" : "Show Detail"}
-                        icon={Icon.Sidebar}
-                        onAction={() => setRecentShowingDetail((v) => !v)}
-                      />
-                      <Action.CopyToClipboard
-                        title="Copy Translation"
-                        content={item.translation}
-                        shortcut={{ modifiers: ["cmd"], key: "c" }}
-                      />
-                      <PronounceAction
-                        word={item.word}
-                        languageCode={languagePair.source.code}
-                        title="Pronounce Word"
-                        shortcut={{ modifiers: ["cmd"], key: "o" }}
-                      />
-                      <PronounceAction
-                        word={item.translation}
-                        languageCode={languagePair.target.code}
-                        title="Pronounce Translation"
-                        shortcut={{ modifiers: ["cmd", "shift"], key: "o" }}
-                      />
-                      <Action
-                        title="Open History"
-                        icon={Icon.Clock}
-                        shortcut={{ modifiers: ["cmd", "shift"], key: "h" }}
-                        onAction={() => push(<History languagePair={languagePair} />)}
-                      />
-                      <ToggleLanguagesAction onAction={handleToggleLanguages} />
-                    </ActionPanel>
-                  }
-                />
-              ))}
-            </List.Section>
-          )}
-        </>
-      ) : isLoading ? (
-        <List.EmptyView title="Translating…" icon={Icon.Book} />
-      ) : null}
+          ))}
+        </List.Section>
+      )}
     </List>
   );
 }
@@ -715,6 +759,37 @@ if (import.meta.vitest) {
 
       vi.advanceTimersByTime(1);
       expect(translate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("recent visibility", () => {
+    it("keeps Recent mounted while a translation is in flight", () => {
+      expect(shouldShowRecent(true, false, true)).toBe(true);
+    });
+
+    it("hides Recent once input is typed and nothing is loading", () => {
+      expect(shouldShowRecent(true, false, false)).toBe(false);
+    });
+
+    it("never shows an empty Recent section", () => {
+      expect(shouldShowRecent(false, true, false)).toBe(false);
+      expect(shouldShowRecent(false, false, true)).toBe(false);
+    });
+  });
+
+  describe("loading icon", () => {
+    it("advances on every tick so the row reads as motion", () => {
+      const frames = [0, 1, 2, 3].map(loadingIcon);
+      expect(new Set(frames).size).toBe(frames.length);
+    });
+
+    it("cycles instead of running off the end of the frame list", () => {
+      expect(loadingIcon(LOADING_ICON_FRAMES.length)).toBe(loadingIcon(0));
+      expect(loadingIcon(LOADING_ICON_FRAMES.length * 7 + 2)).toBe(loadingIcon(2));
+    });
+
+    it("never shows the hollow 0% ring, which reads as an empty checkbox", () => {
+      expect(LOADING_ICON_FRAMES).not.toContain(Icon.CircleProgress);
     });
   });
 }
