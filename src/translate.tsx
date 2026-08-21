@@ -60,7 +60,7 @@ function scheduleWordTranslation(callback: () => void): ReturnType<typeof setTim
   return setTimeout(callback, WORD_TRANSLATION_DEBOUNCE_MS);
 }
 
-const LOADING_TICK_MS = 220;
+const LOADING_TICK_MS = 100;
 
 // Built-in icons only. The docs recommend built-in icons in lists, and these four
 // frames animate without pulling in @raycast/utils just to generate an SVG ring.
