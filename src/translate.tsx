@@ -62,10 +62,6 @@ function scheduleWordTranslation(callback: () => void): ReturnType<typeof setTim
 
 const LOADING_TICK_MS = 200;
 
-// Built-in icons only. The docs recommend built-in icons in lists, and these four
-// frames animate without pulling in @raycast/utils just to generate an SVG ring.
-// Starts at 25%: Icon.CircleProgress (0%) is a hollow outline that reads as an
-// empty checkbox rather than as work in progress.
 const LOADING_ICON_FRAMES: Icon[] = [
   Icon.CircleProgress25,
   Icon.CircleProgress50,
@@ -92,9 +88,6 @@ function useLoadingTick(active: boolean): number {
   return tick;
 }
 
-// Recent stays mounted while a translation is in flight: collapsing the whole list
-// to an empty view for the length of a Gemini round-trip throws away the user's
-// context and makes the result arrival a hard layout jump.
 function shouldShowRecent(hasRecent: boolean, isEmptyInput: boolean, isLoading: boolean): boolean {
   return hasRecent && (isEmptyInput || isLoading);
 }

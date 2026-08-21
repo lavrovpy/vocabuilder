@@ -50,10 +50,6 @@ export const Action = {} as never;
 export const ActionPanel = {} as never;
 export const List = {} as never;
 export const Detail = {} as never;
-
-// Unlike the placeholders above, Icon members are read outside render bodies
-// (loadingIcon's frame list), so each name needs a distinct value. An empty
-// object makes every icon `undefined`, which silently passes any icon assertion.
 export const Icon = new Proxy({}, { get: (_target, name) => name }) as never;
 export const Keyboard = {} as never;
 export const closeMainWindow = vi.fn(async () => {});
