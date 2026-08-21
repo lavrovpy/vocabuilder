@@ -50,7 +50,7 @@ export const Action = {} as never;
 export const ActionPanel = {} as never;
 export const List = {} as never;
 export const Detail = {} as never;
-export const Icon = {} as never;
+export const Icon = new Proxy({}, { get: (_target, name) => name }) as never;
 export const Keyboard = {} as never;
 export const closeMainWindow = vi.fn(async () => {});
 export const openExtensionPreferences = vi.fn(async () => {});
