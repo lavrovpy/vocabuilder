@@ -197,7 +197,7 @@ export default function Translate() {
 
   const activePair = languagePair;
   const activeDefaultPair = defaultPair;
-  const { source, target } = activePair;
+  const { source } = activePair;
 
   function clearDebounce() {
     if (debounceRef.current) {
@@ -641,7 +641,6 @@ export default function Translate() {
           <List.Item
             title={`Translating "${truncate(searchText.trim(), 40)}"…`}
             icon={{ source: loadingIcon(loadingTick), tintColor: Color.SecondaryText }}
-            accessories={[{ text: `${source.code.toUpperCase()} → ${target.code.toUpperCase()}` }]}
           />
         </List.Section>
       ) : showEmpty ? (
