@@ -7,7 +7,6 @@ import type {
 } from "promptfoo";
 import { translateWord } from "../../src/lib/gemini";
 import { isGeminiError, isOutcome } from "../../src/lib/geminiError";
-import { getPreferenceDefault } from "../../src/lib/manifest";
 import type { LanguagePair } from "../../src/lib/languages";
 import type { GeminiWordResponse } from "../../src/lib/types";
 
@@ -21,6 +20,27 @@ export function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown, prefix: str
 export const ProviderConfigSchema = z.object({
   temperature: z.number(),
 });
+
+export const EvalEnvironmentSchema = z.object({
+  EVAL_TRANSLATION_API_KEY: z.string().trim().min(1),
+  EVAL_TRANSLATION_API_BASE_URL: z.string().trim().url(),
+  EVAL_TRANSLATION_MODEL: z.string().trim().min(1),
+  EVAL_JUDGE_API_KEY: z.string().trim().min(1),
+  EVAL_JUDGE_API_BASE_URL: z.string().trim().url(),
+  EVAL_JUDGE_PROVIDER_ID: z
+    .string()
+    .trim()
+    .regex(/^[^\s:]+(?::[^\s:]+)+$/),
+});
+
+export function parseEvalEnvironment(env: NodeJS.ProcessEnv) {
+  return parseOrThrow(
+    EvalEnvironmentSchema,
+    env,
+    "Invalid eval environment",
+    "set all EVAL_TRANSLATION_* and EVAL_JUDGE_* variables listed in .env.example.",
+  );
+}
 
 export const EvalVarsSchema = z
   .object({
@@ -93,18 +113,21 @@ export function describeFailure(err: unknown): string {
 
 export default class VocabuilderTranslateWordProvider implements ApiProvider {
   private temperature: number;
+  private environment: z.infer<typeof EvalEnvironmentSchema>;
 
   constructor(options: ProviderOptions = {}) {
-    this.temperature = parseOrThrow(
+    const config = parseOrThrow(
       ProviderConfigSchema,
       options.config ?? {},
       "Invalid provider config",
       "promptfooconfig.yaml must set provider config.temperature.",
-    ).temperature;
+    );
+    this.temperature = config.temperature;
+    this.environment = parseEvalEnvironment({ ...process.env, ...options.env });
   }
 
   id(): string {
-    return "vocabuilder-production";
+    return `vocabuilder-production:${this.environment.EVAL_TRANSLATION_MODEL}`;
   }
 
   async callApi(prompt: string, context?: CallApiContextParams): Promise<ProviderResponse> {
@@ -115,16 +138,11 @@ export default class VocabuilderTranslateWordProvider implements ApiProvider {
       "every test case in promptfooconfig.yaml must declare its language pair.",
     );
     const input = inputVar ?? prompt.trim();
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    if (!apiKey) {
-      return { error: "GEMINI_API_KEY is not set" };
-    }
 
     try {
-      const response = await translateWord(input, apiKey, pair, undefined, {
-        model: getPreferenceDefault("translationModel"),
-        baseUrl: getPreferenceDefault("geminiApiBaseUrl"),
+      const response = await translateWord(input, this.environment.EVAL_TRANSLATION_API_KEY, pair, undefined, {
+        model: this.environment.EVAL_TRANSLATION_MODEL,
+        baseUrl: this.environment.EVAL_TRANSLATION_API_BASE_URL,
         temperature: this.temperature,
       });
       return { output: JSON.stringify(projectSuccess(input, pair, response), null, 2) };
