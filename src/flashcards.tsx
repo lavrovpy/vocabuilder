@@ -6,7 +6,7 @@ import LanguagePairDropdown from "./components/LanguagePairDropdown";
 import { useLanguagePair } from "./hooks/useLanguagePair";
 import { LanguagePair, storageKeyPrefix } from "./lib/languages";
 import { languagePairTitle, languagePairValue, swapLanguagePair } from "./lib/languageSession";
-import { buildFlashcardDetailMarkdown } from "./lib/markdown";
+import { buildFlashcardDetailMarkdown, withTtsHint } from "./lib/markdown";
 import { getSessionCards, saveFlashcardProgress } from "./lib/storage";
 import { FlashcardProgress, Rating, Translation } from "./lib/types";
 
@@ -257,7 +257,7 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
   const isNew = !progress || progress.repetitions === 0;
   const position = `${state.currentIndex + 1} / ${state.sessionCards.length}`;
 
-  const detailMarkdown = buildFlashcardDetailMarkdown(card);
+  const detailMarkdown = withTtsHint(buildFlashcardDetailMarkdown(card));
 
   return (
     <List
@@ -273,20 +273,7 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
         title={card.word}
         subtitle={state.revealed ? undefined : "···"}
         accessories={[isNew ? { tag: { value: "New", color: Color.Green } } : {}, { text: position }]}
-        detail={
-          <List.Item.Detail
-            markdown={detailMarkdown}
-            metadata={
-              <List.Item.Detail.Metadata>
-                <List.Item.Detail.Metadata.Label
-                  title=""
-                  text={state.revealed ? "⌘O to pronounce · ⌘⇧O for translation" : "⌘O to pronounce"}
-                  icon={Icon.SpeakerHigh}
-                />
-              </List.Item.Detail.Metadata>
-            }
-          />
-        }
+        detail={<List.Item.Detail markdown={detailMarkdown} />}
         actions={
           <ActionPanel>
             {!state.revealed ? (

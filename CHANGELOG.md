@@ -9,6 +9,8 @@ VocaBuilder Changelog
 - Refreshed the extension icon.
 - Tightened the pronunciation prompt for more accurate text-to-speech output.
 - Example sentences in the translate, history, and flashcard detail panes now show the source-language sentence first, with the target-language rendering beneath it.
+- Detail panes no longer clip long example sentences: the pronunciation shortcut hint moved from a fixed bottom panel into the detail text, so the whole pane height is available for content.
+- The looked-up word is now shown in bold inside the source-language example sentence, including inflected forms and scripts without word boundaries.
 
 ## [Switch language pairs, pronunciation, and configurable models] - 2026-06-01
 
