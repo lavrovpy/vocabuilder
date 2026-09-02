@@ -1,3 +1,9 @@
+# Product Context
+
+VocaBuilder is a Raycast extension for quick word and phrase lookup, not a language-learning app. The typical user already knows the source language reasonably well and wants a fast gloss for an unfamiliar word; history and flashcards are secondary. It supports around twenty languages in any source → target pairing, so nothing may assume English or Ukrainian on either side.
+
+Every word sense carries two example sentences. In the Gemini schema `exampleTranslation` is the **source-language** sentence (it contains the looked-up word verbatim) and `example` is the **target-language** rendering of it — the names read backwards, so check `src/lib/types.ts` before touching them. Wherever both are shown to the user (detail panes, flashcards), always render both, source-language sentence first and the target-language one second. The Anki export still emits `example` under the "Example" column and `exampleTranslation` under "Example Translation"; changing that reorders fields in existing Anki note types, so treat it as a deliberate breaking change.
+
 # Project Conventions
 
 - Use `npm` to run build scripts (e.g. `npm run lint`, `npm run build`).

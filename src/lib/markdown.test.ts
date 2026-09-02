@@ -1,14 +1,24 @@
 import { describe, it, expect } from "vitest";
-import { buildTranslationDetailMarkdown, buildTextTranslationDetailMarkdown } from "./markdown";
+import {
+  buildFlashcardDetailMarkdown,
+  buildTranslationDetailMarkdown,
+  buildTextTranslationDetailMarkdown,
+} from "./markdown";
 
 describe("buildTranslationDetailMarkdown", () => {
   const translation = {
     word: "hello",
     translation: "привіт",
     partOfSpeech: "interjection",
-    example: "Hello, how are you?",
-    exampleTranslation: "Привіт, як справи?",
+    example: "Привіт, як справи?",
+    exampleTranslation: "Hello, how are you?",
   };
+
+  it("shows the source-language sentence before the target-language one", () => {
+    const md = buildTranslationDetailMarkdown(translation);
+    expect(md.indexOf("Hello, how are you?")).toBeLessThan(md.indexOf("Привіт, як справи?"));
+    expect(md).toContain("*Привіт, як справи?*");
+  });
 
   it("renders basic translation without correction note", () => {
     const md = buildTranslationDetailMarkdown(translation);
@@ -48,6 +58,20 @@ describe("buildTranslationDetailMarkdown", () => {
     const md = buildTranslationDetailMarkdown(t);
     // multiline escaping joins with markdown line break
     expect(md).toContain("  \n");
+  });
+});
+
+describe("buildFlashcardDetailMarkdown", () => {
+  it("shows the source-language sentence before the target-language one", () => {
+    const md = buildFlashcardDetailMarkdown({
+      word: "hello",
+      translation: "привіт",
+      partOfSpeech: "interjection",
+      example: "Привіт, як справи?",
+      exampleTranslation: "Hello, how are you?",
+    });
+    expect(md.indexOf("Hello, how are you?")).toBeLessThan(md.indexOf("Привіт, як справи?"));
+    expect(md).toContain("*Привіт, як справи?*");
   });
 });
 
