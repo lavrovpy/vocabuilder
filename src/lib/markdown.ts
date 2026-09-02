@@ -32,9 +32,9 @@ ${correctionNote}
 
 **Example:**
 
-${escapeMarkdownMultiline(translation.example)}
+${escapeMarkdownMultiline(translation.exampleTranslation)}
 
-*${escapeMarkdownMultiline(translation.exampleTranslation)}*`;
+*${escapeMarkdownMultiline(translation.example)}*`;
 }
 
 export function buildTextTranslationDetailMarkdown(input: string, translation: string): string {
@@ -58,7 +58,7 @@ export function buildFlashcardDetailMarkdown(
 
 ---
 
-${escapeMarkdownMultiline(card.example)}
+${escapeMarkdownMultiline(card.exampleTranslation)}
 
-${escapeMarkdownMultiline(card.exampleTranslation)}`;
+*${escapeMarkdownMultiline(card.example)}*`;
 }

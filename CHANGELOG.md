@@ -8,6 +8,7 @@ VocaBuilder Changelog
 - Reworked the translate screen while a translation is in progress: the word you are translating now appears as a row in the `Translation` section where its result will land, and your `Recent` translations stay on screen instead of the list clearing to an empty placeholder.
 - Refreshed the extension icon.
 - Tightened the pronunciation prompt for more accurate text-to-speech output.
+- Example sentences in the translate, history, and flashcard detail panes now show the source-language sentence first, with the target-language rendering beneath it.
 
 ## [Switch language pairs, pronunciation, and configurable models] - 2026-06-01
 
