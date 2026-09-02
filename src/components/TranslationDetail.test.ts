@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildDetailMarkdown } from "./TranslationDetail";
+import { TTS_HINT_TEXT } from "../lib/markdown";
 import type { Translation } from "../lib/types";
 
 const wordItem: Translation = {
@@ -40,6 +41,16 @@ describe("buildDetailMarkdown", () => {
   it("omits the correction note when originalInput matches", () => {
     const md = buildDetailMarkdown(wordItem, "conjecture");
     expect(md).not.toContain("Corrected from");
+  });
+
+  it("puts the pronunciation hint after the example sentences for word items", () => {
+    const md = buildDetailMarkdown(wordItem);
+    expect(md.indexOf(TTS_HINT_TEXT)).toBeGreaterThan(md.indexOf(wordItem.example));
+  });
+
+  it("puts the pronunciation hint after the original text for text items", () => {
+    const md = buildDetailMarkdown(textItem);
+    expect(md.indexOf(TTS_HINT_TEXT)).toBeGreaterThan(md.indexOf("## Original"));
   });
 
   it("routes text items through the text builder (no POS section)", () => {

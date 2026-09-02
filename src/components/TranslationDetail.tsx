@@ -1,8 +1,6 @@
-import { Icon, List } from "@raycast/api";
-import { buildTextTranslationDetailMarkdown, buildTranslationDetailMarkdown } from "../lib/markdown";
+import { List } from "@raycast/api";
+import { buildTextTranslationDetailMarkdown, buildTranslationDetailMarkdown, withTtsHint } from "../lib/markdown";
 import { Translation } from "../lib/types";
-
-export const TTS_HINT_TEXT = "⌘O to pronounce · ⌘⇧O for translation";
 
 type TranslationDetailInput = Pick<
   Translation,
@@ -10,9 +8,11 @@ type TranslationDetailInput = Pick<
 >;
 
 export function buildDetailMarkdown(item: TranslationDetailInput, originalInput?: string): string {
-  return item.type === "text"
-    ? buildTextTranslationDetailMarkdown(item.word, item.translation)
-    : buildTranslationDetailMarkdown(item, originalInput);
+  const body =
+    item.type === "text"
+      ? buildTextTranslationDetailMarkdown(item.word, item.translation)
+      : buildTranslationDetailMarkdown(item, originalInput);
+  return withTtsHint(body);
 }
 
 interface TranslationDetailProps {
@@ -21,16 +21,5 @@ interface TranslationDetailProps {
 }
 
 export function TranslationDetail({ item, originalInput }: TranslationDetailProps) {
-  const markdown = buildDetailMarkdown(item, originalInput);
-
-  return (
-    <List.Item.Detail
-      markdown={markdown}
-      metadata={
-        <List.Item.Detail.Metadata>
-          <List.Item.Detail.Metadata.Label title="" text={TTS_HINT_TEXT} icon={Icon.SpeakerHigh} />
-        </List.Item.Detail.Metadata>
-      }
-    />
-  );
+  return <List.Item.Detail markdown={buildDetailMarkdown(item, originalInput)} />;
 }

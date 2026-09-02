@@ -3,6 +3,8 @@ import {
   buildFlashcardDetailMarkdown,
   buildTranslationDetailMarkdown,
   buildTextTranslationDetailMarkdown,
+  TTS_HINT_TEXT,
+  withTtsHint,
 } from "./markdown";
 
 describe("buildTranslationDetailMarkdown", () => {
@@ -16,8 +18,73 @@ describe("buildTranslationDetailMarkdown", () => {
 
   it("shows the source-language sentence before the target-language one", () => {
     const md = buildTranslationDetailMarkdown(translation);
-    expect(md.indexOf("Hello, how are you?")).toBeLessThan(md.indexOf("Привіт, як справи?"));
+    expect(md).toContain("**Hello**, how are you?");
+    expect(md.indexOf("**Hello**, how are you?")).toBeLessThan(md.indexOf("Привіт, як справи?"));
     expect(md).toContain("*Привіт, як справи?*");
+  });
+
+  it("bolds the looked-up word only in the source-language sentence", () => {
+    const md = buildTranslationDetailMarkdown({
+      ...translation,
+      word: "state",
+      example: "Викладіть свою позицію. State.",
+      exampleTranslation: "Please state your position.",
+    });
+    expect(md).toContain("Please **state** your position\\.");
+    expect(md).toContain("*Викладіть свою позицію\\. State\\.*");
+  });
+
+  it("matches the exact form case-insensitively and leaves longer tokens alone", () => {
+    const md = buildTranslationDetailMarkdown({
+      ...translation,
+      word: "кіт",
+      exampleTranslation: "Кіт спить, а кітч ні.",
+    });
+    expect(md).toContain("**Кіт** спить, а кітч ні\\.");
+  });
+
+  it("falls back to an inflected form when the exact word is absent", () => {
+    const md = buildTranslationDetailMarkdown({
+      ...translation,
+      word: "cat",
+      exampleTranslation: "Two cats sat on the mat.",
+    });
+    expect(md).toContain("Two **cats** sat on the mat\\.");
+  });
+
+  it("falls back to a substring match for scripts without word boundaries", () => {
+    const md = buildTranslationDetailMarkdown({
+      ...translation,
+      word: "猫",
+      exampleTranslation: "我喜欢猫。",
+    });
+    expect(md).toContain("我喜欢**猫**。");
+  });
+
+  it("bolds multi-word lookups and words containing regex metacharacters", () => {
+    const phrase = buildTranslationDetailMarkdown({
+      ...translation,
+      word: "give up",
+      exampleTranslation: "Never give up!",
+    });
+    expect(phrase).toContain("Never **give up**\\!");
+
+    const symbols = buildTranslationDetailMarkdown({
+      ...translation,
+      word: "c++",
+      exampleTranslation: "I write c++ daily.",
+    });
+    expect(symbols).toContain("I write **c\\+\\+** daily\\.");
+  });
+
+  it("leaves the sentence untouched when the word does not occur in it", () => {
+    const md = buildTranslationDetailMarkdown({
+      ...translation,
+      word: "hello",
+      exampleTranslation: "Good morning, everyone.",
+    });
+    expect(md).toContain("Good morning, everyone\\.");
+    expect(md).not.toContain("**Good");
   });
 
   it("renders basic translation without correction note", () => {
@@ -70,7 +137,8 @@ describe("buildFlashcardDetailMarkdown", () => {
       example: "Привіт, як справи?",
       exampleTranslation: "Hello, how are you?",
     });
-    expect(md.indexOf("Hello, how are you?")).toBeLessThan(md.indexOf("Привіт, як справи?"));
+    expect(md).toContain("**Hello**, how are you?");
+    expect(md.indexOf("**Hello**, how are you?")).toBeLessThan(md.indexOf("Привіт, як справи?"));
     expect(md).toContain("*Привіт, як справи?*");
   });
 });
@@ -88,5 +156,14 @@ describe("buildTextTranslationDetailMarkdown", () => {
     const md = buildTextTranslationDetailMarkdown("a|b", "c*d");
     expect(md).toContain("a\\|b");
     expect(md).toContain("c\\*d");
+  });
+});
+
+describe("withTtsHint", () => {
+  it("appends the hint after the content, separated by a rule", () => {
+    const md = withTtsHint("## word\n\n*Довге речення*");
+    expect(md.startsWith("## word\n\n*Довге речення*")).toBe(true);
+    expect(md.indexOf("---")).toBeGreaterThan(md.indexOf("*Довге речення*"));
+    expect(md.trimEnd().endsWith(`${TTS_HINT_TEXT}*`)).toBe(true);
   });
 });
