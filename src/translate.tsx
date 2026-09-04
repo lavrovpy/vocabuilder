@@ -27,6 +27,7 @@ import { storageKeyPrefix } from "./lib/languages";
 import { languagePairTitle, languagePairValue, swapLanguagePair } from "./lib/languageSession";
 import { posColor } from "./lib/colors";
 import { TranslationDetail } from "./components/TranslationDetail";
+import { translationFromSense } from "./lib/sense";
 import { getHistory, saveTranslation } from "./lib/storage";
 import { Translation, WordSense } from "./lib/types";
 
@@ -351,16 +352,7 @@ export default function Translate() {
   async function commitWordSense(pw: PendingWordTranslation, sense: WordSense) {
     if (!languagePair) return;
     const now = Date.now();
-    const translation: Translation = {
-      id: `${pw.effectiveWord}-${now}`,
-      word: pw.effectiveWord,
-      translation: sense.translation,
-      partOfSpeech: sense.partOfSpeech,
-      example: sense.example,
-      exampleTranslation: sense.exampleTranslation,
-      timestamp: now,
-      type: "word",
-    };
+    const translation = translationFromSense(pw.effectiveWord, sense, `${pw.effectiveWord}-${now}`, now);
 
     const saved = await saveTranslation(translation, languagePair);
     if (!saved) {
@@ -523,16 +515,12 @@ export default function Translate() {
       ) : showSensePicker && pendingWord ? (
         <List.Section title="Choose Translation">
           {pendingWord.senses.map((sense, index) => {
-            const detailTranslation: Translation = {
-              id: `pick-${index}`,
-              word: pendingWord.effectiveWord,
-              translation: sense.translation,
-              partOfSpeech: sense.partOfSpeech,
-              example: sense.example,
-              exampleTranslation: sense.exampleTranslation,
-              timestamp: Date.now(),
-              type: "word",
-            };
+            const detailTranslation = translationFromSense(
+              pendingWord.effectiveWord,
+              sense,
+              `pick-${index}`,
+              Date.now(),
+            );
             const pickShortcut = pickSenseShortcut(index);
             return (
               <List.Item

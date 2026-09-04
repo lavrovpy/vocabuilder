@@ -7,6 +7,7 @@ import {
   GeminiTextResponseJsonSchema,
   GeminiTextResponseSchema,
   PART_OF_SPEECH_VALUES,
+  REGISTER_VALUES,
   WordSense,
 } from "./types";
 import { asJsonStringLiteral, normalizeWordInput, normalizeTextInput } from "./input";
@@ -183,6 +184,7 @@ function dedupeSenses(senses: WordSense[]): WordSense[] {
 function buildWordPrompt(normalizedWord: string, languagePair: LanguagePair): string {
   const { source, target } = languagePair;
   const partsOfSpeech = PART_OF_SPEECH_VALUES.map((value) => `"${value}"`).join(", ");
+  const registers = REGISTER_VALUES.map((value) => `"${value}"`).join(", ");
   return `Translate the ${source.name} vocabulary item ${asJsonStringLiteral(normalizedWord)} to ${target.name}.
 The vocabulary item may be a single word, a phrasal verb (e.g. "give up", "break down"), or an idiom / fixed expression (e.g. "red herring", "kick the bucket").
 
@@ -194,6 +196,9 @@ CRITICAL RULES:
 5. The "exampleTranslation" (${source.name} sentence) MUST contain the EXACT phrase ${asJsonStringLiteral(normalizedWord)} (or the corrected form if misspelled) as a contiguous substring. NEVER substitute it with a synonym or paraphrase. For example, if the input is "red herring", write "That clue turned out to be a red herring." — NOT "That clue turned out to be misleading."
 6. The "example" (${target.name} sentence) must be a natural idiomatic translation of the exampleTranslation.
 7. Target-language purity: every word in "translation" and "example" must be standard ${target.name} as used by educated native speakers, in standard ${target.name} orthography and morphology. Do NOT substitute words from a related or neighbouring language, and do NOT use calques, hybrid forms, or russisms / anglicisms / other foreign-influenced shapes built on a ${target.name} stem with a foreign affix when a native ${target.name} word exists. Established loanwords that are part of the standard ${target.name} lexicon are fine; the rule forbids substitutions and contaminations from other languages, not legitimate borrowings.
+8. "transcription" is the pronunciation of the ${source.name} item as a learner's dictionary of ${source.name} would print it, using whatever system that language conventionally uses (IPA for English, French or German; Pinyin with tone marks for Mandarin; romaji for Japanese). Write the symbols only, with NO surrounding slashes or brackets. Give the transcription for THIS part of speech — English "record" is a different transcription as a noun than as a verb. OMIT the field entirely for multi-word items and for any ${source.name} where a learner's dictionary would not print one.
+9. "forms" lists the key inflected forms of the ${source.name} item for this part of speech, already labelled and comma-separated, as a dictionary headword line would abbreviate them (e.g. "pl. raptures", "past ran, pp. run", "comp. better, sup. best"). Give only the forms a learner needs, never a full paradigm — for heavily inflected ${source.name} give the two or three most useful. OMIT the field entirely when the item does not inflect.
+10. "register" is a usage label for THIS sense, one of: ${registers}. OMIT the field entirely when the sense is neutral, everyday language — most senses have no register label.
 
 Provide up to 5 distinct meanings (senses), ordered from most common first.
 Each sense MUST have a different translation or a different part of speech — do NOT repeat the same translation+partOfSpeech pair.
@@ -205,7 +210,10 @@ Respond ONLY with valid JSON:
       "translation": "${target.name} gloss for this sense",
       "partOfSpeech": "one of the allowed labels listed above",
       "example": "${target.name} example sentence",
-      "exampleTranslation": "${source.name} sentence that MUST contain ${asJsonStringLiteral(normalizedWord)} verbatim"
+      "exampleTranslation": "${source.name} sentence that MUST contain ${asJsonStringLiteral(normalizedWord)} verbatim",
+      "transcription": "include ONLY when applicable; symbols only, no slashes",
+      "forms": "include ONLY when the item inflects",
+      "register": "include ONLY when the sense is not neutral"
     }
   ],
   "correctedWord": "include ONLY if the input was misspelled; omit if correct"

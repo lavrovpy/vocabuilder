@@ -4,7 +4,15 @@ import { Translation } from "../lib/types";
 
 type TranslationDetailInput = Pick<
   Translation,
-  "type" | "word" | "translation" | "partOfSpeech" | "example" | "exampleTranslation"
+  | "type"
+  | "word"
+  | "translation"
+  | "partOfSpeech"
+  | "example"
+  | "exampleTranslation"
+  | "transcription"
+  | "forms"
+  | "register"
 >;
 
 export function buildDetailMarkdown(item: TranslationDetailInput, originalInput?: string): string {
