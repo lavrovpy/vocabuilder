@@ -28,19 +28,19 @@ const textItem: Translation = {
 describe("buildDetailMarkdown", () => {
   it("routes word items through the structured word builder", () => {
     const md = buildDetailMarkdown(wordItem);
-    // Word builder opens with the dictionary headword block; text builder does not.
-    expect(md.split("\n")[0]).toBe("# conjecture");
-    expect(md).toContain("\n> noun\n");
+    // Word builder leads with the gloss and quotes the entry line; text builder does not.
+    expect(md.split("\n")[0]).toBe("# припущення");
+    expect(md).toContain("\n> conjecture · noun\n");
   });
 
-  it("carries the dictionary fields of a stored translation into the headword line", () => {
+  it("carries the dictionary fields of a stored translation into the entry line", () => {
     const md = buildDetailMarkdown({
       ...wordItem,
       transcription: "kənˈdʒektʃə(r)",
       forms: "pl. conjectures",
       register: "formal",
     });
-    expect(md).toContain("\n> /kənˈdʒektʃə\\(r\\)/ · noun · pl\\. conjectures · *formal*\n");
+    expect(md).toContain("\n> conjecture /kənˈdʒektʃə\\(r\\)/ · noun · pl\\. conjectures · *formal*\n");
   });
 
   it("forwards originalInput so corrections surface", () => {

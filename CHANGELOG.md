@@ -11,7 +11,7 @@ VocaBuilder Changelog
 - Example sentences in the translate, history, and flashcard detail panes now show the source-language sentence first, with the target-language rendering beneath it.
 - Detail panes no longer clip long example sentences: the pronunciation shortcut hint moved from a fixed bottom panel into the detail text, so the whole pane height is available for content.
 - The looked-up word is now shown in bold inside the source-language example sentence, including inflected forms and scripts without word boundaries.
-- Word detail panes now read as a dictionary entry: the headword is followed by a grammar line carrying the pronunciation transcription, part of speech, key inflected forms, and a usage label such as `formal` or `literary` where one applies. Each element appears only when it exists for that word, so multi-word expressions and languages without a transcription convention simply show less.
+- Word detail panes now lead with the translation itself, set as the largest text in the pane, above a single dictionary line carrying the word you looked up, its pronunciation transcription, part of speech, key inflected forms, and a usage label such as `formal` or `literary` where one applies. Each element appears only when it exists for that word, so multi-word expressions and languages without a transcription convention simply show less.
 - Translations now request pronunciation transcriptions, inflected forms, and usage labels per sense, so a word that differs by part of speech — English `record` as a noun and as a verb — shows the transcription and forms belonging to the sense you picked.
 
 ## [Switch language pairs, pronunciation, and configurable models] - 2026-06-01

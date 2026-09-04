@@ -66,48 +66,60 @@ function emphasizeWordMultiline(value: string, word: string): string {
     .join("  \n");
 }
 
-const HEADWORD_SEPARATOR = " · ";
+const ENTRY_SEPARATOR = " · ";
 
-type HeadwordEntry = Pick<Translation, "partOfSpeech" | "transcription" | "forms" | "register">;
+type EntryLine = Pick<Translation, "word" | "partOfSpeech" | "transcription" | "forms" | "register">;
 
-// The grammar line of a print dictionary entry: transcription, part of speech,
-// inflections, register. Segments are collected and then joined, rather than
-// concatenated with separators inline, because Gemini omits any of them — an
-// inline join is what leaves a dangling "·" or a lone "/…/" on the line.
+function collapseWhitespace(value: string | undefined): string {
+  // Collapsed, not just trimmed: a newline anywhere in a model-supplied field
+  // would otherwise split the entry line into two paragraphs.
+  return value?.replace(/\s+/gu, " ").trim() ?? "";
+}
+
+// Everything grammatical about the lookup on one line: the source word with its
+// transcription, then part of speech, inflections and register. Segments are
+// collected and then joined, rather than concatenated with separators inline,
+// because Gemini omits any of them — an inline join is what leaves a dangling
+// "·" or a lone "/…/" on the line.
 //
-// The transcription stays upright and keeps its slashes: italic distorts IPA
-// glyphs, and no dictionary sets phonetics in italic. The italic is spent on
-// `register` instead — the one segment that is a usage caveat rather than a
-// grammatical fact, and so the one worth telling apart at a glance.
+// Word and transcription are one segment, not two, because a dictionary sets
+// them adjacently ("cat /kæt/") rather than as peers of the grammar that
+// follows. The transcription stays upright and keeps its slashes: italic
+// distorts IPA glyphs. The italic is spent on `register` instead — the one
+// segment that is a usage caveat rather than a grammatical fact.
 //
 // The line is returned bare; `buildApparatus` is what quotes it.
-function buildHeadwordLine(entry: HeadwordEntry): string {
-  const segments: string[] = [];
+function buildEntryLine(entry: EntryLine): string {
+  const lemma = [collapseWhitespace(entry.word), collapseWhitespace(entry.transcription)]
+    .filter(Boolean)
+    .map((part, index) => (index === 0 ? escapeMarkdown(part) : `/${escapeMarkdown(part)}/`))
+    .join(" ");
+  const segments = [lemma];
   const push = (value: string | undefined, wrap: (escaped: string) => string) => {
-    // Whitespace is collapsed, not just trimmed: a newline anywhere in a
-    // model-supplied field would otherwise split the headword line in two.
-    const collapsed = value?.replace(/\s+/gu, " ").trim();
+    const collapsed = collapseWhitespace(value);
     if (collapsed) segments.push(wrap(escapeMarkdown(collapsed)));
   };
-  push(entry.transcription, (s) => `/${s}/`);
   push(entry.partOfSpeech, (s) => s);
   push(entry.forms, (s) => s);
   push(entry.register, (s) => `*${s}*`);
-  return segments.join(HEADWORD_SEPARATOR);
+  return segments.filter(Boolean).join(ENTRY_SEPARATOR);
 }
 
-// Grammar line and correction notice are both editorial apparatus about the
-// entry rather than part of it, so they share one blockquote: markdown offers
-// only bold and italic, both already spent on the gloss and the target-language
-// sentence, and the quote rule is the one remaining way to set apparatus below
-// body text the way a print dictionary sets it smaller. Two separate quotes
-// would render as two stacked rules reading as unrelated asides.
+// Entry line and correction notice are both editorial apparatus about the
+// lookup rather than the answer to it, so they share one blockquote: markdown
+// offers only bold and italic, both already spent elsewhere, and the quote rule
+// is the one remaining way to set apparatus below body text. Two separate
+// quotes would render as two stacked rules reading as unrelated asides.
 function buildApparatus(lines: string[]): string {
   const present = lines.filter(Boolean);
   if (present.length === 0) return "";
   return present.map((line) => `> ${line}`).join("  \n");
 }
 
+// The gloss is the heading, not the source word. A monolingual dictionary sets
+// the headword largest because that is what you scan a page for, but here the
+// source word was just typed by the user and is echoed in the search bar and the
+// list beside this pane — the gloss is the only new information in the view.
 export function buildTranslationDetailMarkdown(
   translation: Pick<
     Translation,
@@ -116,13 +128,12 @@ export function buildTranslationDetailMarkdown(
   originalInput?: string,
 ): string {
   const apparatus = buildApparatus([
-    buildHeadwordLine(translation),
+    buildEntryLine(translation),
     originalInput && originalInput !== translation.word ? `*Corrected from "${escapeMarkdown(originalInput)}"*` : "",
   ]);
   const blocks = [
-    `# ${escapeMarkdown(translation.word)}`,
+    `# ${escapeMarkdown(translation.translation)}`,
     apparatus,
-    `**${escapeMarkdown(translation.translation)}**`,
     "---",
     emphasizeWordMultiline(translation.exampleTranslation, translation.word),
     `*${escapeMarkdownMultiline(translation.example)}*`,
