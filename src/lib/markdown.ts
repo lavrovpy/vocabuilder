@@ -84,15 +84,18 @@ function collapseWhitespace(value: string | undefined): string {
 //
 // Word and transcription are one segment, not two, because a dictionary sets
 // them adjacently ("cat /kæt/") rather than as peers of the grammar that
-// follows. The transcription stays upright and keeps its slashes: italic
-// distorts IPA glyphs. The italic is spent on `register` instead — the one
-// segment that is a usage caveat rather than a grammatical fact.
+// follows. The word is bold for the same reason it is bold inside the example
+// sentence: it is the thing looked up. The transcription stays upright and
+// keeps its slashes — italic distorts IPA glyphs — so the italic is spent on
+// `register`, the one segment that is a usage caveat rather than a grammatical
+// fact.
 //
 // The line is returned bare; `buildApparatus` is what quotes it.
 function buildEntryLine(entry: EntryLine): string {
-  const lemma = [collapseWhitespace(entry.word), collapseWhitespace(entry.transcription)]
+  const word = collapseWhitespace(entry.word);
+  const transcription = collapseWhitespace(entry.transcription);
+  const lemma = [word ? `**${escapeMarkdown(word)}**` : "", transcription ? `/${escapeMarkdown(transcription)}/` : ""]
     .filter(Boolean)
-    .map((part, index) => (index === 0 ? escapeMarkdown(part) : `/${escapeMarkdown(part)}/`))
     .join(" ");
   const segments = [lemma];
   const push = (value: string | undefined, wrap: (escaped: string) => string) => {

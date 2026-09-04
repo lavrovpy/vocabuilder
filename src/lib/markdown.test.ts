@@ -90,7 +90,7 @@ describe("buildTranslationDetailMarkdown", () => {
   it("renders basic translation without correction note", () => {
     const md = buildTranslationDetailMarkdown(translation);
     expect(md.split("\n")[0]).toBe("# привіт");
-    expect(md).toContain("> hello · interjection");
+    expect(md).toContain("> **hello** · interjection");
     expect(md).not.toContain("Corrected from");
   });
 
@@ -138,37 +138,37 @@ describe("buildTranslationDetailMarkdown", () => {
       register: "literary" as const,
     });
     expect(md.split("\n")[0]).toBe("# захоплення");
-    expect(entryLine(md)).toBe("rapture /ˈræptʃə\\(r\\)/ · noun · pl\\. raptures · *literary*");
+    expect(entryLine(md)).toBe("**rapture** /ˈræptʃə\\(r\\)/ · noun · pl\\. raptures · *literary*");
   });
 
   it("keeps the part of speech alone on the line when no dictionary field is present", () => {
     const md = buildTranslationDetailMarkdown(rapture);
-    expect(entryLine(md)).toBe("rapture · noun");
+    expect(entryLine(md)).toBe("**rapture** · noun");
   });
 
   it("emits no dangling separator when only the transcription is present", () => {
     const md = buildTranslationDetailMarkdown({ ...rapture, transcription: "ˈræptʃə(r)" });
-    expect(entryLine(md)).toBe("rapture /ˈræptʃə\\(r\\)/ · noun");
+    expect(entryLine(md)).toBe("**rapture** /ˈræptʃə\\(r\\)/ · noun");
   });
 
   it("emits no dangling separator when only the forms are present", () => {
     const md = buildTranslationDetailMarkdown({ ...rapture, forms: "pl. raptures" });
-    expect(entryLine(md)).toBe("rapture · noun · pl\\. raptures");
+    expect(entryLine(md)).toBe("**rapture** · noun · pl\\. raptures");
   });
 
   it("italicises the register so it reads apart from the grammatical segments", () => {
     const md = buildTranslationDetailMarkdown({ ...rapture, register: "literary" as const });
-    expect(entryLine(md)).toBe("rapture · noun · *literary*");
+    expect(entryLine(md)).toBe("**rapture** · noun · *literary*");
   });
 
   it("treats blank dictionary fields as absent rather than as empty segments", () => {
     const md = buildTranslationDetailMarkdown({ ...rapture, transcription: "  ", forms: "" });
-    expect(entryLine(md)).toBe("rapture · noun");
+    expect(entryLine(md)).toBe("**rapture** · noun");
   });
 
   it("keeps a field carrying a newline on a single entry line", () => {
     const md = buildTranslationDetailMarkdown({ ...rapture, forms: "pl. raptures\n# not a heading" });
-    expect(entryLine(md)).toBe("rapture · noun · pl\\. raptures \\# not a heading");
+    expect(entryLine(md)).toBe("**rapture** · noun · pl\\. raptures \\# not a heading");
     expect(quotedLines(md)).toHaveLength(1);
   });
 
@@ -179,7 +179,7 @@ describe("buildTranslationDetailMarkdown", () => {
       forms: "pl. _rap_ | **tures**",
     });
     const line = entryLine(md);
-    expect(line).toBe("rapture /\\*ræp\\*\\[x\\]\\(y\\)/ · noun · pl\\. \\_rap\\_ \\| \\*\\*tures\\*\\*");
+    expect(line).toBe("**rapture** /\\*ræp\\*\\[x\\]\\(y\\)/ · noun · pl\\. \\_rap\\_ \\| \\*\\*tures\\*\\*");
     expect(line).not.toContain("**tures**");
   });
 
@@ -192,7 +192,7 @@ describe("buildTranslationDetailMarkdown", () => {
       exampleTranslation: "That detail is just a red herring.",
     });
     expect(md.split("\n")[0]).toBe("# відволікаючий маневр");
-    expect(quotedLines(md)).toEqual(["> red herring · idiom"]);
+    expect(quotedLines(md)).toEqual(["> **red herring** · idiom"]);
   });
 
   it("puts the correction note after the entry line and above the examples", () => {
@@ -206,7 +206,7 @@ describe("buildTranslationDetailMarkdown", () => {
   // so they share one block joined by a markdown hard break.
   it("keeps the grammar line and the correction note in a single quote block", () => {
     const md = buildTranslationDetailMarkdown({ ...rapture, forms: "pl. raptures" }, "raptcher");
-    expect(md).toContain('> rapture · noun · pl\\. raptures  \n> *Corrected from "raptcher"*');
+    expect(md).toContain('> **rapture** · noun · pl\\. raptures  \n> *Corrected from "raptcher"*');
     expect(md.split("\n\n").filter((block) => block.startsWith(">"))).toHaveLength(1);
   });
 
@@ -216,8 +216,13 @@ describe("buildTranslationDetailMarkdown", () => {
   it("makes the gloss the heading and demotes the source word into the quote", () => {
     const md = buildTranslationDetailMarkdown(rapture);
     expect(md.split("\n")[0]).toBe("# захоплення");
-    expect(quotedLines(md)).toEqual(["> rapture · noun"]);
+    expect(quotedLines(md)).toEqual(["> **rapture** · noun"]);
     expect(md).not.toContain("# rapture");
+  });
+
+  it("keeps the transcription delimited when the stored word is blank", () => {
+    const md = buildTranslationDetailMarkdown({ ...rapture, word: "", transcription: "ˈræptʃə(r)" });
+    expect(entryLine(md)).toBe("/ˈræptʃə\\(r\\)/ · noun");
   });
 
   // word and partOfSpeech are only bare strings on a stored row, so blank ones

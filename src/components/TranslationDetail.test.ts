@@ -30,7 +30,7 @@ describe("buildDetailMarkdown", () => {
     const md = buildDetailMarkdown(wordItem);
     // Word builder leads with the gloss and quotes the entry line; text builder does not.
     expect(md.split("\n")[0]).toBe("# припущення");
-    expect(md).toContain("\n> conjecture · noun\n");
+    expect(md).toContain("\n> **conjecture** · noun\n");
   });
 
   it("carries the dictionary fields of a stored translation into the entry line", () => {
@@ -40,7 +40,7 @@ describe("buildDetailMarkdown", () => {
       forms: "pl. conjectures",
       register: "formal",
     });
-    expect(md).toContain("\n> conjecture /kənˈdʒektʃə\\(r\\)/ · noun · pl\\. conjectures · *formal*\n");
+    expect(md).toContain("\n> **conjecture** /kənˈdʒektʃə\\(r\\)/ · noun · pl\\. conjectures · *formal*\n");
   });
 
   it("forwards originalInput so corrections surface", () => {
