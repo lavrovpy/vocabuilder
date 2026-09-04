@@ -28,9 +28,18 @@ const textItem: Translation = {
 describe("buildDetailMarkdown", () => {
   it("routes word items through the structured word builder", () => {
     const md = buildDetailMarkdown(wordItem);
-    // Word builder emits the POS line; text builder does not.
-    expect(md).toContain("*(noun)*");
-    expect(md).toContain("**Example:**");
+    // Word builder opens with the dictionary headword block; text builder does not.
+    expect(md.split("\n").slice(0, 2)).toEqual(["# conjecture", "noun"]);
+  });
+
+  it("carries the dictionary fields of a stored translation into the headword line", () => {
+    const md = buildDetailMarkdown({
+      ...wordItem,
+      transcription: "kənˈdʒektʃə(r)",
+      forms: "pl. conjectures",
+      register: "formal",
+    });
+    expect(md.split("\n")[1]).toBe("/kənˈdʒektʃə\\(r\\)/ · noun · pl\\. conjectures · *formal*");
   });
 
   it("forwards originalInput so corrections surface", () => {
@@ -57,6 +66,6 @@ describe("buildDetailMarkdown", () => {
     const md = buildDetailMarkdown(textItem);
     expect(md).toContain("## Translation");
     expect(md).toContain("## Original");
-    expect(md).not.toContain("*(noun)*");
+    expect(md).not.toContain("# Hello world");
   });
 });

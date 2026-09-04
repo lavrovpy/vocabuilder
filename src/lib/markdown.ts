@@ -66,26 +66,52 @@ function emphasizeWordMultiline(value: string, word: string): string {
     .join("  \n");
 }
 
+const HEADWORD_SEPARATOR = " · ";
+
+type HeadwordEntry = Pick<Translation, "partOfSpeech" | "transcription" | "forms" | "register">;
+
+// The grammar line of a print dictionary entry: transcription, part of speech,
+// inflections, register. Segments are collected and then joined, rather than
+// concatenated with separators inline, because Gemini omits any of them — an
+// inline join is what leaves a dangling "·" or a lone "/…/" on the line.
+//
+// The transcription stays upright and keeps its slashes: italic distorts IPA
+// glyphs, and no dictionary sets phonetics in italic. The italic is spent on
+// `register` instead — the one segment that is a usage caveat rather than a
+// grammatical fact, and so the one worth telling apart at a glance.
+function buildHeadwordLine(entry: HeadwordEntry): string {
+  const segments: string[] = [];
+  const push = (value: string | undefined, wrap: (escaped: string) => string) => {
+    // Whitespace is collapsed, not just trimmed: a newline anywhere in a
+    // model-supplied field would otherwise split the headword line in two.
+    const collapsed = value?.replace(/\s+/gu, " ").trim();
+    if (collapsed) segments.push(wrap(escapeMarkdown(collapsed)));
+  };
+  push(entry.transcription, (s) => `/${s}/`);
+  push(entry.partOfSpeech, (s) => s);
+  push(entry.forms, (s) => s);
+  push(entry.register, (s) => `*${s}*`);
+  return segments.join(HEADWORD_SEPARATOR);
+}
+
 export function buildTranslationDetailMarkdown(
-  translation: Pick<Translation, "word" | "translation" | "partOfSpeech" | "example" | "exampleTranslation">,
+  translation: Pick<
+    Translation,
+    "word" | "translation" | "partOfSpeech" | "example" | "exampleTranslation" | "transcription" | "forms" | "register"
+  >,
   originalInput?: string,
 ): string {
-  const correctionNote =
-    originalInput && originalInput !== translation.word
-      ? `\n> *Corrected from "${escapeMarkdown(originalInput)}"*\n`
-      : "";
-  return `## ${escapeMarkdown(translation.word)}
-${correctionNote}
-
-**${escapeMarkdown(translation.translation)}** *(${escapeMarkdown(translation.partOfSpeech)})*
-
----
-
-**Example:**
-
-${emphasizeWordMultiline(translation.exampleTranslation, translation.word)}
-
-*${escapeMarkdownMultiline(translation.example)}*`;
+  const headwordLine = buildHeadwordLine(translation);
+  const headword = `# ${escapeMarkdown(translation.word)}`;
+  const blocks = [
+    headwordLine ? `${headword}\n${headwordLine}` : headword,
+    originalInput && originalInput !== translation.word ? `> *Corrected from "${escapeMarkdown(originalInput)}"*` : "",
+    `**${escapeMarkdown(translation.translation)}**`,
+    "---",
+    emphasizeWordMultiline(translation.exampleTranslation, translation.word),
+    `*${escapeMarkdownMultiline(translation.example)}*`,
+  ];
+  return blocks.filter(Boolean).join("\n\n");
 }
 
 export function buildTextTranslationDetailMarkdown(input: string, translation: string): string {
