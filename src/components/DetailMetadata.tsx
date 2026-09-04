@@ -27,9 +27,8 @@ interface DetailMetadataProps {
   sourceTitle?: string;
 }
 
-// Raycast splits the detail pane once a metadata block exists, so the markdown
-// body above it was trimmed to the headline and the two example sentences. The
-// part of speech stays up in the headline; only the pronunciation rows live here.
+// Raycast splits the detail pane once a metadata block exists. The markdown body
+// above it stays the dictionary entry; only the pronunciation rows live here.
 export function DetailMetadata({ languagePair, sourceTitle = "Pronounce Word" }: DetailMetadataProps) {
   const rows = pronounceRows(languagePair, sourceTitle);
   if (rows.length === 0) return null;

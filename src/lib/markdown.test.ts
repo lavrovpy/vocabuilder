@@ -1,5 +1,3 @@
-import { existsSync } from "node:fs";
-import { PART_OF_SPEECH_VALUES } from "./types";
 import { describe, it, expect } from "vitest";
 import {
   buildFlashcardDetailMarkdown,
@@ -92,13 +90,6 @@ describe("buildTranslationDetailMarkdown", () => {
     expect(md.split("\n")[0]).toBe("# привіт");
     expect(md).toContain("> **hello** · interjection");
     expect(md).not.toContain("Corrected from");
-  });
-
-  it("pills the part of speech onto the headline", () => {
-    const md = buildTranslationDetailMarkdown(translation);
-    expect(md.split("\n")[0]).toBe(
-      "## hello ![interjection](pos/interjection.svg?raycast-tintColor=raycast-secondary-text&raycast-height=18)",
-    );
   });
 
   it("shows correction note when input differs from word", () => {
@@ -259,6 +250,7 @@ describe("buildFlashcardDetailMarkdown", () => {
     const md = buildFlashcardDetailMarkdown({
       word: "hello",
       translation: "привіт",
+      partOfSpeech: "interjection",
       example: "Привіт, як справи?",
       exampleTranslation: "Hello, how are you?",
     });
@@ -281,15 +273,5 @@ describe("buildTextTranslationDetailMarkdown", () => {
     const md = buildTextTranslationDetailMarkdown("a|b", "c*d");
     expect(md).toContain("a\\|b");
     expect(md).toContain("c\\*d");
-  });
-});
-
-// posPill() points the headline at assets/pos/<pos>.svg. The schema is a closed
-// enum, so a value without an asset renders a broken image rather than failing loudly.
-describe("part of speech pill assets", () => {
-  it("ships an asset for every part of speech the schema allows", () => {
-    for (const pos of PART_OF_SPEECH_VALUES) {
-      expect(existsSync(`assets/pos/${pos.replace(/ /g, "-")}.svg`), pos).toBe(true);
-    }
   });
 });

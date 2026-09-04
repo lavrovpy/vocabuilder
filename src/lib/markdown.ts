@@ -1,4 +1,3 @@
-import { posColor } from "./colors";
 import { Translation } from "./types";
 
 function escapeMarkdown(value: string): string {
@@ -147,44 +146,13 @@ ${escapeMarkdownMultiline(input)}`;
 export function buildFlashcardDetailMarkdown(
   card: Pick<Translation, "word" | "translation" | "partOfSpeech" | "example" | "exampleTranslation">,
 ): string {
-  return `## ${escapeMarkdown(card.word)}${posPill(card.partOfSpeech)}
+  return `## ${escapeMarkdown(card.word)}
 
-**${escapeMarkdown(card.translation)}**
+**${escapeMarkdown(card.partOfSpeech)}** · ${escapeMarkdown(card.translation)}
+
+---
 
 ${emphasizeWordMultiline(card.exampleTranslation, card.word)}
 
 *${escapeMarkdownMultiline(card.example)}*`;
-}
-
-if (import.meta.vitest) {
-  const { describe, it, expect } = import.meta.vitest;
-
-  const word = {
-    word: "rapture",
-    translation: "\u0437\u0430\u0445\u043e\u043f\u043b\u0435\u043d\u043d\u044f",
-    partOfSpeech: "noun",
-    example: "\u0412\u043e\u043d\u0430 \u0441\u043b\u0443\u0445\u0430\u043b\u0430.",
-    exampleTranslation: "She listened with unspoken rapture.",
-  };
-
-  describe("posPill", () => {
-    it("rides the headline beside the word, tinted by the same map the list rows use", () => {
-      const [headline] = buildTranslationDetailMarkdown(word).split("\n");
-      expect(headline).toBe("## rapture ![noun](pos/noun.svg?raycast-tintColor=raycast-blue&raycast-height=18)");
-    });
-
-    it("tints each part of speech the colour its list-row tag already uses", () => {
-      const pill = (pos: string) => buildTranslationDetailMarkdown({ ...word, partOfSpeech: pos }).split("\n")[0];
-      expect(pill("verb")).toContain("raycast-tintColor=raycast-red");
-      expect(pill("adjective")).toContain("raycast-tintColor=raycast-green");
-    });
-
-    it("leaves the headline bare when the model returns no part of speech", () => {
-      expect(buildTranslationDetailMarkdown({ ...word, partOfSpeech: "  " }).split("\n")[0]).toBe("## rapture");
-    });
-
-    it("chips the flashcard headline the same way", () => {
-      expect(buildFlashcardDetailMarkdown(word).split("\n")[0]).toContain("pos/noun.svg");
-    });
-  });
 }

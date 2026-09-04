@@ -52,13 +52,10 @@ describe("buildDetailMarkdown", () => {
     expect(md).not.toContain("Corrected from");
   });
 
-  it("leads with the source-language sentence and chips the part of speech onto the headline", () => {
+  it("leads with the source-language sentence and ends on the target-language one", () => {
     const md = buildDetailMarkdown(wordItem);
     expect(md.indexOf("His conclusions were mere")).toBeLessThan(md.indexOf("Його висновки"));
     expect(md.trimEnd().endsWith("*")).toBe(true);
-    expect(md.split("\n")[0]).toBe(
-      "## conjecture ![noun](pos/noun.svg?raycast-tintColor=raycast-blue&raycast-height=18)",
-    );
   });
 
   // The chords are only rendered from SHORTCUTS, in the metadata rail. A modifier
