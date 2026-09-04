@@ -3,8 +3,6 @@ import {
   buildFlashcardDetailMarkdown,
   buildTranslationDetailMarkdown,
   buildTextTranslationDetailMarkdown,
-  TTS_HINT_TEXT,
-  withTtsHint,
 } from "./markdown";
 
 describe("buildTranslationDetailMarkdown", () => {
@@ -275,14 +273,5 @@ describe("buildTextTranslationDetailMarkdown", () => {
     const md = buildTextTranslationDetailMarkdown("a|b", "c*d");
     expect(md).toContain("a\\|b");
     expect(md).toContain("c\\*d");
-  });
-});
-
-describe("withTtsHint", () => {
-  it("appends the hint after the content, separated by a rule", () => {
-    const md = withTtsHint("## word\n\n*Довге речення*");
-    expect(md.startsWith("## word\n\n*Довге речення*")).toBe(true);
-    expect(md.indexOf("---")).toBeGreaterThan(md.indexOf("*Довге речення*"));
-    expect(md.trimEnd().endsWith(`${TTS_HINT_TEXT}*`)).toBe(true);
   });
 });

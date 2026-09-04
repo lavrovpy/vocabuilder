@@ -1,18 +1,5 @@
 import { Translation } from "./types";
 
-export const TTS_HINT_TEXT = "⌘O to pronounce · ⌘⇧O for translation";
-
-// The hint lives inside the markdown rather than in `List.Item.Detail.Metadata`:
-// a metadata block makes Raycast split the pane at a fixed ratio and the
-// markdown region above it clips long example sentences.
-export function withTtsHint(markdown: string): string {
-  return `${markdown}
-
----
-
-*🔊 ${TTS_HINT_TEXT}*`;
-}
-
 function escapeMarkdown(value: string): string {
   return value
     .replace(/\\/g, "\\\\")

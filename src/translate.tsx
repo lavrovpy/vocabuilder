@@ -26,6 +26,7 @@ import { looksLikeWordAttempt, normalizeWordInput, normalizeTextInput } from "./
 import { storageKeyPrefix } from "./lib/languages";
 import { languagePairTitle, languagePairValue, swapLanguagePair } from "./lib/languageSession";
 import { posColor } from "./lib/colors";
+import { SHORTCUTS } from "./lib/shortcuts";
 import { TranslationDetail } from "./components/TranslationDetail";
 import { translationFromSense } from "./lib/sense";
 import { getHistory, saveTranslation } from "./lib/storage";
@@ -130,12 +131,7 @@ function relativeTime(timestamp: number): string {
 
 function ToggleLanguagesAction({ onAction }: { onAction: () => void }) {
   return (
-    <Action
-      title="Toggle Languages"
-      icon={Icon.Switch}
-      shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
-      onAction={onAction}
-    />
+    <Action title="Toggle Languages" icon={Icon.Switch} shortcut={SHORTCUTS.toggleLanguages} onAction={onAction} />
   );
 }
 
@@ -532,7 +528,13 @@ export default function Translate() {
                     : []),
                   { tag: { value: sense.partOfSpeech, color: posColor(sense.partOfSpeech) } },
                 ]}
-                detail={<TranslationDetail item={detailTranslation} originalInput={pendingWord.originalInput} />}
+                detail={
+                  <TranslationDetail
+                    item={detailTranslation}
+                    languagePair={languagePair}
+                    originalInput={pendingWord.originalInput}
+                  />
+                }
                 actions={
                   <ActionPanel>
                     <Action
@@ -544,24 +546,24 @@ export default function Translate() {
                     <Action.CopyToClipboard
                       title="Copy Only"
                       content={sense.translation}
-                      shortcut={{ modifiers: ["cmd"], key: "c" }}
+                      shortcut={SHORTCUTS.copyTranslation}
                     />
                     <PronounceAction
                       word={pendingWord.effectiveWord}
                       languageCode={languagePair.source.code}
                       title="Pronounce Word"
-                      shortcut={{ modifiers: ["cmd"], key: "o" }}
+                      shortcut={SHORTCUTS.pronounceWord}
                     />
                     <PronounceAction
                       word={sense.translation}
                       languageCode={languagePair.target.code}
                       title="Pronounce Translation"
-                      shortcut={{ modifiers: ["cmd", "shift"], key: "o" }}
+                      shortcut={SHORTCUTS.pronounceTranslation}
                     />
                     <Action
                       title="Open History"
                       icon={Icon.Clock}
-                      shortcut={{ modifiers: ["cmd", "shift"], key: "h" }}
+                      shortcut={SHORTCUTS.openHistory}
                       onAction={() => push(<History languagePair={languagePair} />)}
                     />
                     <ToggleLanguagesAction onAction={handleToggleLanguages} />
@@ -577,30 +579,30 @@ export default function Translate() {
             title={truncate(result.word, 60)}
             subtitle={truncate(result.translation, 60)}
             accessories={[{ tag: { value: "text", color: Color.Purple } }]}
-            detail={<TranslationDetail item={result} />}
+            detail={<TranslationDetail item={result} languagePair={languagePair} />}
             actions={
               <ActionPanel>
                 <Action.CopyToClipboard
                   title="Copy Translation"
                   content={result.translation}
-                  shortcut={{ modifiers: ["cmd"], key: "c" }}
+                  shortcut={SHORTCUTS.copyTranslation}
                 />
                 <PronounceAction
                   word={result.word}
                   languageCode={languagePair.source.code}
                   title="Pronounce Original"
-                  shortcut={{ modifiers: ["cmd"], key: "o" }}
+                  shortcut={SHORTCUTS.pronounceWord}
                 />
                 <PronounceAction
                   word={result.translation}
                   languageCode={languagePair.target.code}
                   title="Pronounce Translation"
-                  shortcut={{ modifiers: ["cmd", "shift"], key: "o" }}
+                  shortcut={SHORTCUTS.pronounceTranslation}
                 />
                 <Action
                   title="Open History"
                   icon={Icon.Clock}
-                  shortcut={{ modifiers: ["cmd", "shift"], key: "h" }}
+                  shortcut={SHORTCUTS.openHistory}
                   onAction={() => push(<History languagePair={languagePair} />)}
                 />
                 <ToggleLanguagesAction onAction={handleToggleLanguages} />
@@ -678,7 +680,7 @@ export default function Translate() {
                   : { tag: { value: item.partOfSpeech, color: posColor(item.partOfSpeech) } },
                 { text: relativeTime(item.timestamp) },
               ]}
-              detail={<TranslationDetail item={item} />}
+              detail={<TranslationDetail item={item} languagePair={languagePair} />}
               actions={
                 <ActionPanel>
                   <Action
@@ -689,24 +691,24 @@ export default function Translate() {
                   <Action.CopyToClipboard
                     title="Copy Translation"
                     content={item.translation}
-                    shortcut={{ modifiers: ["cmd"], key: "c" }}
+                    shortcut={SHORTCUTS.copyTranslation}
                   />
                   <PronounceAction
                     word={item.word}
                     languageCode={languagePair.source.code}
                     title="Pronounce Word"
-                    shortcut={{ modifiers: ["cmd"], key: "o" }}
+                    shortcut={SHORTCUTS.pronounceWord}
                   />
                   <PronounceAction
                     word={item.translation}
                     languageCode={languagePair.target.code}
                     title="Pronounce Translation"
-                    shortcut={{ modifiers: ["cmd", "shift"], key: "o" }}
+                    shortcut={SHORTCUTS.pronounceTranslation}
                   />
                   <Action
                     title="Open History"
                     icon={Icon.Clock}
-                    shortcut={{ modifiers: ["cmd", "shift"], key: "h" }}
+                    shortcut={SHORTCUTS.openHistory}
                     onAction={() => push(<History languagePair={languagePair} />)}
                   />
                   <ToggleLanguagesAction onAction={handleToggleLanguages} />
