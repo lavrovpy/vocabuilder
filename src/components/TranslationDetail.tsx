@@ -36,7 +36,6 @@ export function TranslationDetail({ item, languagePair, originalInput }: Transla
       metadata={
         <DetailMetadata
           languagePair={languagePair}
-          partOfSpeech={item.type === "word" ? item.partOfSpeech : undefined}
           sourceTitle={item.type === "text" ? "Pronounce Original" : "Pronounce Word"}
         />
       }

@@ -1,6 +1,5 @@
 import { Icon, List } from "@raycast/api";
 import type { Keyboard } from "@raycast/api";
-import { posColor } from "../lib/colors";
 import { LanguagePair } from "../lib/languages";
 import { SHORTCUTS, formatShortcut } from "../lib/shortcuts";
 import { isTtsSupported } from "../lib/tts";
@@ -25,26 +24,18 @@ function pronounceRows(languagePair: LanguagePair, sourceTitle: string): Pronoun
 
 interface DetailMetadataProps {
   languagePair: LanguagePair;
-  partOfSpeech?: string;
   sourceTitle?: string;
 }
 
 // Raycast splits the detail pane once a metadata block exists, so the markdown
-// body above it was trimmed to the headline and the two example sentences: the
-// part of speech and the pronunciation affordance live down here instead.
-export function DetailMetadata({ languagePair, partOfSpeech, sourceTitle = "Pronounce Word" }: DetailMetadataProps) {
+// body above it was trimmed to the headline and the two example sentences. The
+// part of speech stays up in the headline; only the pronunciation rows live here.
+export function DetailMetadata({ languagePair, sourceTitle = "Pronounce Word" }: DetailMetadataProps) {
   const rows = pronounceRows(languagePair, sourceTitle);
-  const tag = partOfSpeech?.trim();
-  if (!tag && rows.length === 0) return null;
+  if (rows.length === 0) return null;
 
   return (
     <List.Item.Detail.Metadata>
-      {tag ? (
-        <List.Item.Detail.Metadata.TagList title="Part of Speech">
-          <List.Item.Detail.Metadata.TagList.Item text={tag} color={posColor(tag)} />
-        </List.Item.Detail.Metadata.TagList>
-      ) : null}
-      {tag && rows.length > 0 ? <List.Item.Detail.Metadata.Separator /> : null}
       {rows.map((row) => (
         <List.Item.Detail.Metadata.Label
           key={row.title}

@@ -92,9 +92,9 @@ describe("buildTranslationDetailMarkdown", () => {
     expect(md).not.toContain("Corrected from");
   });
 
-  it("leaves the part of speech to the metadata rail", () => {
+  it("chips the part of speech onto the headline", () => {
     const md = buildTranslationDetailMarkdown(translation);
-    expect(md).not.toContain("interjection");
+    expect(md.split("\n")[0]).toBe("## hello `interjection`");
   });
 
   it("shows correction note when input differs from word", () => {

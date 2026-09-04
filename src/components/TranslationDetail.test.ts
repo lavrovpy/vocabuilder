@@ -7,8 +7,8 @@ const wordItem: Translation = {
   word: "conjecture",
   translation: "припущення",
   partOfSpeech: "noun",
-  example: "His conclusions were mere conjecture.",
-  exampleTranslation: "Його висновки були лише припущеннями.",
+  example: "Його висновки були лише припущеннями.",
+  exampleTranslation: "His conclusions were mere conjecture.",
   timestamp: 1,
   type: "word",
 };
@@ -52,11 +52,11 @@ describe("buildDetailMarkdown", () => {
     expect(md).not.toContain("Corrected from");
   });
 
-  it("ends on the example sentences, leaving the rest to the metadata rail", () => {
+  it("leads with the source-language sentence and chips the part of speech onto the headline", () => {
     const md = buildDetailMarkdown(wordItem);
-    expect(md.indexOf("His conclusions were mere")).toBeGreaterThan(md.indexOf("Його висновки"));
+    expect(md.indexOf("His conclusions were mere")).toBeLessThan(md.indexOf("Його висновки"));
     expect(md.trimEnd().endsWith("*")).toBe(true);
-    expect(md).not.toContain("noun");
+    expect(md.split("\n")[0]).toBe("## conjecture `noun`");
   });
 
   // The chords are only rendered from SHORTCUTS, in the metadata rail. A modifier

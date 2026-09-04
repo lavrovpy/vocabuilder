@@ -271,10 +271,7 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
         subtitle={state.revealed ? undefined : "···"}
         accessories={[isNew ? { tag: { value: "New", color: Color.Green } } : {}, { text: position }]}
         detail={
-          <List.Item.Detail
-            markdown={detailMarkdown}
-            metadata={<DetailMetadata languagePair={languagePair} partOfSpeech={card.partOfSpeech} />}
-          />
+          <List.Item.Detail markdown={detailMarkdown} metadata={<DetailMetadata languagePair={languagePair} />} />
         }
         actions={
           <ActionPanel>

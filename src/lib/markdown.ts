@@ -144,13 +144,46 @@ ${escapeMarkdownMultiline(input)}`;
 }
 
 export function buildFlashcardDetailMarkdown(
-  card: Pick<Translation, "word" | "translation" | "example" | "exampleTranslation">,
+  card: Pick<Translation, "word" | "translation" | "partOfSpeech" | "example" | "exampleTranslation">,
 ): string {
-  return `## ${escapeMarkdown(card.word)}
+  return `## ${escapeMarkdown(card.word)}${posChip(card.partOfSpeech)}
 
 **${escapeMarkdown(card.translation)}**
 
 ${emphasizeWordMultiline(card.exampleTranslation, card.word)}
 
 *${escapeMarkdownMultiline(card.example)}*`;
+}
+
+if (import.meta.vitest) {
+  const { describe, it, expect } = import.meta.vitest;
+
+  const word = {
+    word: "rapture",
+    translation: "захоплення",
+    partOfSpeech: "noun",
+    example: "Вона слухала його виступ із невимовним захопленням.",
+    exampleTranslation: "She listened to his speech with unspoken rapture.",
+  };
+
+  describe("posChip", () => {
+    it("rides the headline beside the word rather than the metadata rail", () => {
+      const [headline] = buildTranslationDetailMarkdown(word).split("\n");
+      expect(headline).toBe("## rapture `noun`");
+    });
+
+    it("leaves the headline bare when the model returns no part of speech", () => {
+      expect(buildTranslationDetailMarkdown({ ...word, partOfSpeech: "  " }).split("\n")[0]).toBe("## rapture");
+    });
+
+    it("strips backticks so model output cannot break out of the code span", () => {
+      const [headline] = buildTranslationDetailMarkdown({ ...word, partOfSpeech: "no`un` **bold**" }).split("\n");
+      expect(headline).toBe("## rapture `no un  **bold**`");
+      expect(headline.match(/`/g)).toHaveLength(2);
+    });
+
+    it("chips the flashcard headline the same way", () => {
+      expect(buildFlashcardDetailMarkdown(word).split("\n")[0]).toBe("## rapture `noun`");
+    });
+  });
 }
