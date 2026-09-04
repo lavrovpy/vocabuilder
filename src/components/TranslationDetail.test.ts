@@ -56,7 +56,9 @@ describe("buildDetailMarkdown", () => {
     const md = buildDetailMarkdown(wordItem);
     expect(md.indexOf("His conclusions were mere")).toBeLessThan(md.indexOf("Його висновки"));
     expect(md.trimEnd().endsWith("*")).toBe(true);
-    expect(md.split("\n")[0]).toBe("## conjecture `noun`");
+    expect(md.split("\n")[0]).toBe(
+      "## conjecture ![noun](pos/noun.svg?raycast-tintColor=raycast-blue&raycast-height=18)",
+    );
   });
 
   // The chords are only rendered from SHORTCUTS, in the metadata rail. A modifier

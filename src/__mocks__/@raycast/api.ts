@@ -30,11 +30,17 @@ export const environment = {
 };
 
 // colors.ts reads Color.Blue etc. at module load — Proxy keeps that working
-// without enumerating every Raycast color name.
+// without enumerating every Raycast color name. It must reproduce the real
+// "raycast-<kebab>" token, not the member name: posPill() interpolates the value
+// straight into a ?raycast-tintColor= URL, so a mock returning "Blue" would let a
+// broken tint slip through green tests.
 export const Color = new Proxy(
   {},
   {
-    get: (_target, prop) => String(prop),
+    get: (_target, prop) =>
+      `raycast-${String(prop)
+        .replace(/([a-z])([A-Z])/g, "$1-$2")
+        .toLowerCase()}`,
   },
 ) as Record<string, string>;
 

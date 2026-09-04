@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="76" height="18" viewBox="0 0 76 18">
+  <mask id="m">
+    <rect width="76" height="18" rx="9" fill="#fff"/>
+    <text x="38" y="9" fill="#000" text-anchor="middle" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif" font-size="11" font-weight="600">expression</text>
+  </mask>
+  <rect width="76" height="18" rx="9" fill="#000" mask="url(#m)"/>
+</svg>

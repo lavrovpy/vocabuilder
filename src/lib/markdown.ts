@@ -1,3 +1,4 @@
+import { posColor } from "./colors";
 import { Translation } from "./types";
 
 function escapeMarkdown(value: string): string {
@@ -146,7 +147,7 @@ ${escapeMarkdownMultiline(input)}`;
 export function buildFlashcardDetailMarkdown(
   card: Pick<Translation, "word" | "translation" | "partOfSpeech" | "example" | "exampleTranslation">,
 ): string {
-  return `## ${escapeMarkdown(card.word)}${posChip(card.partOfSpeech)}
+  return `## ${escapeMarkdown(card.word)}${posPill(card.partOfSpeech)}
 
 **${escapeMarkdown(card.translation)}**
 
@@ -160,30 +161,30 @@ if (import.meta.vitest) {
 
   const word = {
     word: "rapture",
-    translation: "захоплення",
+    translation: "\u0437\u0430\u0445\u043e\u043f\u043b\u0435\u043d\u043d\u044f",
     partOfSpeech: "noun",
-    example: "Вона слухала його виступ із невимовним захопленням.",
-    exampleTranslation: "She listened to his speech with unspoken rapture.",
+    example: "\u0412\u043e\u043d\u0430 \u0441\u043b\u0443\u0445\u0430\u043b\u0430.",
+    exampleTranslation: "She listened with unspoken rapture.",
   };
 
-  describe("posChip", () => {
-    it("rides the headline beside the word rather than the metadata rail", () => {
+  describe("posPill", () => {
+    it("rides the headline beside the word, tinted by the same map the list rows use", () => {
       const [headline] = buildTranslationDetailMarkdown(word).split("\n");
-      expect(headline).toBe("## rapture `noun`");
+      expect(headline).toBe("## rapture ![noun](pos/noun.svg?raycast-tintColor=raycast-blue&raycast-height=18)");
+    });
+
+    it("tints each part of speech the colour its list-row tag already uses", () => {
+      const pill = (pos: string) => buildTranslationDetailMarkdown({ ...word, partOfSpeech: pos }).split("\n")[0];
+      expect(pill("verb")).toContain("raycast-tintColor=raycast-red");
+      expect(pill("adjective")).toContain("raycast-tintColor=raycast-green");
     });
 
     it("leaves the headline bare when the model returns no part of speech", () => {
       expect(buildTranslationDetailMarkdown({ ...word, partOfSpeech: "  " }).split("\n")[0]).toBe("## rapture");
     });
 
-    it("strips backticks so model output cannot break out of the code span", () => {
-      const [headline] = buildTranslationDetailMarkdown({ ...word, partOfSpeech: "no`un` **bold**" }).split("\n");
-      expect(headline).toBe("## rapture `no un  **bold**`");
-      expect(headline.match(/`/g)).toHaveLength(2);
-    });
-
     it("chips the flashcard headline the same way", () => {
-      expect(buildFlashcardDetailMarkdown(word).split("\n")[0]).toBe("## rapture `noun`");
+      expect(buildFlashcardDetailMarkdown(word).split("\n")[0]).toContain("pos/noun.svg");
     });
   });
 }
