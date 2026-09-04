@@ -29,7 +29,8 @@ describe("buildDetailMarkdown", () => {
   it("routes word items through the structured word builder", () => {
     const md = buildDetailMarkdown(wordItem);
     // Word builder opens with the dictionary headword block; text builder does not.
-    expect(md.split("\n").slice(0, 2)).toEqual(["# conjecture", "noun"]);
+    expect(md.split("\n")[0]).toBe("# conjecture");
+    expect(md).toContain("\n> noun\n");
   });
 
   it("carries the dictionary fields of a stored translation into the headword line", () => {
@@ -39,7 +40,7 @@ describe("buildDetailMarkdown", () => {
       forms: "pl. conjectures",
       register: "formal",
     });
-    expect(md.split("\n")[1]).toBe("/kənˈdʒektʃə\\(r\\)/ · noun · pl\\. conjectures · *formal*");
+    expect(md).toContain("\n> /kənˈdʒektʃə\\(r\\)/ · noun · pl\\. conjectures · *formal*\n");
   });
 
   it("forwards originalInput so corrections surface", () => {

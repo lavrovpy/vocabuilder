@@ -79,6 +79,8 @@ type HeadwordEntry = Pick<Translation, "partOfSpeech" | "transcription" | "forms
 // glyphs, and no dictionary sets phonetics in italic. The italic is spent on
 // `register` instead — the one segment that is a usage caveat rather than a
 // grammatical fact, and so the one worth telling apart at a glance.
+//
+// The line is returned bare; `buildApparatus` is what quotes it.
 function buildHeadwordLine(entry: HeadwordEntry): string {
   const segments: string[] = [];
   const push = (value: string | undefined, wrap: (escaped: string) => string) => {
@@ -94,6 +96,18 @@ function buildHeadwordLine(entry: HeadwordEntry): string {
   return segments.join(HEADWORD_SEPARATOR);
 }
 
+// Grammar line and correction notice are both editorial apparatus about the
+// entry rather than part of it, so they share one blockquote: markdown offers
+// only bold and italic, both already spent on the gloss and the target-language
+// sentence, and the quote rule is the one remaining way to set apparatus below
+// body text the way a print dictionary sets it smaller. Two separate quotes
+// would render as two stacked rules reading as unrelated asides.
+function buildApparatus(lines: string[]): string {
+  const present = lines.filter(Boolean);
+  if (present.length === 0) return "";
+  return present.map((line) => `> ${line}`).join("  \n");
+}
+
 export function buildTranslationDetailMarkdown(
   translation: Pick<
     Translation,
@@ -101,11 +115,13 @@ export function buildTranslationDetailMarkdown(
   >,
   originalInput?: string,
 ): string {
-  const headwordLine = buildHeadwordLine(translation);
-  const headword = `# ${escapeMarkdown(translation.word)}`;
+  const apparatus = buildApparatus([
+    buildHeadwordLine(translation),
+    originalInput && originalInput !== translation.word ? `*Corrected from "${escapeMarkdown(originalInput)}"*` : "",
+  ]);
   const blocks = [
-    headwordLine ? `${headword}\n${headwordLine}` : headword,
-    originalInput && originalInput !== translation.word ? `> *Corrected from "${escapeMarkdown(originalInput)}"*` : "",
+    `# ${escapeMarkdown(translation.word)}`,
+    apparatus,
     `**${escapeMarkdown(translation.translation)}**`,
     "---",
     emphasizeWordMultiline(translation.exampleTranslation, translation.word),

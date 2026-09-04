@@ -127,7 +127,8 @@ describe("buildTranslationDetailMarkdown", () => {
     exampleTranslation: "She listened to his speech with unspoken rapture.",
   };
 
-  const headwordLine = (md: string) => md.split("\n")[1];
+  const quotedLines = (md: string) => md.split("\n").filter((line) => line.startsWith(">"));
+  const headwordLine = (md: string) => quotedLines(md)[0]?.replace(/^> /, "").trimEnd();
 
   it("renders the full dictionary headword line under the headword", () => {
     const md = buildTranslationDetailMarkdown({
@@ -168,7 +169,7 @@ describe("buildTranslationDetailMarkdown", () => {
   it("keeps a field carrying a newline on a single headword line", () => {
     const md = buildTranslationDetailMarkdown({ ...rapture, forms: "pl. raptures\n# not a heading" });
     expect(headwordLine(md)).toBe("noun · pl\\. raptures \\# not a heading");
-    expect(md.split("\n")[2]).toBe("");
+    expect(quotedLines(md)).toHaveLength(1);
   });
 
   it("escapes markdown metacharacters inside the headword line", () => {
@@ -190,13 +191,37 @@ describe("buildTranslationDetailMarkdown", () => {
       example: "Ця деталь — просто відволікаючий маневр.",
       exampleTranslation: "That detail is just a red herring.",
     });
-    expect(md.split("\n").slice(0, 2)).toEqual(["# red herring", "idiom"]);
+    expect(md.split("\n")[0]).toBe("# red herring");
+    expect(quotedLines(md)).toEqual(["> idiom"]);
   });
 
   it("puts the correction note between the headword block and the gloss", () => {
     const md = buildTranslationDetailMarkdown({ ...rapture, transcription: "ˈræptʃə(r)" }, "raptcher");
     expect(md.indexOf("Corrected from")).toBeGreaterThan(md.indexOf("/ˈræptʃə"));
     expect(md.indexOf("Corrected from")).toBeLessThan(md.indexOf("**захоплення**"));
+  });
+
+  // Both lines are apparatus about the entry rather than part of it. Separate
+  // quote blocks would render as two stacked rules reading as unrelated asides,
+  // so they share one block joined by a markdown hard break.
+  it("keeps the grammar line and the correction note in a single quote block", () => {
+    const md = buildTranslationDetailMarkdown({ ...rapture, forms: "pl. raptures" }, "raptcher");
+    expect(md).toContain('> noun · pl\\. raptures  \n> *Corrected from "raptcher"*');
+    expect(md.split("\n\n").filter((block) => block.startsWith(">"))).toHaveLength(1);
+  });
+
+  it("quotes the grammar line so it sits below the body text rather than beside it", () => {
+    const md = buildTranslationDetailMarkdown(rapture);
+    expect(quotedLines(md)).toEqual(["> noun"]);
+    expect(md).not.toContain("> **захоплення**");
+  });
+
+  // partOfSpeech is only a bare string on a stored row, so a blank one is
+  // reachable from history; an empty "> " line would render as a stray rule.
+  it("omits the quote block entirely when there is no apparatus to put in it", () => {
+    const md = buildTranslationDetailMarkdown({ ...rapture, partOfSpeech: "" });
+    expect(quotedLines(md)).toEqual([]);
+    expect(md.split("\n")[0]).toBe("# rapture");
   });
 
   it("drops the label above the examples and keeps them source-language first", () => {
