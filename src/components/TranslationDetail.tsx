@@ -1,6 +1,8 @@
 import { List } from "@raycast/api";
-import { buildTextTranslationDetailMarkdown, buildTranslationDetailMarkdown, withTtsHint } from "../lib/markdown";
+import { buildTextTranslationDetailMarkdown, buildTranslationDetailMarkdown } from "../lib/markdown";
+import { LanguagePair } from "../lib/languages";
 import { Translation } from "../lib/types";
+import { DetailMetadata } from "./DetailMetadata";
 
 type TranslationDetailInput = Pick<
   Translation,
@@ -16,18 +18,28 @@ type TranslationDetailInput = Pick<
 >;
 
 export function buildDetailMarkdown(item: TranslationDetailInput, originalInput?: string): string {
-  const body =
-    item.type === "text"
-      ? buildTextTranslationDetailMarkdown(item.word, item.translation)
-      : buildTranslationDetailMarkdown(item, originalInput);
-  return withTtsHint(body);
+  return item.type === "text"
+    ? buildTextTranslationDetailMarkdown(item.word, item.translation)
+    : buildTranslationDetailMarkdown(item, originalInput);
 }
 
 interface TranslationDetailProps {
   item: Translation;
+  languagePair: LanguagePair;
   originalInput?: string;
 }
 
-export function TranslationDetail({ item, originalInput }: TranslationDetailProps) {
-  return <List.Item.Detail markdown={buildDetailMarkdown(item, originalInput)} />;
+export function TranslationDetail({ item, languagePair, originalInput }: TranslationDetailProps) {
+  return (
+    <List.Item.Detail
+      markdown={buildDetailMarkdown(item, originalInput)}
+      metadata={
+        <DetailMetadata
+          languagePair={languagePair}
+          partOfSpeech={item.type === "word" ? item.partOfSpeech : undefined}
+          sourceTitle={item.type === "text" ? "Pronounce Original" : "Pronounce Word"}
+        />
+      }
+    />
+  );
 }

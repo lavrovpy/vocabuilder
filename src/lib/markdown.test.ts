@@ -3,8 +3,6 @@ import {
   buildFlashcardDetailMarkdown,
   buildTranslationDetailMarkdown,
   buildTextTranslationDetailMarkdown,
-  TTS_HINT_TEXT,
-  withTtsHint,
 } from "./markdown";
 
 describe("buildTranslationDetailMarkdown", () => {
@@ -92,6 +90,11 @@ describe("buildTranslationDetailMarkdown", () => {
     expect(md.split("\n")[0]).toBe("# привіт");
     expect(md).toContain("> **hello** · interjection");
     expect(md).not.toContain("Corrected from");
+  });
+
+  it("leaves the part of speech to the metadata rail", () => {
+    const md = buildTranslationDetailMarkdown(translation);
+    expect(md).not.toContain("interjection");
   });
 
   it("shows correction note when input differs from word", () => {
@@ -252,7 +255,6 @@ describe("buildFlashcardDetailMarkdown", () => {
     const md = buildFlashcardDetailMarkdown({
       word: "hello",
       translation: "привіт",
-      partOfSpeech: "interjection",
       example: "Привіт, як справи?",
       exampleTranslation: "Hello, how are you?",
     });
@@ -275,14 +277,5 @@ describe("buildTextTranslationDetailMarkdown", () => {
     const md = buildTextTranslationDetailMarkdown("a|b", "c*d");
     expect(md).toContain("a\\|b");
     expect(md).toContain("c\\*d");
-  });
-});
-
-describe("withTtsHint", () => {
-  it("appends the hint after the content, separated by a rule", () => {
-    const md = withTtsHint("## word\n\n*Довге речення*");
-    expect(md.startsWith("## word\n\n*Довге речення*")).toBe(true);
-    expect(md.indexOf("---")).toBeGreaterThan(md.indexOf("*Довге речення*"));
-    expect(md.trimEnd().endsWith(`${TTS_HINT_TEXT}*`)).toBe(true);
   });
 });

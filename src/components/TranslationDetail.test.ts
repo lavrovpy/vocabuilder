@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { buildDetailMarkdown } from "./TranslationDetail";
-import { TTS_HINT_TEXT } from "../lib/markdown";
 import type { Translation } from "../lib/types";
 
 const wordItem: Translation = {
@@ -53,17 +52,22 @@ describe("buildDetailMarkdown", () => {
     expect(md).not.toContain("Corrected from");
   });
 
-  it("puts the pronunciation hint after the example sentences for word items", () => {
+  it("ends on the example sentences, leaving the rest to the metadata rail", () => {
     const md = buildDetailMarkdown(wordItem);
-    expect(md.indexOf(TTS_HINT_TEXT)).toBeGreaterThan(md.indexOf(wordItem.example));
+    expect(md.indexOf("His conclusions were mere")).toBeGreaterThan(md.indexOf("Його висновки"));
+    expect(md.trimEnd().endsWith("*")).toBe(true);
+    expect(md).not.toContain("noun");
   });
 
-  it("puts the pronunciation hint after the original text for text items", () => {
-    const md = buildDetailMarkdown(textItem);
-    expect(md.indexOf(TTS_HINT_TEXT)).toBeGreaterThan(md.indexOf("## Original"));
+  // The chords are only rendered from SHORTCUTS, in the metadata rail. A modifier
+  // glyph reappearing in the markdown means a hardcoded hint has crept back in.
+  it("never spells a keyboard chord into the markdown", () => {
+    for (const md of [buildDetailMarkdown(wordItem), buildDetailMarkdown(textItem)]) {
+      expect(md).not.toMatch(/[⌘⌥⇧⌃]/u);
+    }
   });
 
-  it("routes text items through the text builder (no POS section)", () => {
+  it("routes text items through the text builder", () => {
     const md = buildDetailMarkdown(textItem);
     expect(md).toContain("## Translation");
     expect(md).toContain("## Original");
