@@ -69,7 +69,7 @@ Square brackets around the title, ` - ` with a space each side, the placeholder 
 Run all four; don't stop at the first failure, so you see the whole picture.
 
 ```bash
-npm run typecheck && npm run lint && npm run test && npm run build
+mise exec -- npm run typecheck && mise exec -- npm run lint && mise exec -- npm run test && mise exec -- npm run build
 ```
 
 Confirm `build` is a **distribution** build. `ray build` defaults to `-e dev`; the store expects `dist`, which does additional type checking and produces the optimized output:
@@ -113,7 +113,7 @@ Two consequences:
 - **`.gitignore` is load-bearing for secrets.** Ignored files are still *copied* into the monorepo checkout; they are merely not *staged*, because your own `.gitignore` is copied alongside them. An untracked directory that is not in `.gitignore` gets committed into the public PR. Check before publishing:
 
   ```bash
-  node -e 'require("./node_modules/@raycast/api/dist/utils/publish/copy-dir.js").copyDir(".","/tmp/pubcheck")' \
+  mise exec -- node -e 'require("./node_modules/@raycast/api/dist/utils/publish/copy-dir.js").copyDir(".","/tmp/pubcheck")' \
     && (cd /tmp/pubcheck && git init -q . && git add -A && git status --short | head -50)
   ```
 
@@ -126,7 +126,7 @@ Two consequences:
 Then:
 
 ```bash
-npm run publish
+mise exec -- npm run publish
 ```
 
 This forks, pushes to `ext/<name>`, and opens a PR **as a draft**. The CLI never un-drafts it — **go to GitHub and click "Ready for review"**, or it sits unreviewed.
@@ -136,14 +136,14 @@ Confirm **"Allow edits from maintainers"** is on. It is a hard CI gate with its 
 Those pushed commits are why the next publish will refuse until you run:
 
 ```bash
-npx @raycast/api@latest pull-contributions
+mise exec -- npx @raycast/api@latest pull-contributions
 ```
 
-Re-running `npm run publish` afterwards updates the same PR.
+Re-running `mise exec -- npm run publish` afterwards updates the same PR.
 
 ## Guardrails
 
-- Never run `npm run publish` or push without explicit approval — it opens a public PR in `raycast/extensions`.
+- Never run `mise exec -- npm run publish` or push without explicit approval — it opens a public PR in `raycast/extensions`.
 - Never edit a `## [...] - YYYY-MM-DD` section that exists in the published copy.
 - Never leave two `{PR_MERGE_DATE}` placeholders in the file.
 - Never change `author` once published — the publish flow uses a GitHub code search on `name` + `author` to find your extension, and a change makes it look like a new one.
