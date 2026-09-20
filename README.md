@@ -71,19 +71,7 @@ Built with the [Raycast API](https://developers.raycast.com), TypeScript + React
 
 The production `translateWord` path is evaluated with a 96-case risk-based Promptfoo suite plus an optional 272-case matrix covering every directed language pair. The standard suite covers all 17 supported languages, common vocabulary, ambiguity, idioms, phrasal verbs, lexical gaps, false friends, typo correction, and rejection behavior. Results include a Markdown breakdown by language pair, category, difficulty, and tier.
 
-Live evals configure the production translation target and semantic judge independently. Copy `.env.example` to `.env` and set the six required role-based variables:
-
-```dotenv
-EVAL_TRANSLATION_API_KEY=
-EVAL_TRANSLATION_API_BASE_URL=http://127.0.0.1:8317
-EVAL_TRANSLATION_MODEL=gemini-3.5-flash-extra-low
-
-EVAL_JUDGE_API_KEY=
-EVAL_JUDGE_API_BASE_URL=http://127.0.0.1:8317
-EVAL_JUDGE_PROVIDER_ID=google:gemini-3.1-pro-low
-```
-
-The judge value is a complete Promptfoo provider ID, so switching to another provider is atomic—for example, `openai:responses:gpt-5`. The eval runner securely maps `EVAL_JUDGE_API_KEY` to Promptfoo's native credential variable for key-based Google, OpenAI, and Anthropic judges without serializing the secret into result artifacts. The two roles may currently use the same CLIProxyAPI client key and URL, but neither falls back to the other's configuration.
+Live evals need `GEMINI_API_KEY`. That is the same secret CI uses; model, endpoint, and judge default to the extension's production values. Optional `EVAL_TRANSLATION_*` and `EVAL_JUDGE_*` variables can point a role at a local proxy or a different model — see `.env.example`.
 
 ```bash
 npm run eval:validate # validate configuration without model calls

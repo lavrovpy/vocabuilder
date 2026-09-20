@@ -115,7 +115,7 @@ A Promptfoo-driven end-to-end harness over the production `translateWord` path. 
 
 ## Layout
 
-- `evals/promptfooconfig.yaml` — suite settings plus deterministic and model-graded assertions; candidate and judge credentials, endpoints, and model/provider selections come from independent `EVAL_TRANSLATION_*` and `EVAL_JUDGE_*` variables
+- `evals/promptfooconfig.yaml` — suite settings plus deterministic and model-graded assertions. Candidate and judge credentials, endpoints, and models come from `GEMINI_API_KEY` plus production preference defaults, with optional independent `EVAL_TRANSLATION_*` and `EVAL_JUDGE_*` overrides
 - `evals/promptfoo/cases.cjs` — generated 96-case risk-based dataset plus an optional 272-case common-word matrix covering every directed language pair
 - `evals/promptfoo/assert-output.cjs` — deterministic application-contract assertion for projections, corrections, rejections, sense uniqueness, exact source-form examples, and known-wrong translations
 - `evals/promptfoo/judge-prompt.txt` — isolated, injection-resistant judge wrapper
@@ -130,7 +130,7 @@ A Promptfoo-driven end-to-end harness over the production `translateWord` path. 
 **Schemas and types**
 
 - **Import Promptfoo's exported types, don't reinvent them.** `ApiProvider`, `ProviderOptions`, `ProviderResponse`, and `CallApiContextParams` are exported from `promptfoo`. Hand-rolled equivalents drift from the library's contract and silently lose updates.
-- **Validate every YAML-sourced input through a Zod schema.** Provider config (`ProviderConfigSchema`), suite environment (`EvalEnvironmentSchema`), and per-case vars (`EvalVarsSchema`) go through the shared `parseOrThrow(schema, data, prefix, hint)` helper. Promptfoo types `ProviderOptions.config` as `any` by design — that's the boundary the schema is meant to fill. Do not paper over missing fields with `?? defaults`; fail loud at the boundary.
+- **Validate every YAML-sourced input through a Zod schema.** Provider config (`ProviderConfigSchema`), the resolved suite environment (`EvalEnvironmentSchema`), and per-case vars (`EvalVarsSchema`) go through the shared `parseOrThrow(schema, data, prefix, hint)` helper. Promptfoo types `ProviderOptions.config` as `any` by design — that's the boundary the schema is meant to fill. Missing API keys fail loud; model, endpoint, and judge-id default to the extension's production values so CI and a one-key `.env` evaluate the same target users run.
 - **Schemas first, types from schemas.** Declare the Zod schema, then derive TS types via `z.infer<>` when needed. Mirrors the `src/lib/types.ts` pattern; never duplicate a schema's shape into a hand-written interface.
 
 **Evaluation scope**
@@ -143,9 +143,9 @@ A Promptfoo-driven end-to-end harness over the production `translateWord` path. 
 
 **Suite configuration**
 
-- **Keep role configuration explicit and independent.** `.env` must define `EVAL_TRANSLATION_API_KEY`, `EVAL_TRANSLATION_API_BASE_URL`, and `EVAL_TRANSLATION_MODEL` for the production-path candidate plus `EVAL_JUDGE_API_KEY`, `EVAL_JUDGE_API_BASE_URL`, and the atomic Promptfoo `EVAL_JUDGE_PROVIDER_ID` for the semantic judge. The roles may point to the same proxy, but neither may fall back to the other's values or to extension preferences.
+- **Keep role configuration independent, with production defaults.** Live evals need `GEMINI_API_KEY` (the CI secret). That key, the manifest `geminiApiBaseUrl` / `translationModel` defaults, and `google:gemini-3-flash-preview` as the judge are enough. Set `EVAL_TRANSLATION_*` and `EVAL_JUDGE_*` only to point a role at a proxy or a different model; an explicit role value never falls back to the other role.
 - **Keep judge credentials out of Promptfoo config.** `evals/promptfoo/run.ts` maps the generic judge key to the native variable for supported key-based `google`, `openai`, and `anthropic` provider prefixes. Add a deliberate mapping when supporting another key-based provider; never interpolate `EVAL_JUDGE_API_KEY` into YAML because raw Promptfoo JSON can retain assertion-provider config.
-- **Suite-wide policy lives in `evals/promptfooconfig.yaml`.** Promptfoo `PROMPTFOO_*` variables belong in the top-level `env:` block; CLI-flag defaults belong under `commandLineOptions:` (`maxConcurrency`, `delay`, `share: false`). Provider selection, models, endpoints, and credentials are run-specific environment configuration documented in `.env.example` so local and CI comparisons can vary without editing the suite.
+- **Suite-wide policy lives in `evals/promptfooconfig.yaml`.** Promptfoo `PROMPTFOO_*` variables belong in the top-level `env:` block; CLI-flag defaults belong under `commandLineOptions:` (`maxConcurrency`, `delay`, `share: false`). Do not pin `EVAL_*` in that YAML `env:` block — `.env` cannot override pinned values. Role credentials and optional proxy/model overrides are run-specific environment configuration documented in `.env.example`.
 - **Pass-rate threshold sits at 75%** as a permissive compatibility gate while model-graded and provider-service variance is uncalibrated. It is not sufficient release evidence: review every zero-pass pair and every reported subgroup below 75%. The built-in Promptfoo default is `100`, so removing the YAML entry silently changes project policy. Tighten it using repeated-run and human-calibration data once the judge layer is reliable.
 - **Do not write tests that assert literal strings appear in config files** (`package.json`, YAML, etc.). They have no oracle: editing the config means editing the test, no bug ever caught. Promptfoo's loader catches broken file references when the eval actually runs.
 

@@ -5,8 +5,8 @@ env:
   PROMPTFOO_REQUEST_BACKOFF_MS: 10000
 
 # Each row makes one production translation call, one deterministic contract
-# assertion, and one semantic judge call. Their credentials, endpoints, and
-# model/provider selections are independent role-based environment variables.
+# assertion, and one semantic judge call. GEMINI_API_KEY is enough for both
+# roles; EVAL_TRANSLATION_* and EVAL_JUDGE_* override candidate vs judge.
 commandLineOptions:
   maxConcurrency: 4
   share: false

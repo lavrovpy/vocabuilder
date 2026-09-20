@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { DEFAULT_JUDGE_PROVIDER_ID, parseEvalEnvironment, resolveEvalDefaults } from "./provider";
 
 const JUDGE_KEY_ENV_BY_PROVIDER_PREFIX = {
   google: "GOOGLE_API_KEY",
@@ -19,11 +20,28 @@ function judgeCredentialEnvName(providerId: string): string {
   return envName;
 }
 
-function promptfooEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  const providerId = env.EVAL_JUDGE_PROVIDER_ID?.trim();
-  const apiKey = env.EVAL_JUDGE_API_KEY?.trim();
-  if (!providerId || !apiKey) return { ...env };
+function optionalKey(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed || undefined;
+}
+
+function withJudgeCredential(env: NodeJS.ProcessEnv, providerId: string, apiKey: string | undefined): NodeJS.ProcessEnv {
+  if (!apiKey) return env;
   return { ...env, [judgeCredentialEnvName(providerId)]: apiKey };
+}
+
+function promptfooEnvironment(env: NodeJS.ProcessEnv, command = ""): NodeJS.ProcessEnv {
+  const withDefaults = { ...env, ...resolveEvalDefaults(env) };
+  if (command !== "eval") {
+    return withJudgeCredential(
+      withDefaults,
+      withDefaults.EVAL_JUDGE_PROVIDER_ID,
+      optionalKey(env.EVAL_JUDGE_API_KEY) ?? optionalKey(env.GEMINI_API_KEY),
+    );
+  }
+
+  const resolved = parseEvalEnvironment(withDefaults);
+  return withJudgeCredential({ ...withDefaults, ...resolved }, resolved.EVAL_JUDGE_PROVIDER_ID, resolved.EVAL_JUDGE_API_KEY);
 }
 
 function main(): void {
@@ -33,7 +51,7 @@ function main(): void {
     new URL("../../node_modules/promptfoo/dist/src/entrypoint.js", import.meta.url),
   );
   const result = spawnSync(process.execPath, [promptfooEntrypoint, ...process.argv.slice(2)], {
-    env: promptfooEnvironment(process.env),
+    env: promptfooEnvironment(process.env, process.argv[2]),
     stdio: "inherit",
   });
 
@@ -75,10 +93,23 @@ if (import.meta.vitest) {
       ).toThrow(/Unsupported key-based judge provider "example:model"/);
     });
 
-    it("leaves incomplete configuration for the shared environment validator", () => {
-      expect(promptfooEnvironment({ EVAL_JUDGE_PROVIDER_ID: "google:model" })).toEqual({
-        EVAL_JUDGE_PROVIDER_ID: "google:model",
-      });
+    it("fills production defaults without requiring keys for validate and view", () => {
+      const env = promptfooEnvironment({}, "validate");
+      expect(env.EVAL_JUDGE_PROVIDER_ID).toBe(DEFAULT_JUDGE_PROVIDER_ID);
+      expect(env.EVAL_TRANSLATION_MODEL).toBeTruthy();
+      expect(env.GOOGLE_API_KEY).toBeUndefined();
+    });
+
+    it("maps GEMINI_API_KEY onto both roles for a live eval", () => {
+      const env = promptfooEnvironment({ GEMINI_API_KEY: "ci-key" }, "eval");
+      expect(env.EVAL_TRANSLATION_API_KEY).toBe("ci-key");
+      expect(env.EVAL_JUDGE_API_KEY).toBe("ci-key");
+      expect(env.GOOGLE_API_KEY).toBe("ci-key");
+      expect(env.EVAL_JUDGE_PROVIDER_ID).toBe(DEFAULT_JUDGE_PROVIDER_ID);
+    });
+
+    it("fails a live eval when no API key is available", () => {
+      expect(() => promptfooEnvironment({}, "eval")).toThrow(/GEMINI_API_KEY/);
     });
   });
 }
