@@ -85,7 +85,8 @@ function extractRows(document: unknown): EvaluationRow[] {
     const error =
       responseError === true ||
       (typeof responseError === "string" && responseError.length > 0) ||
-      (response === undefined && value.error === true);
+      (response === undefined &&
+        (value.error === true || (typeof value.error === "string" && value.error.length > 0)));
     return {
       description:
         stringAt(value, "description") ?? stringAt(testCase, "description") ?? `Result ${index + 1}`,
@@ -253,6 +254,22 @@ if (import.meta.vitest) {
       expect(report).toContain("Overall: **0/2 passed (0.0%)**, 1 failed, 1 provider errors.");
       expect(report).toContain("| failure | Translation quality assertion failed. |");
       expect(report).toContain("| error | Proxy request failed. |");
+    });
+
+    it("counts a missing response with a string error as a provider error", () => {
+      const report = buildEvaluationReport({
+        results: {
+          results: [
+            {
+              success: false,
+              error: "ECONNRESET",
+            },
+          ],
+        },
+      });
+
+      expect(report).toContain("Overall: **0/1 passed (0.0%)**, 0 failed, 1 provider errors.");
+      expect(report).toContain("| error | ECONNRESET |");
     });
 
     it("redacts likely API keys from failure reasons", () => {

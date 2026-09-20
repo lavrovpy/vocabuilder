@@ -160,7 +160,7 @@ The deterministic assertion uses intentionally different comparison rules for di
 
 - Sense identity and forbidden translations use Unicode NFKC normalization, trim outer whitespace, and lowercase before comparison. Forbidden forms are checked as substrings across all returned glosses. Punctuation and diacritics are otherwise preserved.
 - `input`, language codes, expected errors, and `correctedWord` use exact JavaScript string equality.
-- The source-form example rule uses an exact, case-sensitive, code-point substring check for the original input or expected correction. It does not stem, lemmatize, fold case, or normalize whitespace.
+- The source-form example rule applies Unicode NFKC normalization, trims outer whitespace, lowercases both values, and then checks for the original input or expected correction as a substring. It does not stem or lemmatize.
 
 That last rule can be stricter than general translation evaluation for inflected languages. It is retained because it is an explicit production prompt/application contract, and cases use source forms that can appear naturally unchanged in a sentence. If product behavior later allows inflected source examples, the production prompt, assertion, and eval cases must change together rather than silently weakening only the test.
 
