@@ -14,10 +14,8 @@ A [Raycast](https://raycast.com) extension that translates words and short text 
 - **Configurable models** — paste the Gemini model IDs used for translation and text-to-speech without waiting for a hardcoded model list to be updated
 - **Custom API endpoint** — route translation and pronunciation through any endpoint that speaks the native Gemini REST protocol using its bare server or gateway URL; versioned and models-collection URLs are also accepted, and your API key is sent to whichever host you configure, so plain `http` is limited to local addresses
 - **Separate history per language pair** — switching languages gives you an independent history and flashcard deck
-- **Clipboard suggestion** — optionally prefill a safe single word from the clipboard when the command opens
-- **History export** — export saved history as JSON, Anki-ready TSV, or Quizlet-ready TSV
-- Debounced word translation, with manual submit for text input
-- Graceful error handling for API issues
+- **Clipboard suggestion** — optionally prefill a safe word or short phrase from the clipboard when the command opens
+- **History export** — export saved history as JSON, an Anki-ready `Basic` note file, or Quizlet-ready TSV
 
 ## Getting Started
 
@@ -42,8 +40,8 @@ English, Ukrainian, Polish, German, French, Spanish, Italian, Portuguese, Dutch,
 | Shortcut | Action |
 | --- | --- |
 | `⌘ C` | Copy translation |
-| `⌘ O` | Pronounce source word |
-| `⌘ ⇧ O` | Pronounce translation |
+| `⌘ ⇧ L` | Pronounce source word |
+| `⌘ ⇧ R` | Pronounce translation |
 | `⌘ 1` → `⌘ 5` | Pick a word sense and save it to history |
 | `⌘ ⇧ H` | Open History (from Translate) |
 | `⌘ ⇧ T` | Toggle source and target languages |

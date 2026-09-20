@@ -20,6 +20,7 @@ import { useLanguagePair } from "./hooks/useLanguagePair";
 import History from "./history";
 import { translateWord, translateText } from "./lib/gemini";
 import { defaultToastFor } from "./lib/errorToast";
+import { reportUnexpectedError } from "./lib/errorReporting";
 import { geminiError, isGeminiError } from "./lib/geminiError";
 import { getPreferenceDefault } from "./lib/manifest";
 import { looksLikeWordAttempt, normalizeWordInput, normalizeTextInput } from "./lib/input";
@@ -400,6 +401,7 @@ export default function Translate() {
     } catch (err) {
       if (controller.signal.aborted) return;
 
+      reportUnexpectedError(err);
       const { code, title, message } = describeError(err);
       setErrorCode(code);
       setError(message);
@@ -458,6 +460,7 @@ export default function Translate() {
     } catch (err) {
       if (controller.signal.aborted) return;
 
+      reportUnexpectedError(err);
       const { code, title, message } = describeError(err);
       setErrorCode(code);
       setError(message);

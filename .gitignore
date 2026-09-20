@@ -12,10 +12,13 @@ dist/
 # Editor
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo
 
 # Environment
+# Load-bearing: `ray publish` copies the whole working tree — .gitignore included —
+# and only this entry keeps the copied .env out of the public raycast/extensions PR.
 .env
 
 # Raycast

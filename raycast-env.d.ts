@@ -20,7 +20,7 @@ type ExtensionPreferences = {
   "translationModel": string,
   /** Text-to-Speech Model - Gemini TTS model ID used for word pronunciation. Paste the unprefixed model name, for example gemini-3.1-flash-tts-preview. */
   "ttsModel": string,
-  /** Read Clipboard on Open - If enabled, prefill a suggestion only when clipboard content is a safe single word */
+  /** Read Clipboard on Open - If enabled, prefill a suggestion only when clipboard content is a safe word or short phrase */
   "readClipboardOnOpen"?: boolean
 }
 
