@@ -32,12 +32,7 @@ import { TranslationDetail } from "./components/TranslationDetail";
 import { translationFromSense } from "./lib/sense";
 import { getHistory, saveTranslation } from "./lib/storage";
 import { Translation, WordSense } from "./lib/types";
-
-interface PendingWordTranslation {
-  effectiveWord: string;
-  originalInput: string;
-  senses: WordSense[];
-}
+import { CachedWordLookup, createWordLookupCache, decideWordLookup, WordLookupScope } from "./lib/wordLookupCache";
 
 function pickSenseShortcut(index: number): { modifiers: "cmd"[]; key: "1" | "2" | "3" | "4" | "5" } | undefined {
   if (index < 0 || index > 4) return undefined;
@@ -149,7 +144,7 @@ export default function Translate() {
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [recentHistory, setRecentHistory] = useState<Translation[]>([]);
-  const [pendingWord, setPendingWord] = useState<PendingWordTranslation | null>(null);
+  const [pendingWord, setPendingWord] = useState<CachedWordLookup | null>(null);
   const [clipboardSuggestion, setClipboardSuggestion] = useState("");
   const [recentShowingDetail, setRecentShowingDetail] = useState(false);
 
@@ -157,6 +152,7 @@ export default function Translate() {
 
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wordLookupCacheRef = useRef(createWordLookupCache());
 
   const languagePair = langResult.pair;
   const defaultPair = langResult.defaultPair;
@@ -196,6 +192,7 @@ export default function Translate() {
   const activePair = languagePair;
   const activeDefaultPair = defaultPair;
   const { source } = activePair;
+  const lookupScope: WordLookupScope = { pairPrefix: storageKeyPrefix(activePair), model };
 
   function clearDebounce() {
     if (debounceRef.current) {
@@ -219,6 +216,7 @@ export default function Translate() {
     setClipboardSuggestion("");
     setRecentShowingDetail(false);
     setRecentHistory([]);
+    wordLookupCacheRef.current.clear();
   }
 
   async function handleLanguagePairChange(value: string) {
@@ -334,11 +332,18 @@ export default function Translate() {
     setError(null);
     setErrorCode(null);
     setResult(null);
+
+    const decision = decideWordLookup(text, wordLookupCacheRef.current, lookupScope);
+    if (decision.kind === "hit") {
+      setIsLoading(false);
+      setPendingWord(decision.cached);
+      return;
+    }
+
     setPendingWord(null);
     setIsLoading(false);
 
-    // Only auto-translate for word-like input
-    if (normalizeWordInput(text) !== null) {
+    if (decision.kind === "miss") {
       debounceRef.current = scheduleWordTranslation(() => {
         debounceRef.current = null;
         submitTranslation(text, false);
@@ -346,7 +351,7 @@ export default function Translate() {
     }
   }
 
-  async function commitWordSense(pw: PendingWordTranslation, sense: WordSense) {
+  async function commitWordSense(pw: CachedWordLookup, sense: WordSense) {
     if (!languagePair) return;
     const now = Date.now();
     const translation = translationFromSense(pw.effectiveWord, sense, `${pw.effectiveWord}-${now}`, now);
@@ -371,8 +376,23 @@ export default function Translate() {
   }
 
   async function fetchWordTranslation(word: string) {
-    if (abortRef.current) abortRef.current.abort();
     if (!languagePair) return;
+    const cacheWord = normalizeWordInput(word) ?? word;
+    const cached = wordLookupCacheRef.current.get({ ...lookupScope, word: cacheWord });
+    if (cached) {
+      if (abortRef.current) {
+        abortRef.current.abort();
+        abortRef.current = null;
+      }
+      setIsLoading(false);
+      setError(null);
+      setErrorCode(null);
+      setResult(null);
+      setPendingWord(cached);
+      return;
+    }
+
+    if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -392,12 +412,14 @@ export default function Translate() {
 
       const corrected = geminiResult.correctedWord;
       const effectiveWord = corrected && corrected !== word ? corrected : word;
-
-      setPendingWord({
+      const pending: CachedWordLookup = {
         effectiveWord,
         originalInput: word,
         senses: geminiResult.senses,
-      });
+      };
+
+      wordLookupCacheRef.current.set({ ...lookupScope, word: cacheWord }, pending);
+      setPendingWord(pending);
     } catch (err) {
       if (controller.signal.aborted) return;
 
