@@ -20,10 +20,13 @@ export function routeTtsError(err: unknown, languageCode: string): TtsErrorRouti
     }
     return { ...base, fallback: false };
   }
-  const error = err instanceof Error ? err : new Error(String(err));
+  // Anything reaching here is an fs/exec failure whose message carries absolute
+  // paths and command text. tts.ts already logs the original; the toast gets
+  // fixed copy. See AGENTS.md → Security Guardrails.
+  const fallback = hasMacOsFallback(languageCode);
   return {
     title: "Pronunciation failed",
-    message: error.message || "Unknown error.",
-    fallback: hasMacOsFallback(languageCode),
+    message: fallback ? "Using system voice for now." : "Could not play the pronunciation. Please try again.",
+    fallback,
   };
 }

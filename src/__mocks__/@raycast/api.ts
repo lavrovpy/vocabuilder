@@ -43,6 +43,7 @@ export const Toast = {
 };
 
 export const showToast = vi.fn(async () => ({ hide: vi.fn(async () => {}) }));
+export const captureException = vi.fn();
 
 // Placeholders: imported by .tsx files but only accessed inside render/handler
 // bodies, which tests never invoke. Exist so the import statement resolves.

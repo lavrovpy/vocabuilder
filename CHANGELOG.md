@@ -1,18 +1,28 @@
-VocaBuilder Changelog
+# VocaBuilder Changelog
 
-## [Model, pronunciation, endpoint, and translate screen updates] - {PR_MERGE_DATE}
+## [Dictionary-style detail panes, custom Gemini endpoint, and a rebuilt Anki export] - {PR_MERGE_DATE}
 
+- Word detail panes now lead with the translation itself, set as the largest text in the pane, above a single dictionary line carrying the word you looked up, its pronunciation transcription, part of speech, key inflected forms, and a usage label such as `formal` or `literary` where one applies. Each element appears only when it exists for that word, so multi-word expressions and languages without a transcription convention simply show less.
+- Translations now request pronunciation transcriptions, inflected forms, and usage labels per sense, so a word that differs by part of speech — English `record` as a noun and as a verb — shows the transcription and forms belonging to the sense you picked.
+- Example sentences in the translate, history, and flashcard detail panes now show the source-language sentence first, with the target-language rendering beneath it.
+- The looked-up word is now shown in bold inside the source-language example sentence, including inflected forms and scripts without word boundaries.
+- Detail panes now list the pronunciation actions and their shortcuts beside the entry, and leave the row out for a language Gemini text-to-speech cannot speak.
+- Pronunciation moved off `⌘O` and `⌘⇧O` onto `⌘⇧L` for the source word and `⌘⇧R` for the translation, in the translate, history, and flashcard views — the old chords are the ones Raycast reserves for Open and Open With.
+- Anki export now writes a two-column `Front` / `Back` file tagged as Anki's `Basic` note type, with the translation, its part of speech, and both example sentences formatted on the back of the card. Earlier exports used five separate columns, so a note type built from one of those will not line up — import into a fresh deck or remap the fields once.
 - Simplified translation and text-to-speech model preferences to accept any Gemini model ID without relying on hardcoded dropdown options.
 - Removed the separate reasoning preference so reasoning behavior follows the configured model.
 - Added a `Gemini API Server URL` preference so translation and pronunciation can be routed through any endpoint that speaks the native Gemini REST protocol, such as a proxy or gateway. Enter a bare server or gateway root; existing versioned and models-collection URLs are accepted too. Your API key is sent to the host you configure, so plain `http` is accepted only for local addresses and credential-bearing URLs are rejected.
 - Reworked the translate screen while a translation is in progress: the word you are translating now appears as a row in the `Translation` section where its result will land, and your `Recent` translations stay on screen instead of the list clearing to an empty placeholder.
+- Word input now auto-translates after 0.7s instead of 1.5s.
+- Failed exports and failed pronunciations now explain what went wrong instead of showing the raw system error and your file paths.
+
+## [Configurable models and reasoning] - 2026-06-08
+
+- Added a `Reasoning Level` preference for translations, defaulting to `Minimum` for the fastest Gemini responses.
+- Replaced the free-form translation model default with a curated Gemini model dropdown plus an advanced custom model override.
+- Replaced the free-form text-to-speech model default with a curated Gemini TTS dropdown plus an advanced custom model override.
 - Refreshed the extension icon.
 - Tightened the pronunciation prompt for more accurate text-to-speech output.
-- Example sentences in the translate, history, and flashcard detail panes now show the source-language sentence first, with the target-language rendering beneath it.
-- Detail panes no longer clip long example sentences: the pronunciation shortcut hint moved from a fixed bottom panel into the detail text, so the whole pane height is available for content.
-- The looked-up word is now shown in bold inside the source-language example sentence, including inflected forms and scripts without word boundaries.
-- Word detail panes now lead with the translation itself, set as the largest text in the pane, above a single dictionary line carrying the word you looked up, its pronunciation transcription, part of speech, key inflected forms, and a usage label such as `formal` or `literary` where one applies. Each element appears only when it exists for that word, so multi-word expressions and languages without a transcription convention simply show less.
-- Translations now request pronunciation transcriptions, inflected forms, and usage labels per sense, so a word that differs by part of speech — English `record` as a noun and as a verb — shows the transcription and forms belonging to the sense you picked.
 
 ## [Switch language pairs, pronunciation, and configurable models] - 2026-06-01
 

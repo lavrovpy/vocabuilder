@@ -229,7 +229,7 @@
       "required": false,
       "title": "Read Clipboard on Open",
       "label": "Enable",
-      "description": "If enabled, prefill a suggestion only when clipboard content is a safe single word"
+      "description": "If enabled, prefill a suggestion only when clipboard content is a safe word or short phrase"
     }
   ],
   "dependencies": {
@@ -249,7 +249,7 @@
     "vitest": "^4.1.11"
   },
   "scripts": {
-    "build": "ray build",
+    "build": "ray build -e dist",
     "dev": "ray develop",
     "lint": "ray lint",
     "fix-lint": "ray lint --fix",

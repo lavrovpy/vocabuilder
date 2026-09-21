@@ -24,6 +24,10 @@ import { languagePairTitle, languagePairValue, swapLanguagePair } from "./lib/la
 import { clearHistory, deleteTranslation, getHistory } from "./lib/storage";
 import { Translation } from "./lib/types";
 
+// The thrown value is a raw fs error carrying the user's absolute Downloads
+// path. See AGENTS.md → Security Guardrails.
+const EXPORT_FAILED_MESSAGE = "Could not write the file to your Downloads folder.";
+
 function truncate(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text;
   return text.slice(0, maxLen - 1) + "…";
@@ -238,8 +242,12 @@ export default function History(props: { languagePair?: LanguagePair }) {
                         const filePath = exportToFile(content, "json");
                         await showInFinder(filePath);
                         await showToast({ style: Toast.Style.Success, title: "Exported", message: filePath });
-                      } catch (err) {
-                        await showToast({ style: Toast.Style.Failure, title: "Export failed", message: String(err) });
+                      } catch {
+                        await showToast({
+                          style: Toast.Style.Failure,
+                          title: "Export failed",
+                          message: EXPORT_FAILED_MESSAGE,
+                        });
                       }
                     }}
                   />
@@ -261,8 +269,12 @@ export default function History(props: { languagePair?: LanguagePair }) {
                         const filePath = exportToFile(content, "anki");
                         await showInFinder(filePath);
                         await showToast({ style: Toast.Style.Success, title: "Exported for Anki", message: filePath });
-                      } catch (err) {
-                        await showToast({ style: Toast.Style.Failure, title: "Export failed", message: String(err) });
+                      } catch {
+                        await showToast({
+                          style: Toast.Style.Failure,
+                          title: "Export failed",
+                          message: EXPORT_FAILED_MESSAGE,
+                        });
                       }
                     }}
                   />
@@ -288,8 +300,12 @@ export default function History(props: { languagePair?: LanguagePair }) {
                           title: "Exported for Quizlet",
                           message: filePath,
                         });
-                      } catch (err) {
-                        await showToast({ style: Toast.Style.Failure, title: "Export failed", message: String(err) });
+                      } catch {
+                        await showToast({
+                          style: Toast.Style.Failure,
+                          title: "Export failed",
+                          message: EXPORT_FAILED_MESSAGE,
+                        });
                       }
                     }}
                   />

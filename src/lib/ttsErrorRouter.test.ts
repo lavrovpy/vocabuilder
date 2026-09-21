@@ -56,10 +56,10 @@ describe("routeTtsError — Gemini errors", () => {
 });
 
 describe("routeTtsError — unknown errors", () => {
-  it("falls back when the language has a macOS voice and surfaces the error message", () => {
+  it("falls back when the language has a macOS voice, with the same neutral copy as a transient Gemini error", () => {
     expect(routeTtsError(new Error("boom"), "en")).toMatchObject({
       title: "Pronunciation failed",
-      message: "boom",
+      message: "Using system voice for now.",
       fallback: true,
     });
   });
@@ -68,14 +68,19 @@ describe("routeTtsError — unknown errors", () => {
     expect(routeTtsError(new Error("boom"), "xx").fallback).toBe(false);
   });
 
-  it("coerces non-Error values to a plain Error and falls back when supported", () => {
-    expect(routeTtsError("string thrown", "en")).toMatchObject({
-      message: "string thrown",
-      fallback: true,
-    });
-  });
-
-  it("substitutes 'Unknown error.' for empty error messages", () => {
-    expect(routeTtsError(new Error(""), "en").message).toBe("Unknown error.");
+  // The leak this guards against: `say(1)` and afplay failures put the user's
+  // absolute home path and the command line into error.message, which used to
+  // be forwarded straight into the toast.
+  it.each([
+    new Error("spawn /Users/someone/Library/Caches/vocabuilder/tts-1.aiff ENOENT"),
+    new Error("Command failed: /usr/bin/afplay '/Users/someone/Downloads/x.aiff'"),
+    "string thrown",
+    new Error(""),
+  ])("never forwards raw failure text into the toast (%s)", (thrown) => {
+    for (const languageCode of ["en", "xx"]) {
+      const { message } = routeTtsError(thrown, languageCode);
+      expect(message).not.toMatch(/\/Users\/|spawn |Command failed|string thrown/);
+      expect(message).toBeTruthy();
+    }
   });
 });

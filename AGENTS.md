@@ -2,7 +2,7 @@
 
 VocaBuilder is a Raycast extension for quick word and phrase lookup, not a language-learning app. The typical user already knows the source language reasonably well and wants a fast gloss for an unfamiliar word; history and flashcards are secondary. It supports around twenty languages in any source → target pairing, so nothing may assume English or Ukrainian on either side.
 
-Every word sense carries two example sentences. In the Gemini schema `exampleTranslation` is the **source-language** sentence (it contains the looked-up word verbatim) and `example` is the **target-language** rendering of it — the names read backwards, so check `src/lib/types.ts` before touching them. Wherever both are shown to the user (detail panes, flashcards), always render both, source-language sentence first and the target-language one second. The Anki export still emits `example` under the "Example" column and `exampleTranslation` under "Example Translation"; changing that reorders fields in existing Anki note types, so treat it as a deliberate breaking change.
+Every word sense carries two example sentences. In the Gemini schema `exampleTranslation` is the **source-language** sentence (it contains the looked-up word verbatim) and `example` is the **target-language** rendering of it — the names read backwards, so check `src/lib/types.ts` before touching them. Wherever both are shown to the user (detail panes, flashcards), always render both, source-language sentence first and the target-language one second. The Anki export is the one exception to that order: it emits Anki's two-column `Basic` note type, and `renderAnkiBack` in `src/lib/export.ts` folds both sentences into the HTML `Back` field with `example` (target language) first — the reverse of the detail panes, because the card's `Front` is already the source word. Changing that field's markup or the column count breaks decks users have already built, so treat it as a deliberate breaking change.
 
 # Project Conventions
 
@@ -56,7 +56,7 @@ After the PR is opened, the Raycast team reviews it and may request changes. Onc
 # Testing
 
 - Every code change must include corresponding tests. When adding new behavior, add tests that cover it. When modifying existing behavior, update existing tests and add new ones for the changed logic. Do not defer test writing to a separate step — tests are part of the implementation.
-- Use Vitest's in-source testing (`if (import.meta.vitest)`) to test private code without exporting it. Tests live inside the source file, sharing the same closure. They are tree-shaken out of production builds.
+- Use Vitest's in-source testing (`if (import.meta.vitest)`) to test private code without exporting it. Tests live inside the source file, sharing the same closure. They are **not** stripped by `ray build -e dist` — esbuild rewrites the guard to `if (<shim>.vitest)` and keeps the block, so test bodies and titles ship inside the bundle. Dead at runtime (the shim has no `vitest`), but do not put anything in one you would not publish.
 - Do not export functions, constants, or types solely for testing purposes.
 - Prefer tests that encode project behavior or contracts over tests that mirror declarations. For Zod schemas, do not add parse/not-parse cases merely proving required fields, enum rejection, or primitive types; test app-level invariants, hand-written schema drift, migration/storage boundaries, and behavior that would fail in production.
 
