@@ -258,10 +258,13 @@
     "publish": "npx @raycast/api@latest publish",
     "test": "vitest run",
     "test:watch": "vitest",
-    "eval": "mkdir -p evals/results && promptfoo eval -c evals/promptfooconfig.yaml -o evals/results/promptfoo.json",
-    "eval:smoke": "mkdir -p evals/results && promptfoo eval -c evals/promptfooconfig.yaml --filter-sample 10 -o evals/results/promptfoo-smoke.json",
-    "eval:validate": "promptfoo validate -c evals/promptfooconfig.yaml",
-    "eval:results": "promptfoo view",
+    "eval": "mkdir -p evals/results && tsx evals/promptfoo/run.ts eval -c evals/promptfooconfig.yaml --filter-metadata suite=standard -o evals/results/promptfoo.json && npm run eval:report",
+    "eval:smoke": "mkdir -p evals/results && tsx evals/promptfoo/run.ts eval -c evals/promptfooconfig.yaml --filter-metadata tier=smoke -o evals/results/promptfoo-smoke.json && tsx evals/promptfoo/report.ts evals/results/promptfoo-smoke.json evals/results/summary-smoke.md",
+    "eval:matrix": "mkdir -p evals/results && tsx evals/promptfoo/run.ts eval -c evals/promptfooconfig.yaml --filter-metadata suite=matrix -o evals/results/promptfoo-matrix.json && tsx evals/promptfoo/report.ts evals/results/promptfoo-matrix.json evals/results/summary-matrix.md",
+    "eval:all": "mkdir -p evals/results && tsx evals/promptfoo/run.ts eval -c evals/promptfooconfig.yaml -o evals/results/promptfoo-all.json && tsx evals/promptfoo/report.ts evals/results/promptfoo-all.json evals/results/summary-all.md",
+    "eval:validate": "tsx evals/promptfoo/run.ts validate -c evals/promptfooconfig.yaml",
+    "eval:report": "tsx evals/promptfoo/report.ts evals/results/promptfoo.json evals/results/summary.md",
+    "eval:results": "tsx evals/promptfoo/run.ts view",
     "prepare": "husky"
   },
   "platforms": [

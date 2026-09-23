@@ -1,13 +1,17 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import VocabuilderTranslateWordProvider, {
+  DEFAULT_JUDGE_PROVIDER_ID,
   EvalVarsSchema,
   describeFailure,
+  parseEvalEnvironment,
   parseOrThrow,
   projectKnownErrorOrNull,
+  resolveEvalDefaults,
 } from "./provider";
 import { geminiError } from "../../src/lib/geminiError";
 import type { LanguagePair } from "../../src/lib/languages";
+import { getPreferenceDefault } from "../../src/lib/manifest";
 
 describe("EvalVarsSchema", () => {
   const validVars = {
@@ -71,6 +75,83 @@ describe("parseOrThrow", () => {
     expect(() => parseOrThrow(schema, { a: 1 }, "Bad input", "set a and b in the config.")).toThrow(
       /^Bad input \(a, b\) — set a and b in the config\.$/,
     );
+  });
+});
+
+describe("parseEvalEnvironment", () => {
+  const completeEnvironment = {
+    EVAL_TRANSLATION_API_KEY: "translation-key",
+    EVAL_TRANSLATION_API_BASE_URL: "http://127.0.0.1:8317",
+    EVAL_TRANSLATION_MODEL: "gemini-3.5-flash-extra-low",
+    EVAL_JUDGE_API_KEY: "judge-key",
+    EVAL_JUDGE_API_BASE_URL: "https://api.openai.com",
+    EVAL_JUDGE_PROVIDER_ID: "openai:responses:gpt-5",
+  };
+
+  it("keeps translation and judge configuration independent when both roles are set", () => {
+    expect(
+      parseEvalEnvironment({
+        GEMINI_API_KEY: "shared-key",
+        EVAL_TRANSLATION_API_KEY: " translation-key ",
+        EVAL_TRANSLATION_API_BASE_URL: " http://127.0.0.1:8317 ",
+        EVAL_TRANSLATION_MODEL: " gemini-3.5-flash-extra-low ",
+        EVAL_JUDGE_API_KEY: " judge-key ",
+        EVAL_JUDGE_API_BASE_URL: " https://api.openai.com ",
+        EVAL_JUDGE_PROVIDER_ID: " openai:responses:gpt-5 ",
+      }),
+    ).toEqual(completeEnvironment);
+  });
+
+  it("fills both roles from GEMINI_API_KEY and the extension's production defaults", () => {
+    expect(parseEvalEnvironment({ GEMINI_API_KEY: " ci-key " })).toEqual({
+      EVAL_TRANSLATION_API_KEY: "ci-key",
+      EVAL_TRANSLATION_API_BASE_URL: getPreferenceDefault("geminiApiBaseUrl"),
+      EVAL_TRANSLATION_MODEL: getPreferenceDefault("translationModel"),
+      EVAL_JUDGE_API_KEY: "ci-key",
+      EVAL_JUDGE_API_BASE_URL: getPreferenceDefault("geminiApiBaseUrl"),
+      EVAL_JUDGE_PROVIDER_ID: DEFAULT_JUDGE_PROVIDER_ID,
+    });
+  });
+
+  it("lets a single role override GEMINI_API_KEY without coupling the other role", () => {
+    expect(
+      parseEvalEnvironment({
+        GEMINI_API_KEY: "ci-key",
+        EVAL_TRANSLATION_API_KEY: "translation-key",
+        EVAL_JUDGE_PROVIDER_ID: "openai:responses:gpt-5",
+        EVAL_JUDGE_API_BASE_URL: "https://api.openai.com",
+      }),
+    ).toEqual({
+      EVAL_TRANSLATION_API_KEY: "translation-key",
+      EVAL_TRANSLATION_API_BASE_URL: getPreferenceDefault("geminiApiBaseUrl"),
+      EVAL_TRANSLATION_MODEL: getPreferenceDefault("translationModel"),
+      EVAL_JUDGE_API_KEY: "ci-key",
+      EVAL_JUDGE_API_BASE_URL: "https://api.openai.com",
+      EVAL_JUDGE_PROVIDER_ID: "openai:responses:gpt-5",
+    });
+  });
+
+  it("fails loudly when no translation or judge API key is available", () => {
+    expect(() => parseEvalEnvironment({})).toThrow(
+      /EVAL_TRANSLATION_API_KEY, EVAL_JUDGE_API_KEY.*GEMINI_API_KEY/,
+    );
+  });
+
+  it("requires the judge provider ID to include its model", () => {
+    expect(() =>
+      parseEvalEnvironment({ ...completeEnvironment, EVAL_JUDGE_PROVIDER_ID: "google" }),
+    ).toThrow(/EVAL_JUDGE_PROVIDER_ID/);
+  });
+});
+
+describe("resolveEvalDefaults", () => {
+  it("does not require live keys so validate can interpolate YAML", () => {
+    expect(resolveEvalDefaults({})).toEqual({
+      EVAL_TRANSLATION_API_BASE_URL: getPreferenceDefault("geminiApiBaseUrl"),
+      EVAL_TRANSLATION_MODEL: getPreferenceDefault("translationModel"),
+      EVAL_JUDGE_API_BASE_URL: getPreferenceDefault("geminiApiBaseUrl"),
+      EVAL_JUDGE_PROVIDER_ID: DEFAULT_JUDGE_PROVIDER_ID,
+    });
   });
 });
 
@@ -171,7 +252,11 @@ describe("VocabuilderTranslateWordProvider constructor", () => {
     expect(() => new VocabuilderTranslateWordProvider({ config: {} })).toThrow(/temperature/);
   });
 
-  it("accepts a valid config", () => {
-    expect(() => new VocabuilderTranslateWordProvider({ config: { temperature: 0 } })).not.toThrow();
+  it("identifies the candidate model from EVAL_TRANSLATION_MODEL before live keys are required", () => {
+    const provider = new VocabuilderTranslateWordProvider({
+      config: { temperature: 0 },
+      env: { EVAL_TRANSLATION_MODEL: "gemini-3.5-flash-extra-low" },
+    });
+    expect(provider.id()).toBe("vocabuilder-production:gemini-3.5-flash-extra-low");
   });
 });
