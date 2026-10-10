@@ -1,8 +1,8 @@
-import { Icon, List } from "@raycast/api";
+import { Icon, List, getPreferenceValues } from "@raycast/api";
 import type { Keyboard } from "@raycast/api";
 import { LanguagePair } from "../lib/languages";
 import { SHORTCUTS, formatShortcut } from "../lib/shortcuts";
-import { isTtsSupported } from "../lib/tts";
+import { planPronunciation, type PronunciationPreferences } from "../lib/tts";
 
 interface PronounceRow {
   title: string;
@@ -10,13 +10,17 @@ interface PronounceRow {
 }
 
 // Mirrors the guard inside PronounceAction, which renders nothing for a language
-// Gemini TTS does not speak. A rail row without an action behind it is a lie.
-function pronounceRows(languagePair: LanguagePair, sourceTitle: string): PronounceRow[] {
+// it cannot pronounce. A rail row without an action behind it is a lie.
+function pronounceRows(
+  languagePair: LanguagePair,
+  sourceTitle: string,
+  prefs: PronunciationPreferences,
+): PronounceRow[] {
   const rows: PronounceRow[] = [];
-  if (isTtsSupported(languagePair.source.code)) {
+  if (planPronunciation(languagePair.source.code, prefs).kind !== "unavailable") {
     rows.push({ title: sourceTitle, shortcut: SHORTCUTS.pronounceWord });
   }
-  if (isTtsSupported(languagePair.target.code)) {
+  if (planPronunciation(languagePair.target.code, prefs).kind !== "unavailable") {
     rows.push({ title: "Pronounce Translation", shortcut: SHORTCUTS.pronounceTranslation });
   }
   return rows;
@@ -30,7 +34,7 @@ interface DetailMetadataProps {
 // Raycast splits the detail pane once a metadata block exists. The markdown body
 // above it stays the dictionary entry; only the pronunciation rows live here.
 export function DetailMetadata({ languagePair, sourceTitle = "Pronounce Word" }: DetailMetadataProps) {
-  const rows = pronounceRows(languagePair, sourceTitle);
+  const rows = pronounceRows(languagePair, sourceTitle, getPreferenceValues<Preferences>());
   if (rows.length === 0) return null;
 
   return (
@@ -55,25 +59,37 @@ if (import.meta.vitest) {
     target: { code: target, name: target },
   });
 
+  const gemini: PronunciationPreferences = { provider: "gemini", apiKey: "AIzaSyTest", pronunciation: "auto" };
+
   describe("pronounceRows", () => {
     it("advertises the source row first, with the chords the actions are bound to", () => {
-      const rows = pronounceRows(pair("en", "uk"), "Pronounce Word");
+      const rows = pronounceRows(pair("en", "uk"), "Pronounce Word", gemini);
       expect(rows.map((row) => row.title)).toEqual(["Pronounce Word", "Pronounce Translation"]);
       expect(rows[0].shortcut).toBe(SHORTCUTS.pronounceWord);
       expect(rows[1].shortcut).toBe(SHORTCUTS.pronounceTranslation);
     });
 
     it("drops the row for a language PronounceAction refuses to render", () => {
-      expect(pronounceRows(pair("xx", "uk"), "Pronounce Word").map((row) => row.title)).toEqual([
+      expect(pronounceRows(pair("xx", "uk"), "Pronounce Word", gemini).map((row) => row.title)).toEqual([
         "Pronounce Translation",
       ]);
-      expect(pronounceRows(pair("en", "xx"), "Pronounce Word").map((row) => row.title)).toEqual(["Pronounce Word"]);
-      expect(pronounceRows(pair("xx", "yy"), "Pronounce Word")).toEqual([]);
+      expect(pronounceRows(pair("en", "xx"), "Pronounce Word", gemini).map((row) => row.title)).toEqual([
+        "Pronounce Word",
+      ]);
+      expect(pronounceRows(pair("xx", "yy"), "Pronounce Word", gemini)).toEqual([]);
     });
 
     it("uses the caller's wording for the source row so it matches the action title", () => {
-      const rows = pronounceRows(pair("en", "uk"), "Pronounce Original");
+      const rows = pronounceRows(pair("en", "uk"), "Pronounce Original", gemini);
       expect(rows[0].title).toBe("Pronounce Original");
+    });
+
+    it("follows the active provider: Belarusian has a Gemini voice but no macOS voice", () => {
+      const titles = (prefs: PronunciationPreferences) =>
+        pronounceRows(pair("en", "be"), "Pronounce Word", prefs).map((row) => row.title);
+      expect(titles(gemini)).toEqual(["Pronounce Word", "Pronounce Translation"]);
+      expect(titles({ ...gemini, provider: "anthropic", apiKey: "sk-ant-api03-abc" })).toEqual(["Pronounce Word"]);
+      expect(titles({ ...gemini, pronunciation: "system" })).toEqual(["Pronounce Word"]);
     });
   });
 }

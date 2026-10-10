@@ -53,8 +53,8 @@ reviews:
     - path: "src/lib/**"
       instructions: |
         Keep `src/lib` free of `@raycast/api` imports.
-        Route Gemini-derived failures through `GeminiError` / `geminiError()` and `defaultToastFor`; do not add parallel string switches.
-        `isGeminiError` requires `kind`, `surface`, and `domain` on the cause. Outcomes are never retried; `isTransient` must stay infrastructure-only.
+        Route provider-derived failures through `ProviderError` / `providerError()` and `defaultToastFor`; do not add parallel string switches.
+        `isProviderError` requires `kind`, `surface`, and `domain` on the cause. Outcomes are never retried; `isTransient` must stay infrastructure-only.
         Sense dedup compares translation + part of speech only.
         History may keep several rows for one lemma when gloss or POS differs; re-saving the same sense reuses the row id.
         Flashcard progress is keyed by `Translation.id` via required `translationId`, not the lemma string.
@@ -63,7 +63,7 @@ reviews:
         Anki export is a compatibility surface. `renderAnkiBack` must keep Anki's two-column Basic note type and fold both sentences into Back with `example` (target language) first — the reverse of detail panes. Changing that markup or the column count is a deliberate breaking change.
     - path: "src/lib/types.ts"
       instructions: |
-        In the Gemini schema, `exampleTranslation` is the source-language sentence and `example` is the target-language rendering. Flag any swap of those field meanings.
+        In the word-response schema, `exampleTranslation` is the source-language sentence and `example` is the target-language rendering. Flag any swap of those field meanings.
     - path: "**/*.{test,spec}.{ts,tsx}"
       instructions: |
         Use Vitest. Prefer in-source tests (`if (import.meta.vitest)`) for private code; do not export symbols solely for testing.
@@ -71,7 +71,7 @@ reviews:
         Do not assert literal strings in config files (`package.json`, YAML) as an oracle.
     - path: "evals/**"
       instructions: |
-        This harness evaluates production `translateWord` output (parsed, schema-validated, de-duplicated) or a mapped domain error — not raw Gemini JSON.
+        This harness evaluates production `translateWord` output (parsed, schema-validated, de-duplicated) or a mapped domain error — not raw model JSON. The suite runs one entry per vendor; CI filters to the gemini entry.
         Keep schema validation outside the LLM judge. Import Promptfoo's exported types; validate YAML-sourced inputs with Zod via `parseOrThrow`.
         Suite-wide Promptfoo settings belong in `evals/promptfooconfig.yaml`, not `package.json`.
         Language drift is a production-prompt fix, not a `forbiddenTranslations` regex.

@@ -1,7 +1,7 @@
 import { captureException } from "@raycast/api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { reportUnexpectedError } from "./errorReporting";
-import { geminiError } from "./geminiError";
+import { providerError } from "./providerError";
 
 describe("reportUnexpectedError", () => {
   beforeEach(() => {
@@ -17,8 +17,10 @@ describe("reportUnexpectedError", () => {
     expect(captureException).toHaveBeenCalledWith(error);
   });
 
-  it("does not report expected Gemini failures", () => {
-    reportUnexpectedError(geminiError({ domain: "infrastructure", kind: "network-offline", surface: "translate" }));
+  it("does not report expected provider failures", () => {
+    reportUnexpectedError(
+      providerError({ domain: "infrastructure", kind: "network-offline", surface: "translate", provider: "gemini" }),
+    );
 
     expect(captureException).not.toHaveBeenCalled();
   });
