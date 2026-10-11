@@ -1,8 +1,8 @@
 # VocaBuilder Changelog
 
-## [Choose your AI provider, dictionary-style detail panes, and a rebuilt Anki export] - {PR_MERGE_DATE}
+## [More AI providers, clearer word details, and Anki export] - {PR_MERGE_DATE}
 
-- Translation and pronunciation now work with Gemini, Anthropic, OpenAI, or any server that speaks the OpenAI Chat Completions API, such as OpenRouter, Ollama, or LM Studio. With the new `Provider` preference left on Auto-Detect, the provider is recognized from your API key.
+- Translation now works with Gemini, Anthropic, OpenAI, or any server that speaks the OpenAI Chat Completions API, such as OpenRouter, Ollama, or LM Studio. With the new `Provider` preference left on Auto-Detect, the provider is recognized from your API key.
 - The `Gemini API Key` preference is now `API Key`, so Raycast asks for your key once after this update. Paste the same Gemini key to keep using Gemini.
 - Pronunciation uses OpenAI speech with an OpenAI key, Gemini speech with a Gemini key, and the macOS system voice for Anthropic and OpenAI-compatible servers. OpenAI's legacy `tts-1` and `tts-1-hd` models also use the system voice to preserve the selected language. A new `Pronunciation` preference switches every provider to the macOS system voice.
 - A word with more than five senses now shows the first five instead of failing the lookup.
@@ -19,6 +19,7 @@
 - API requests reject redirects so your API key stays with the server you configured.
 - Reworked the translate screen while a translation is in progress: the word you are translating now appears as a row in the `Translation` section where its result will land, and your `Recent` translations stay on screen instead of the list clearing to an empty placeholder.
 - Word input now auto-translates after 0.7s instead of 1.5s.
+- Returning to a word already looked up in the same Translate session now restores its senses immediately, including after undoing a typo, without another API request.
 - Failed exports and failed pronunciations now explain what went wrong instead of showing the raw system error and your file paths.
 
 ## [Configurable models and reasoning] - 2026-06-08
