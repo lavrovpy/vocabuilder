@@ -114,14 +114,17 @@ export function resolveProviderConfig(prefs: ProviderPreferences): ProviderConfi
   };
 }
 
-/** Like `resolveProviderConfig` for speech; `null` when the provider has no speech endpoint. */
+/** `null` selects the system voice when the provider or model cannot honor a pronunciation language. */
 export function resolveTtsConfig(prefs: ProviderPreferences): TtsConfig | null {
   const provider = resolveProviderId(prefs, "tts");
   if (!hasProviderTts(provider)) return null;
+  const model = prefs.ttsModel?.trim() || PROVIDER_DEFAULTS[provider].ttsModel;
+  // Legacy OpenAI speech models ignore instructions, the only field carrying the selected language.
+  if (provider === "openai" && (model === "tts-1" || model === "tts-1-hd")) return null;
   return {
     provider,
     apiKey: prefs.apiKey.trim(),
-    model: prefs.ttsModel?.trim() || PROVIDER_DEFAULTS[provider].ttsModel,
+    model,
     baseUrl: prefs.apiBaseUrl ?? "",
   };
 }

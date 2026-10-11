@@ -20,7 +20,7 @@ type ExtensionPreferences = {
   "targetLanguage": "en" | "uk" | "pl" | "de" | "fr" | "es" | "it" | "pt" | "nl" | "cs" | "sv" | "ja" | "ko" | "zh" | "tr" | "ru" | "be",
   /** Translation Model - Model ID used for translation. Leave empty for the provider default: gemini-3.5-flash (Gemini), claude-haiku-5-5 (Anthropic), gpt-5.6-luna (OpenAI). Required for an OpenAI-Compatible Server. */
   "translationModel"?: string,
-  /** Text-to-Speech Model - Model ID used for word pronunciation. Leave empty for the provider default: gemini-3.1-flash-tts-preview (Gemini), gpt-4o-mini-tts (OpenAI). Anthropic and OpenAI-Compatible Servers have no speech model and use the macOS system voice. */
+  /** Text-to-Speech Model - Model ID used for word pronunciation. Leave empty for the provider default: gemini-3.1-flash-tts-preview (Gemini), gpt-4o-mini-tts (OpenAI). Anthropic and OpenAI-Compatible Servers use the macOS system voice. OpenAI tts-1 and tts-1-hd also use the system voice to preserve the selected language. */
   "ttsModel"?: string,
   /** Pronunciation - Provider voice uses Gemini or OpenAI speech and falls back to the macOS system voice when it is unavailable. Other providers always use the macOS system voice. */
   "pronunciation": "auto" | "system",

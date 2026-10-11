@@ -27,6 +27,8 @@ A [Raycast](https://raycast.com) extension that translates words and short text 
 | OpenAI | `gpt-5.6-luna` | `gpt-4o-mini-tts` |
 | OpenAI-compatible | none — set **Translation Model** | macOS system voice |
 
+OpenAI speech overrides `tts-1` and `tts-1-hd` use the macOS system voice to preserve the selected pronunciation language. Pronunciation is unavailable when that language has no system voice.
+
 **API Server URL** also routes Gemini, Anthropic, or OpenAI traffic through a proxy or gateway. Your API key is sent to whichever host you configure, so plain `http` is accepted only for local addresses, and URLs carrying credentials or a query string are rejected.
 
 ## Commands

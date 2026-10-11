@@ -226,6 +226,24 @@ if (import.meta.vitest) {
       });
     });
 
+    it.each(["tts-1", "tts-1-hd"])("uses language-specific system voices for the OpenAI model %s", (ttsModel) => {
+      const legacy = prefs({ apiKey: "sk-abc", ttsModel: ` ${ttsModel} ` });
+      for (const langCode of ["en", "pl", "fr", "uk"]) {
+        expect(planPronunciation(langCode, legacy)).toEqual({ kind: "system" });
+      }
+      expect(planPronunciation("be", legacy)).toEqual({ kind: "unavailable" });
+      expect(planPronunciation("xx", legacy)).toEqual({ kind: "unavailable" });
+    });
+
+    it("keeps the default and instruction-capable custom OpenAI models on the provider path", () => {
+      for (const ttsModel of ["", " gpt-4o-mini-tts-2025-12-15 "]) {
+        expect(planPronunciation("be", prefs({ apiKey: "sk-abc", ttsModel }))).toMatchObject({
+          kind: "provider",
+          config: { provider: "openai" },
+        });
+      }
+    });
+
     it("hides the action when only the system voice could speak and it has no voice for the language", () => {
       expect(planPronunciation("be", prefs({ pronunciation: "system" }))).toEqual({ kind: "unavailable" });
       expect(planPronunciation("be", prefs({ provider: "anthropic" }))).toEqual({ kind: "unavailable" });

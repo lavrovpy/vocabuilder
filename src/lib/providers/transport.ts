@@ -143,6 +143,8 @@ export async function post(req: PostRequest): Promise<Response> {
       headers: { "Content-Type": "application/json", ...req.headers },
       body: JSON.stringify(req.body),
       signal: req.signal,
+      // Fetch retains custom API-key headers across cross-origin redirects.
+      redirect: "manual",
     });
   } catch (err) {
     if (err instanceof TypeError) {

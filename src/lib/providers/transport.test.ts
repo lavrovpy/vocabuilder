@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+import { once } from "node:events";
+import { createServer, type IncomingHttpHeaders, type Server } from "node:http";
 
 import { resolveBaseUrl } from "../baseUrl";
 import { parseGeminiRateLimit } from "./gemini";
@@ -243,6 +245,91 @@ describe("postWithRetry", () => {
     await expect(postWithRetry(request)).rejects.toThrow("request-failed");
     expect(fetch).toHaveBeenCalledTimes(1);
   });
+
+  it("maps a status-zero response to request-failed without retrying", async () => {
+    vi.mocked(fetch).mockResolvedValue(Response.error());
+
+    await expect(postWithRetry(request)).rejects.toMatchObject({
+      cause: {
+        domain: "infrastructure",
+        kind: "request-failed",
+        provider: "anthropic",
+        surface: "translate",
+        status: 0,
+      },
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe.each([
+  { provider: "gemini", surface: "translate", header: "x-goog-api-key" },
+  { provider: "gemini", surface: "tts", header: "x-goog-api-key" },
+  { provider: "anthropic", surface: "translate", header: "x-api-key" },
+  { provider: "openai", surface: "translate", header: "Authorization" },
+  { provider: "openai", surface: "tts", header: "Authorization" },
+  { provider: "openai-compatible", surface: "translate", header: "Authorization" },
+] as const)("$provider $surface redirects", ({ provider, surface, header }) => {
+  async function listen(server: Server): Promise<string> {
+    const listening = once(server, "listening");
+    server.listen(0, "127.0.0.1");
+    await listening;
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("Expected a TCP server address");
+    return `http://127.0.0.1:${address.port}`;
+  }
+
+  async function close(server: Server): Promise<void> {
+    if (!server.listening) return;
+    await new Promise<void>((resolve, reject) => {
+      server.close((err) => (err ? reject(err) : resolve()));
+      server.closeAllConnections();
+    });
+  }
+
+  it.each([307, 308])(
+    "rejects HTTP %i without sending credentials to the redirect destination or retrying",
+    async (status) => {
+      const sourceHeaders: IncomingHttpHeaders[] = [];
+      let destinationRequests = 0;
+      let destinationUrl = "";
+      const destination = createServer((request, response) => {
+        destinationRequests++;
+        request.resume();
+        response.end("{}");
+      });
+      const source = createServer((request, response) => {
+        sourceHeaders.push(request.headers);
+        request.resume();
+        response.writeHead(status, { Location: `${destinationUrl}/sink` });
+        response.end("Redirect blocked");
+      });
+
+      try {
+        destinationUrl = await listen(destination);
+        const sourceUrl = await listen(source);
+        const resolvedBaseUrl = resolveBaseUrl(sourceUrl, provider, surface);
+        const credential = header === "Authorization" ? "Bearer fake-key" : "fake-key";
+        const send = surface === "translate" ? postWithRetry : post;
+
+        await expect(
+          send({
+            url: `${resolvedBaseUrl}/endpoint`,
+            headers: { [header]: credential },
+            body: { input: "cat" },
+            context: { provider, surface, model: "m", resolvedBaseUrl },
+          }),
+        ).rejects.toMatchObject({
+          cause: { domain: "infrastructure", kind: "request-failed", provider, surface, status },
+        });
+        expect(sourceHeaders).toHaveLength(1);
+        expect(sourceHeaders[0][header.toLowerCase()]).toBe(credential);
+        expect(destinationRequests).toBe(0);
+      } finally {
+        await Promise.all([close(source), close(destination)]);
+      }
+    },
+  );
 });
 
 describe("readApiResponse", () => {

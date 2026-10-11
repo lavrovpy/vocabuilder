@@ -91,5 +91,15 @@ if (import.meta.vitest) {
       expect(titles({ ...gemini, provider: "anthropic", apiKey: "sk-ant-api03-abc" })).toEqual(["Pronounce Word"]);
       expect(titles({ ...gemini, pronunciation: "system" })).toEqual(["Pronounce Word"]);
     });
+
+    it.each(["tts-1", "tts-1-hd"])("hides unsupported system-voice languages for OpenAI model %s", (ttsModel) => {
+      const prefs: PronunciationPreferences = { provider: "openai", apiKey: "sk-test", ttsModel };
+      expect(pronounceRows(pair("fr", "be"), "Pronounce Word", prefs).map((row) => row.title)).toEqual([
+        "Pronounce Word",
+      ]);
+      expect(pronounceRows(pair("be", "uk"), "Pronounce Word", prefs).map((row) => row.title)).toEqual([
+        "Pronounce Translation",
+      ]);
+    });
   });
 }

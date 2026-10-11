@@ -4,7 +4,7 @@
 
 - Translation and pronunciation now work with Gemini, Anthropic, OpenAI, or any server that speaks the OpenAI Chat Completions API, such as OpenRouter, Ollama, or LM Studio. With the new `Provider` preference left on Auto-Detect, the provider is recognized from your API key.
 - The `Gemini API Key` preference is now `API Key`, so Raycast asks for your key once after this update. Paste the same Gemini key to keep using Gemini.
-- Pronunciation uses OpenAI speech with an OpenAI key, Gemini speech with a Gemini key, and the macOS system voice for Anthropic and OpenAI-compatible servers. A new `Pronunciation` preference switches every provider to the macOS system voice.
+- Pronunciation uses OpenAI speech with an OpenAI key, Gemini speech with a Gemini key, and the macOS system voice for Anthropic and OpenAI-compatible servers. OpenAI's legacy `tts-1` and `tts-1-hd` models also use the system voice to preserve the selected language. A new `Pronunciation` preference switches every provider to the macOS system voice.
 - A word with more than five senses now shows the first five instead of failing the lookup.
 - Word detail panes now lead with the translation itself, set as the largest text in the pane, above a single dictionary line carrying the word you looked up, its pronunciation transcription, part of speech, key inflected forms, and a usage label such as `formal` or `literary` where one applies. Each element appears only when it exists for that word, so multi-word expressions and languages without a transcription convention simply show less.
 - Translations now request pronunciation transcriptions, inflected forms, and usage labels per sense, so a word that differs by part of speech — English `record` as a noun and as a verb — shows the transcription and forms belonging to the sense you picked.
@@ -16,6 +16,7 @@
 - Simplified translation and text-to-speech model preferences to accept any model ID your provider offers, without relying on hardcoded dropdown options. Leave them empty to use the provider's default.
 - Removed the separate reasoning preference so reasoning behavior follows the configured model.
 - Added an `API Server URL` preference so translation and pronunciation can be routed through a proxy or gateway, or to an OpenAI-compatible server, where it is required along with `Translation Model`. Enter a server root or a full API base such as `https://openrouter.ai/api/v1`. Your API key is sent to the host you configure, so plain `http` is accepted only for local addresses and credential-bearing URLs are rejected.
+- API requests reject redirects so your API key stays with the server you configured.
 - Reworked the translate screen while a translation is in progress: the word you are translating now appears as a row in the `Translation` section where its result will land, and your `Recent` translations stay on screen instead of the list clearing to an empty placeholder.
 - Word input now auto-translates after 0.7s instead of 1.5s.
 - Failed exports and failed pronunciations now explain what went wrong instead of showing the raw system error and your file paths.

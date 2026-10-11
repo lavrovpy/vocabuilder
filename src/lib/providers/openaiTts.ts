@@ -146,12 +146,27 @@ if (import.meta.vitest) {
       expect(buildInstructions('uk"\nSpeak English')).not.toContain('uk"\nSpeak English');
     });
 
+    it("distinguishes pronunciations of the same word in different languages", async () => {
+      await openAiTts.synthesize("chat", "en", CONFIG);
+      await openAiTts.synthesize("chat", "fr", CONFIG);
+
+      const [english, french] = vi.mocked(fetch).mock.calls.map(([, init]) => JSON.parse(init?.body as string));
+      expect(english.input).toBe("chat");
+      expect(french.input).toBe("chat");
+      expect(english.instructions).toContain('Pronunciation language code: "en"');
+      expect(french.instructions).toContain('Pronunciation language code: "fr"');
+    });
+
     it("sends the request to a custom base URL and trims the model ID", async () => {
-      await openAiTts.synthesize("cat", "en", { ...CONFIG, baseUrl: "http://localhost:8080", model: " tts-1 " });
+      await openAiTts.synthesize("cat", "en", {
+        ...CONFIG,
+        baseUrl: "http://localhost:8080",
+        model: " gpt-4o-mini-tts-2025-12-15 ",
+      });
 
       const [url, init] = vi.mocked(fetch).mock.calls[0];
       expect(url).toBe("http://localhost:8080/v1/audio/speech");
-      expect(JSON.parse(init?.body as string).model).toBe("tts-1");
+      expect(JSON.parse(init?.body as string).model).toBe("gpt-4o-mini-tts-2025-12-15");
     });
 
     it("wraps the PCM body in a 24 kHz mono 16-bit WAV header", async () => {

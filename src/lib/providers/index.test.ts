@@ -133,8 +133,17 @@ describe("resolveTtsConfig", () => {
   });
 
   it("keeps a custom speech model", () => {
-    expect(resolveTtsConfig({ provider: "openai", apiKey: "sk-abc", ttsModel: " tts-1 " })?.model).toBe("tts-1");
+    expect(resolveTtsConfig({ provider: "openai", apiKey: "sk-abc", ttsModel: " gpt-custom-tts " })?.model).toBe(
+      "gpt-custom-tts",
+    );
   });
+
+  it.each(["tts-1", "tts-1-hd", " tts-1 ", " tts-1-hd "])(
+    "selects the system voice for the OpenAI model %j that cannot honor language instructions",
+    (ttsModel) => {
+      expect(resolveTtsConfig({ provider: "auto", apiKey: "sk-abc", ttsModel })).toBeNull();
+    },
+  );
 
   it.each(["anthropic", "openai-compatible"] as const)(
     "returns null for %s, which has no speech endpoint",
