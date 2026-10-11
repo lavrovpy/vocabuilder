@@ -18,12 +18,16 @@ dist/
 
 # Environment
 # Load-bearing: `ray publish` copies the whole working tree — .gitignore included —
-# and only this entry keeps the copied .env out of the public raycast/extensions PR.
+# and these patterns keep copied local environment files out of the public Store PR.
 .env
+.env.*
+!.env.example
 
 # Raycast
 .raycast/
 
+# Agent tooling
+.agents/
 .claude/
 
 # Promptfoo local artifacts
