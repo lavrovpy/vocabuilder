@@ -42,7 +42,7 @@ export type Register = z.infer<typeof RegisterSchema>;
 // `transcription`, `forms` and `register` sit on the sense rather than the
 // response root because they vary by part of speech: English "record" is
 // /ˈrekɔːd/ as a noun and /rɪˈkɔːd/ as a verb, and its
-// inflections differ likewise. All three are optional — Gemini omits them for
+// inflections differ likewise. All three are optional — the model omits them for
 // multi-word items, for languages with no learner transcription convention,
 // and for neutral register.
 export const WordSenseSchema = z.object({
@@ -55,32 +55,29 @@ export const WordSenseSchema = z.object({
   register: RegisterSchema.optional(),
 });
 
-export const GeminiWordResponseSchema = z.object({
-  senses: z.array(WordSenseSchema).max(5),
+export const MAX_WORD_SENSES = 5;
+
+// No `.max()` on senses: Anthropic's structured outputs drop `maxItems` and
+// OpenAI-compatible servers may ignore it, so translation.ts trims the list
+// after de-duplication instead of failing the whole lookup.
+export const WordResponseSchema = z.object({
+  senses: z.array(WordSenseSchema),
   correctedWord: z.string().optional(),
   notAWord: z.boolean().optional(),
 });
 
-export const GeminiApiResponseSchema = z.object({
-  candidates: z.array(
-    z.object({
-      content: z.object({
-        parts: z.array(z.object({ text: z.string() })),
-      }),
-    }),
-  ),
-});
-
-export const GeminiTextResponseSchema = z.object({
+export const TextResponseSchema = z.object({
   translation: z.string(),
 });
 
-export const GeminiWordResponseJsonSchema = {
+// Response JSON schemas are written in the Gemini dialect (with `propertyOrdering`);
+// every other provider's adapter rewrites them into what its API accepts.
+export const WordResponseJsonSchema = {
   type: "object",
   properties: {
     senses: {
       type: "array",
-      maxItems: 5,
+      maxItems: MAX_WORD_SENSES,
       items: {
         type: "object",
         properties: {
@@ -145,7 +142,7 @@ export const GeminiWordResponseJsonSchema = {
   propertyOrdering: ["senses", "correctedWord", "notAWord"],
 } as const;
 
-export const GeminiTextResponseJsonSchema = {
+export const TextResponseJsonSchema = {
   type: "object",
   properties: {
     translation: {
@@ -173,8 +170,8 @@ export const TranslationSchema = z.object({
 });
 
 export type WordSense = z.infer<typeof WordSenseSchema>;
-export type GeminiWordResponse = z.infer<typeof GeminiWordResponseSchema>;
-export type GeminiTextResponse = z.infer<typeof GeminiTextResponseSchema>;
+export type WordResponse = z.infer<typeof WordResponseSchema>;
+export type TextResponse = z.infer<typeof TextResponseSchema>;
 export type Translation = z.infer<typeof TranslationSchema>;
 
 export const FlashcardProgressSchema = z.object({
@@ -188,24 +185,3 @@ export const FlashcardProgressSchema = z.object({
 
 export type FlashcardProgress = z.infer<typeof FlashcardProgressSchema>;
 export type Rating = "again" | "good" | "easy";
-
-export const GeminiTtsResponseSchema = z.object({
-  candidates: z
-    .array(
-      z.object({
-        content: z.object({
-          parts: z
-            .array(
-              z.object({
-                inlineData: z.object({
-                  mimeType: z.string(),
-                  data: z.string(),
-                }),
-              }),
-            )
-            .min(1),
-        }),
-      }),
-    )
-    .min(1),
-});

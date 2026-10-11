@@ -1,7 +1,7 @@
 import { normalizeWordInput } from "./input";
 import type { WordSense } from "./types";
 
-/** Successful word lookup kept for this Translate session so a reverted typo can skip Gemini. */
+/** Successful word lookup kept for this Translate session so a reverted typo can skip the provider call. */
 export type CachedWordLookup = {
   effectiveWord: string;
   originalInput: string;
@@ -10,6 +10,7 @@ export type CachedWordLookup = {
 
 export type WordLookupScope = {
   pairPrefix: string;
+  provider: string;
   model: string;
 };
 
@@ -29,7 +30,7 @@ export type WordLookupCache = {
 const DEFAULT_MAX_ENTRIES = 50;
 
 function cacheKey(input: WordLookupCacheKey): string {
-  return `${input.pairPrefix}\0${input.model}\0${input.word}`;
+  return [input.pairPrefix, input.provider, input.model, input.word].join("\0");
 }
 
 export function createWordLookupCache(maxEntries = DEFAULT_MAX_ENTRIES): WordLookupCache {
@@ -79,7 +80,7 @@ export function decideWordLookup(
 if (import.meta.vitest) {
   const { describe, expect, it } = import.meta.vitest;
 
-  const scope: WordLookupScope = { pairPrefix: "en-uk", model: "gemini-3.5-flash" };
+  const scope: WordLookupScope = { pairPrefix: "en-uk", provider: "gemini", model: "gemini-3.5-flash" };
 
   const hello: CachedWordLookup = {
     effectiveWord: "hello",
@@ -114,11 +115,12 @@ if (import.meta.vitest) {
       });
     });
 
-    it("does not restore across language pairs or models", () => {
+    it("does not restore across language pairs, providers or models", () => {
       const cache = createWordLookupCache();
       cache.set({ ...scope, word: "hello" }, hello);
 
       expect(decideWordLookup("hello", cache, { ...scope, pairPrefix: "uk-en" }).kind).toBe("miss");
+      expect(decideWordLookup("hello", cache, { ...scope, provider: "anthropic" }).kind).toBe("miss");
       expect(decideWordLookup("hello", cache, { ...scope, model: "other-model" }).kind).toBe("miss");
     });
 

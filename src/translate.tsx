@@ -18,11 +18,11 @@ import LanguageConfigError from "./components/LanguageConfigError";
 import LanguagePairDropdown from "./components/LanguagePairDropdown";
 import { useLanguagePair } from "./hooks/useLanguagePair";
 import History from "./history";
-import { translateWord, translateText } from "./lib/gemini";
+import { translateWord, translateText } from "./lib/translation";
 import { defaultToastFor } from "./lib/errorToast";
 import { reportUnexpectedError } from "./lib/errorReporting";
-import { geminiError, isGeminiError } from "./lib/geminiError";
-import { getPreferenceDefault } from "./lib/manifest";
+import { providerError, isProviderError } from "./lib/providerError";
+import { resolveProviderConfig, selectedProvider, type ProviderPreferences } from "./lib/providers";
 import { looksLikeWordAttempt, normalizeWordInput, normalizeTextInput } from "./lib/input";
 import { storageKeyPrefix } from "./lib/languages";
 import { languagePairTitle, languagePairValue, swapLanguagePair } from "./lib/languageSession";
@@ -42,13 +42,22 @@ function pickSenseShortcut(index: number): { modifiers: "cmd"[]; key: "1" | "2" 
 
 // Codes that surface a Retry button. See AGENTS.md → Error Handling (Retry policy).
 // Wider than isTransient: empty-response and invalid-response are NOT auto-retried
-// (Gemini already responded, just badly) but a human-triggered retry is still worth
+// (the provider already responded, just badly) but a human-triggered retry is still worth
 // offering since the next call may produce a usable response.
 const RETRYABLE_ERROR_CODES = new Set<string>([
   "network-offline",
   "request-failed",
   "empty-response",
   "invalid-response",
+]);
+
+// Codes whose fix is a preferences change, so the error view offers Open Preferences.
+const PREFERENCES_ERROR_CODES = new Set<string>([
+  "invalid-api-key",
+  "model-not-found",
+  "invalid-base-url",
+  "provider-undetected",
+  "missing-model",
 ]);
 
 const SECRET_PREFIX_RE = /^(sk-|ghp_|github_pat_|xox[baprs]-|AKIA|ASIA|AIza)/i;
@@ -97,12 +106,22 @@ function isSafeClipboardSuggestion(raw: string): boolean {
   return normalizeWordInput(text) !== null;
 }
 
+// Built from the selected provider rather than the resolved config: the scope is
+// needed on every keystroke, before a lookup resolves (and possibly rejects) the config.
+function wordLookupScope(pairPrefix: string, prefs: ProviderPreferences): WordLookupScope {
+  return {
+    pairPrefix,
+    provider: selectedProvider(prefs) ?? "unknown",
+    model: prefs.translationModel?.trim() ?? "",
+  };
+}
+
 type ErrorDescription = { code: string; title: string; message: string };
 
 // UNKNOWN_ERROR is the catch-all for AbortError and genuinely unexpected throws;
 // everything recognized routes through defaultToastFor.
 function describeError(err: unknown): ErrorDescription {
-  if (isGeminiError(err)) {
+  if (isProviderError(err)) {
     const { title, message } = defaultToastFor(err.cause);
     return { code: err.cause.kind, title, message };
   }
@@ -132,9 +151,8 @@ function ToggleLanguagesAction({ onAction }: { onAction: () => void }) {
 }
 
 export default function Translate() {
-  const { geminiApiKey, geminiApiBaseUrl, readClipboardOnOpen, translationModel } =
-    getPreferenceValues<Preferences.Translate>();
-  const model = translationModel.trim() || getPreferenceDefault("translationModel");
+  const providerPrefs = getPreferenceValues<Preferences.Translate>();
+  const { readClipboardOnOpen } = providerPrefs;
   const langResult = useLanguagePair();
   const { push } = useNavigation();
 
@@ -192,7 +210,7 @@ export default function Translate() {
   const activePair = languagePair;
   const activeDefaultPair = defaultPair;
   const { source } = activePair;
-  const lookupScope: WordLookupScope = { pairPrefix: storageKeyPrefix(activePair), model };
+  const lookupScope = wordLookupScope(storageKeyPrefix(activePair), providerPrefs);
 
   function clearDebounce() {
     if (debounceRef.current) {
@@ -260,7 +278,9 @@ export default function Translate() {
       setResult(null);
       setPendingWord(null);
       setIsLoading(false);
-      const desc = describeError(geminiError({ domain: "outcome", kind: "invalid-word-input", surface: "translate" }));
+      const desc = describeError(
+        providerError({ domain: "outcome", kind: "invalid-word-input", surface: "translate" }),
+      );
       setErrorCode(desc.code);
       setError(desc.message);
       return;
@@ -275,7 +295,7 @@ export default function Translate() {
     setResult(null);
     setPendingWord(null);
     setIsLoading(false);
-    const desc = describeError(geminiError({ domain: "outcome", kind: "invalid-text-input", surface: "translate" }));
+    const desc = describeError(providerError({ domain: "outcome", kind: "invalid-text-input", surface: "translate" }));
     setErrorCode(desc.code);
     setError(desc.message);
   }
@@ -403,19 +423,21 @@ export default function Translate() {
     setPendingWord(null);
 
     try {
-      const geminiResult = await translateWord(word, geminiApiKey, languagePair, controller.signal, {
-        model,
-        baseUrl: geminiApiBaseUrl,
-      });
+      const wordResult = await translateWord(
+        word,
+        resolveProviderConfig(providerPrefs),
+        languagePair,
+        controller.signal,
+      );
 
       if (controller.signal.aborted) return;
 
-      const corrected = geminiResult.correctedWord;
+      const corrected = wordResult.correctedWord;
       const effectiveWord = corrected && corrected !== word ? corrected : word;
       const pending: CachedWordLookup = {
         effectiveWord,
         originalInput: word,
-        senses: geminiResult.senses,
+        senses: wordResult.senses,
       };
 
       wordLookupCacheRef.current.set({ ...lookupScope, word: cacheWord }, pending);
@@ -449,17 +471,19 @@ export default function Translate() {
     setPendingWord(null);
 
     try {
-      const geminiResult = await translateText(text, geminiApiKey, languagePair, controller.signal, {
-        model,
-        baseUrl: geminiApiBaseUrl,
-      });
+      const textResult = await translateText(
+        text,
+        resolveProviderConfig(providerPrefs),
+        languagePair,
+        controller.signal,
+      );
 
       if (controller.signal.aborted) return;
 
       const translation: Translation = {
         id: `text-${Date.now()}`,
         word: text,
-        translation: geminiResult.translation,
+        translation: textResult.translation,
         partOfSpeech: "text",
         example: "",
         exampleTranslation: "",
@@ -523,7 +547,7 @@ export default function Translate() {
           icon={errorCode === "network-offline" ? Icon.WifiDisabled : Icon.ExclamationMark}
           actions={
             <ActionPanel>
-              {(errorCode === "invalid-api-key" || errorCode === "model-not-found") && (
+              {PREFERENCES_ERROR_CODES.has(errorCode ?? "") && (
                 <Action title="Open Preferences" onAction={openExtensionPreferences} icon={Icon.Gear} />
               )}
               {RETRYABLE_ERROR_CODES.has(errorCode ?? "") && searchText.trim() && (
@@ -766,6 +790,26 @@ if (import.meta.vitest) {
 
       vi.advanceTimersByTime(1);
       expect(translate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("wordLookupScope", () => {
+    const prefs: ProviderPreferences = { provider: "auto", apiKey: "AIzaSyTest", translationModel: "" };
+
+    it("separates lookups made through different providers, including ones Auto detects from the key", () => {
+      const gemini = wordLookupScope("en-uk", prefs);
+      expect(gemini.provider).toBe("gemini");
+      expect(wordLookupScope("en-uk", { ...prefs, apiKey: "sk-ant-api03-abc" }).provider).toBe("anthropic");
+      expect(wordLookupScope("en-uk", { ...prefs, provider: "openai-compatible" }).provider).toBe("openai-compatible");
+    });
+
+    it("separates a custom model from the provider default without throwing on an unrecognized key", () => {
+      expect(wordLookupScope("en-uk", { ...prefs, translationModel: " gemini-3-pro " }).model).toBe("gemini-3-pro");
+      expect(wordLookupScope("en-uk", { ...prefs, apiKey: "ollama" })).toEqual({
+        pairPrefix: "en-uk",
+        provider: "unknown",
+        model: "",
+      });
     });
   });
 
