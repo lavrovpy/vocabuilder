@@ -239,7 +239,7 @@
       "type": "textfield",
       "required": false,
       "title": "Translation Model",
-      "description": "Model ID used for translation. Leave empty for the provider default: gemini-3.5-flash (Gemini), claude-haiku-5-5 (Anthropic), gpt-5.6-luna (OpenAI). Required for an OpenAI-Compatible Server.",
+      "description": "Model ID used for translation. Leave empty for the provider default: gemini-3.5-flash-lite (Gemini), claude-haiku-5-5 (Anthropic), gpt-6-luna (OpenAI). Required for an OpenAI-Compatible Server.",
       "placeholder": "Provider default"
     },
     {

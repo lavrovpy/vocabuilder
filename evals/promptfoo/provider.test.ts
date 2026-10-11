@@ -257,17 +257,33 @@ describe("VocabuilderTranslateWordProvider", () => {
     expect(headers["x-api-key"]).toBe("sk-ant-eval");
   });
 
-  it("uses the provider default model unless the entry sets one", async () => {
+  it("uses Gemini Flash-Lite by default and keeps a custom model", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "AIza-eval");
+    await callWith(new VocabuilderTranslateWordProvider({ config: { provider: "gemini" } }));
+    expect(sentRequest().url).toBe(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
+    );
+
+    fetchMock.mockClear();
+    await callWith(new VocabuilderTranslateWordProvider({ config: { provider: "gemini", model: "gemini-custom" } }));
+    expect(sentRequest().url).toBe(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-custom:generateContent",
+    );
+  });
+
+  it("uses GPT-6 Luna with no reasoning by default and keeps a custom model's effort", async () => {
     vi.stubEnv("OPENAI_API_KEY", "sk-eval");
     await callWith(new VocabuilderTranslateWordProvider({ config: { provider: "openai" } }));
     const defaulted = sentRequest();
     expect(new URL(defaulted.url).host).toBe("api.openai.com");
     expect(defaulted.headers.Authorization).toBe("Bearer sk-eval");
-    expect(defaulted.body.model).toBe("gpt-5.6-luna");
+    expect(defaulted.body.model).toBe("gpt-6-luna");
+    expect(defaulted.body.reasoning_effort).toBe("none");
 
     fetchMock.mockClear();
     await callWith(new VocabuilderTranslateWordProvider({ config: { provider: "openai", model: "gpt-custom" } }));
     expect(sentRequest().body.model).toBe("gpt-custom");
+    expect(sentRequest().body).not.toHaveProperty("reasoning_effort");
   });
 
   it("routes an openai-compatible entry to OPENAI_COMPATIBLE_BASE_URL with its configured model", async () => {

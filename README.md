@@ -22,9 +22,9 @@ A [Raycast](https://raycast.com) extension that translates words and short text 
 
 | Provider | Default translation model | Pronunciation |
 | --- | --- | --- |
-| Gemini | `gemini-3.5-flash` | `gemini-3.1-flash-tts-preview` |
+| Gemini | `gemini-3.5-flash-lite` | `gemini-3.1-flash-tts-preview` |
 | Anthropic | `claude-haiku-5-5` | macOS system voice |
-| OpenAI | `gpt-5.6-luna` | `gpt-4o-mini-tts` |
+| OpenAI | `gpt-6-luna` | `gpt-4o-mini-tts` |
 | OpenAI-compatible | none — set **Translation Model** | macOS system voice |
 
 OpenAI speech overrides `tts-1` and `tts-1-hd` use the macOS system voice to preserve the selected pronunciation language. Pronunciation is unavailable when that language has no system voice.

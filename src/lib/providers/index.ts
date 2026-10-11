@@ -26,9 +26,9 @@ type ProviderDefaults = {
 
 // Why these are not package.json defaults: AGENTS.md → Providers → Defaults.
 const PROVIDER_DEFAULTS = {
-  gemini: { model: "gemini-3.5-flash", ttsModel: "gemini-3.1-flash-tts-preview" },
+  gemini: { model: "gemini-3.5-flash-lite", ttsModel: "gemini-3.1-flash-tts-preview" },
   anthropic: { model: "claude-haiku-5-5", reasoningEffort: "low" },
-  openai: { model: "gpt-5.6-luna", reasoningEffort: "none", ttsModel: "gpt-4o-mini-tts" },
+  openai: { model: "gpt-6-luna", reasoningEffort: "none", ttsModel: "gpt-4o-mini-tts" },
   "openai-compatible": {},
 } as const satisfies Record<ProviderId, ProviderDefaults>;
 

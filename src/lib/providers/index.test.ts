@@ -51,7 +51,7 @@ describe("resolveProviderConfig", () => {
     expect(resolveProviderConfig(prefs({}))).toEqual({
       provider: "gemini",
       apiKey: "AIzaSyAbc",
-      model: "gemini-3.5-flash",
+      model: "gemini-3.5-flash-lite",
       baseUrl: "",
     });
   });
@@ -74,7 +74,7 @@ describe("resolveProviderConfig", () => {
   it("sends the default reasoning effort only together with the default model", () => {
     expect(resolveProviderConfig(prefs({ apiKey: "sk-proj-abc" }))).toMatchObject({
       provider: "openai",
-      model: "gpt-5.6-luna",
+      model: "gpt-6-luna",
       reasoningEffort: "none",
     });
 
