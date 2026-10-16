@@ -109,6 +109,10 @@ const PROVIDER_ENV = {
 
 const RequiredEnvValue = z.string().trim().min(1);
 
+export function candidateCredentialEnvName(nativeEnvName: string): string {
+  return `VOCABUILDER_CANDIDATE_${nativeEnvName}`;
+}
+
 /**
  * Read the credentials for one provider from the environment. Called on the first
  * request rather than in the constructor because `promptfoo validate` instantiates
@@ -120,7 +124,10 @@ function resolveEvalProviderConfig(config: EvalProviderConfig, env: NodeJS.Proce
     (name): name is string => name !== undefined,
   );
   const roleKey = names.roleApiKey ? firstNonEmpty(env[names.roleApiKey]) : undefined;
-  const candidateEnv = roleKey ? { ...env, [names.apiKey]: roleKey } : env;
+  const candidateEnv = {
+    ...env,
+    [names.apiKey]: roleKey ?? env[candidateCredentialEnvName(names.apiKey)] ?? env[names.apiKey],
+  };
   const values = parseOrThrow(
     z.object(Object.fromEntries(required.map((name) => [name, RequiredEnvValue]))),
     candidateEnv,

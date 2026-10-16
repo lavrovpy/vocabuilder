@@ -145,7 +145,7 @@ Key invariant: **the failure toast must not flash when the system-voice fallback
 
 A Promptfoo-driven end-to-end harness over the production `translateWord` path. The eval target is the processed application behavior users rely on: a parsed, schema-validated, de-duplicated translation result, or a mapped domain error. It is not a raw model-output eval.
 
-The suite runs once per native vendor: `promptfooconfig.yaml` has one provider entry each for gemini, anthropic and openai (labels `vocabuilder-<provider>`), so results compare side by side. An `openai-compatible` entry can be added with a `model`; it reads `OPENAI_COMPATIBLE_BASE_URL`.
+Default runs select Gemini. `eval:providers` compares the gemini, anthropic and openai entries in `promptfooconfig.yaml` (labels `vocabuilder-<provider>`). An `openai-compatible` entry can be added with a `model`; it reads `OPENAI_COMPATIBLE_BASE_URL`.
 
 ## Layout
 
@@ -154,7 +154,7 @@ The suite runs once per native vendor: `promptfooconfig.yaml` has one provider e
 - `evals/promptfoo/assert-output.cjs` — deterministic application-contract assertion for projections, corrections, rejections, sense uniqueness, exact source-form examples, and known-wrong translations
 - `evals/promptfoo/judge-prompt.txt` — isolated, injection-resistant judge wrapper
 - `evals/promptfoo/provider.ts` — custom Promptfoo provider that calls production `translateWord` with the entry's `config.provider` (and optional `config.model`), reading credentials from `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `OPENAI_COMPATIBLE_API_KEY` and honoring optional `EVAL_TRANSLATION_*` / `EVAL_JUDGE_*` role overrides
-- `evals/promptfoo/run.ts` — Promptfoo launcher that loads `.env`, fills non-secret defaults for config validation, and maps `EVAL_JUDGE_API_KEY` to the judge provider's native credential variable
+- `evals/promptfoo/run.ts` — launcher, credential isolation, and summary generation after successful or failed evaluations
 - `evals/promptfoo/transform-vars.cjs` — `JSON.stringify` of each case's `expect` block, surfaced to the rubric template as `{{expectJson}}`
 - `evals/promptfoo/report.ts` — Markdown summaries grouped by language pair, category, difficulty, and tier
 - `evals/promptfoo/provider.test.ts` — Vitest coverage for the Zod schemas, the `parseOrThrow` helper, error projection, and per-provider / per-role config and credential resolution
@@ -181,21 +181,13 @@ The suite runs once per native vendor: `promptfooconfig.yaml` has one provider e
 
 - **The default scripts run only the gemini entry.** `eval`, `eval:smoke`, `eval:matrix`, and `eval:all` pass `--filter-providers '^vocabuilder-gemini$'`, so they work with just `GEMINI_API_KEY` (all CI holds) — an entry whose key is missing errors, and errors count against the pass-rate threshold. `eval:providers` drops the provider filter to compare Gemini, Anthropic, and OpenAI on the 96-case standard suite. The filter matches labels before providers are instantiated; keep the labels and the filter in step.
 - **Keep role configuration independent, with production defaults.** Live evals on the default Gemini entry need `GEMINI_API_KEY` (the CI secret). Set `EVAL_TRANSLATION_*` and `EVAL_JUDGE_*` (or per-provider `*_BASE_URL` / `*_MODEL`) only to point a role at a proxy or a different model; an explicit role value never falls back to the other role.
-- **Keep judge credentials out of Promptfoo config.** `evals/promptfoo/run.ts` maps the generic judge key to the native variable for supported key-based `google`, `openai`, and `anthropic` provider prefixes. Add a deliberate mapping when supporting another key-based provider; never interpolate `EVAL_JUDGE_API_KEY` into YAML because raw Promptfoo JSON can retain assertion-provider config.
+- **Keep judge credentials out of Promptfoo config.** The launcher preserves candidate keys before mapping the judge key to a native variable; preserve missing candidate keys too, so candidates cannot borrow judge credentials. Add a deliberate mapping for another key-based judge provider. Keep secrets in the process environment because raw Promptfoo JSON can retain assertion-provider config.
+- **Generate summaries after completed failing evaluations.** Preserve the evaluator's exit status and clear previous output before starting so early failures cannot leave stale reports.
 - **Suite-wide policy lives in `evals/promptfooconfig.yaml`.** Promptfoo `PROMPTFOO_*` variables belong in the top-level `env:` block (currently `PROMPTFOO_PASS_RATE_THRESHOLD` and `PROMPTFOO_REQUEST_BACKOFF_MS`); CLI-flag defaults belong under `commandLineOptions:` (`maxConcurrency`, `delay`, `share: false`). Do not pin `EVAL_*` in that YAML `env:` block — `.env` cannot override pinned values. Role credentials and optional proxy/model overrides are run-specific environment configuration documented in `.env.example`.
 - **Pass-rate threshold sits at 75%** as a permissive compatibility gate while model-graded and provider-service variance is uncalibrated. It is not sufficient release evidence: review every zero-pass pair and every reported subgroup below 75%. The built-in Promptfoo default is `100`, so removing the YAML entry silently changes project policy. Tighten it using repeated-run and human-calibration data once the judge layer is reliable.
 - **Do not write tests that assert literal strings appear in config files** (`package.json`, YAML, etc.). They have no oracle: editing the config means editing the test, no bug ever caught. Promptfoo's loader catches broken file references when the eval actually runs.
 
-## Running
-
-- `npm run eval` — 96-case standard suite on the gemini entry, writes `evals/results/promptfoo.json` and `evals/results/summary.md`; needs only `GEMINI_API_KEY`
-- `npm run eval:smoke` — stable 12-case multilingual sample on the gemini entry for fast local iteration
-- `npm run eval:matrix` — all 272 directed language pairs on the gemini entry using a uniform common-word probe
-- `npm run eval:all` — standard and matrix suites together on the gemini entry (368 cases; intentionally expensive)
-- `npm run eval:providers` — 96-case standard suite across every vendor entry side by side, writes `evals/results/promptfoo-providers.json` and `evals/results/summary-providers.md`; also needs `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`
-- `npm run eval:validate` — config-only validation, no model calls and no keys needed
-- `npm run eval:report` — regenerate `evals/results/summary.md` from `evals/results/promptfoo.json`
-- `npm run eval:results` — open the Promptfoo viewer
+When changing suite selection, credentials, reporting, or release evaluation, read [the evaluation guide](docs/evaluations.md) for commands, precedence, artifacts, and subgroup review.
 
 # Security Guardrails for AI Edits
 

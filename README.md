@@ -77,20 +77,15 @@ Tests run with `npm test`.
 
 ## Translation evaluations
 
-The production `translateWord` path is evaluated with a 96-case risk-based Promptfoo suite plus an optional 272-case matrix covering every directed language pair. The standard suite covers all 17 supported languages, common vocabulary, ambiguity, idioms, phrasal verbs, lexical gaps, false friends, typo correction, and rejection behavior. Results include a Markdown breakdown by language pair, category, difficulty, and tier.
-
-The default eval scripts score the Gemini provider and need only `GEMINI_API_KEY` (the same secret CI uses; model, endpoint, and judge default to the extension's production values). `npm run eval:providers` compares Gemini, Anthropic, and OpenAI side by side on the standard suite and also needs `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`. Optional `EVAL_TRANSLATION_*` and `EVAL_JUDGE_*` variables can point a role at a local proxy or a different model — see `.env.example`.
+Set `GEMINI_API_KEY` in `.env` using [`.env.example`](.env.example), then run:
 
 ```bash
-npm run eval:validate  # validate configuration without model calls
-npm run eval:smoke     # stable 12-case developer check on Gemini
-npm run eval           # 96-case risk-based suite on Gemini plus summary
-npm run eval:matrix    # every directed pair on Gemini; 272 model-graded cases
-npm run eval:all       # both suites on Gemini; 368 cases and intentionally expensive
-npm run eval:providers # 96-case suite across Gemini, Anthropic, and OpenAI
+npm run eval:validate # configuration check; no keys or model calls
+npm run eval:smoke    # 12 fixed multilingual cases
+npm run eval          # 96-case regression suite
 ```
 
-See [the evaluation-suite design](docs/evaluation-suite-design.md) for coverage, grading, reporting, and maintenance decisions.
+Results include JSON and a Markdown failure breakdown. See [the evaluation guide](docs/evaluations.md) for all-pairs coverage, provider comparisons, role configuration, and how to assess failures.
 
 ## License
 
