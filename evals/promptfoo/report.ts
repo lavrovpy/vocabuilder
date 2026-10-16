@@ -180,9 +180,7 @@ function buildEvaluationReport(document: unknown, generatedAt = new Date()): str
   return `${sections.join("\n")}\n`;
 }
 
-async function main(): Promise<void> {
-  const inputPath = path.resolve(process.argv[2] ?? "evals/results/promptfoo.json");
-  const outputPath = path.resolve(process.argv[3] ?? "evals/results/summary.md");
+export async function writeEvaluationReport(inputPath: string, outputPath: string): Promise<void> {
   const document = JSON.parse(await readFile(inputPath, "utf8")) as unknown;
   const report = buildEvaluationReport(document);
   await mkdir(path.dirname(outputPath), { recursive: true });
@@ -191,7 +189,10 @@ async function main(): Promise<void> {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error: unknown) => {
+  writeEvaluationReport(
+    path.resolve(process.argv[2] ?? "evals/results/promptfoo.json"),
+    path.resolve(process.argv[3] ?? "evals/results/summary.md"),
+  ).catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
     process.stderr.write(`Evaluation report failed: ${message}\n`);
     process.exitCode = 1;

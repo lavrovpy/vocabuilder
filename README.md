@@ -9,7 +9,7 @@ A [Raycast](https://raycast.com) extension that translates words and short text 
 - **Typo correction** — misspelled word input is auto-corrected before translating, with a visual indicator showing the original input
 - **Word pronunciation** — hear the source word or its translation through Gemini or OpenAI speech, or the macOS system voice for providers without a speech model
 - **Flashcards** — review saved word translations with spaced repetition
-- **Separate history per language pair** — 17 languages in any pairing, switchable from a dropdown inside each command; each pair keeps its own flashcard deck and its latest 1,000 history entries
+- **Separate history per language pair** — 17 languages in any pairing, switchable from a dropdown inside each command; each pair keeps its own history and flashcard deck
 - **History export** — export saved history as JSON, an Anki-ready `Basic` note file, or Quizlet-ready TSV
 - **Clipboard suggestion** — optionally prefill a safe word or short phrase from the clipboard when the command opens
 
@@ -18,16 +18,14 @@ A [Raycast](https://raycast.com) extension that translates words and short text 
 1. Get an API key from [Google AI Studio](https://aistudio.google.com) (Gemini, free tier available), the [Anthropic Console](https://console.anthropic.com), or the [OpenAI Platform](https://platform.openai.com).
 2. Run the **Translate** command and paste the key when prompted. With **Provider** left on Auto-Detect, the extension recognizes Gemini (`AIza…`), Anthropic (`sk-ant-…`), and OpenAI (`sk-…`) keys.
 3. For an OpenAI-compatible server, open the extension preferences, set **Provider** to OpenAI-Compatible Server, and fill in **API Server URL** (for example `https://openrouter.ai/api/v1` or `http://localhost:11434/v1`) and **Translation Model**. Local servers that need no key accept any value in **API Key**.
-4. (Optional) In the preferences, set default languages, override the translation or speech model, add a separate key for pronunciation, choose the macOS system voice for pronunciation, or enable clipboard suggestions on open.
+4. (Optional) In the preferences, set default languages, override the translation or speech model, choose the macOS system voice for pronunciation, or enable clipboard suggestions on open.
 
 | Provider | Default translation model | Pronunciation |
 | --- | --- | --- |
 | Gemini | `gemini-3.5-flash-lite` | `gemini-3.1-flash-tts-preview` |
-| Anthropic | `claude-haiku-5-5` | macOS system voice, or a **Pronunciation API Key** |
+| Anthropic | `claude-haiku-5-5` | macOS system voice |
 | OpenAI | `gpt-6-luna` | `gpt-4o-mini-tts` |
-| OpenAI-compatible | none — set **Translation Model** | macOS system voice, or a **Pronunciation API Key** |
-
-To hear Gemini or OpenAI speech while another provider translates, for example Anthropic, paste a Gemini or OpenAI key into **Pronunciation API Key**. It is used only for pronunciation and always goes to that provider's official endpoint. **Pronunciation Model** then applies to that provider.
+| OpenAI-compatible | none — set **Translation Model** | macOS system voice |
 
 OpenAI speech overrides `tts-1` and `tts-1-hd` use the macOS system voice to preserve the selected pronunciation language. Pronunciation is unavailable when that language has no system voice.
 
@@ -57,7 +55,7 @@ English, Ukrainian, Polish, German, French, Spanish, Italian, Portuguese, Dutch,
 | `⌘ ⇧ T` | Toggle source and target languages |
 | `⌘ D` | Delete entry (from History) |
 | `⌘ ⇧ D` | Clear all history |
-| `⌘ ⇧ J` | Export history as JSON |
+| `⌘ E` | Export history as JSON |
 | `⌘ ⇧ A` | Export word history for Anki |
 | `⌘ ⇧ Q` | Export word history for Quizlet |
 
@@ -79,20 +77,15 @@ Tests run with `npm test`.
 
 ## Translation evaluations
 
-The production `translateWord` path is evaluated with a 100-case risk-based Promptfoo suite plus an optional 272-case matrix covering every directed language pair. The standard suite covers all 17 supported languages, common vocabulary, ambiguity, idioms, phrasal verbs, lexical gaps, false friends, typo correction, and rejection behavior. Results include a Markdown breakdown by language pair, category, difficulty, and tier.
-
-The default eval scripts score the Gemini provider and need only `GEMINI_API_KEY` (the same secret CI uses; model, endpoint, and judge default to the extension's production values). `npm run eval:providers` compares Gemini, Anthropic, and OpenAI side by side on the standard suite and also needs `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`. Optional `EVAL_TRANSLATION_*` and `EVAL_JUDGE_*` variables can point a role at a local proxy or a different model — see `.env.example`.
+Set `GEMINI_API_KEY` in `.env` using [`.env.example`](.env.example), then run:
 
 ```bash
-npm run eval:validate  # validate configuration without model calls
-npm run eval:smoke     # stable 12-case developer check on Gemini
-npm run eval           # 100-case risk-based suite on Gemini plus summary
-npm run eval:matrix    # every directed pair on Gemini; 272 model-graded cases
-npm run eval:all       # both suites on Gemini; 372 cases and intentionally expensive
-npm run eval:providers # 100-case suite across Gemini, Anthropic, and OpenAI
+npm run eval:validate # configuration check; no keys or model calls
+npm run eval:smoke    # 12 fixed multilingual cases
+npm run eval          # 96-case regression suite
 ```
 
-See [the evaluation-suite design](docs/evaluation-suite-design.md) for coverage, grading, reporting, and maintenance decisions.
+Results include JSON and a Markdown failure breakdown. See [the evaluation guide](docs/evaluations.md) for all-pairs coverage, provider comparisons, role configuration, and how to assess failures.
 
 ## License
 
