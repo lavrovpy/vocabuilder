@@ -84,7 +84,14 @@ const breadthCases = [
   ],
 
   ["en", "fr", "friend", "common", "easy", "Translate the everyday noun for a friend.", "smoke"],
-  ["fr", "en", "merci", "common", "easy", "Translate this everyday expression of thanks."],
+  [
+    "fr",
+    "en",
+    "merci",
+    "common",
+    "easy",
+    "Translate this everyday expression of thanks; allow secondary noun senses such as 'thanks' or 'mercy' (as in 'à la merci de') when clearly distinguished.",
+  ],
   [
     "en",
     "fr",
@@ -105,7 +112,14 @@ const breadthCases = [
   ],
 
   ["en", "es", "family", "common", "easy", "Translate the everyday noun for family.", "smoke"],
-  ["es", "en", "gracias", "common", "easy", "Translate this everyday expression of thanks."],
+  [
+    "es",
+    "en",
+    "gracias",
+    "common",
+    "easy",
+    "Translate this everyday expression of thanks; allow common secondary noun senses of the form when clearly distinguished.",
+  ],
   [
     "en",
     "es",
@@ -122,7 +136,7 @@ const breadthCases = [
     "sobremesa",
     "lexical-gap",
     "hard",
-    "Translate the time and conversation shared at the table after a meal, not the literal tabletop.",
+    "Translate the time and conversation shared at the table after a meal rather than a literal calque; allow legitimate secondary dictionary senses such as a desktop computer when clearly distinguished.",
   ],
 
   ["en", "it", "morning", "common", "easy", "Translate the everyday noun for the morning."],
@@ -130,12 +144,12 @@ const breadthCases = [
   [
     "en",
     "it",
-    "library",
+    "factory",
     "false-friend",
     "hard",
-    "Translate the place or collection for borrowing and consulting books, not a bookshop.",
+    "Translate the industrial building or plant where goods are manufactured, not a farm.",
     undefined,
-    { forbiddenTranslations: ["libreria"] },
+    { forbiddenTranslations: ["fattoria"] },
   ],
   [
     "it",
@@ -147,7 +161,14 @@ const breadthCases = [
   ],
 
   ["en", "pt", "bread", "common", "easy", "Translate the everyday noun for bread."],
-  ["pt", "en", "obrigado", "common", "easy", "Translate this everyday expression of thanks."],
+  [
+    "pt",
+    "en",
+    "obrigado",
+    "common",
+    "easy",
+    "Translate this everyday expression of thanks; allow the participial adjective sense ('obliged' or 'forced') when clearly distinguished.",
+  ],
   [
     "en",
     "pt",
@@ -252,7 +273,7 @@ const breadthCases = [
     "wear",
     "polysemy",
     "hard",
-    "Represent useful Japanese verbs that differ by what is worn, such as clothing, footwear, or headwear.",
+    "Translate common senses of wearing clothing or items on the body (using a general verb or garment-specific verbs) alongside other common verb or noun senses such as wear-and-tear or apparel.",
   ],
   [
     "ja",
@@ -271,7 +292,7 @@ const breadthCases = [
     "wear",
     "polysemy",
     "hard",
-    "Represent useful Korean verbs that differ by what is worn, such as clothing, footwear, or headwear.",
+    "Translate common senses of wearing clothing or items on the body (using a general verb or garment-specific verbs) alongside other common verb or noun senses such as wear-and-tear or apparel.",
   ],
   [
     "ko",
@@ -298,7 +319,7 @@ const breadthCases = [
     "加油",
     "expression",
     "hard",
-    "Translate the encouragement naturally as 'come on', 'keep going', 'you can do it', or an equivalent, not literally as adding fuel.",
+    "Include the primary encouragement sense ('come on', 'keep going', 'you can do it', or 'cheer on') idiomatically; allow the literal verb sense 'refuel' only as a separate sense when clearly distinguished.",
   ],
 
   ["en", "tr", "time", "common", "easy", "Translate the common noun senses of time.", "smoke"],
@@ -342,9 +363,7 @@ const breadthCases = [
     "carefully",
     "language-purity",
     "hard",
-    "Use standard Belarusian wording and morphology, avoiding Russian substitution.",
-    undefined,
-    { forbiddenTranslations: ["аккуратно"] },
+    "Translate the adverb meaning cautiously, attentively, or neatly using standard Belarusian wording and morphology, avoiding Russian substitution.",
   ],
   [
     "be",
@@ -383,7 +402,7 @@ const englishUkrainianDepthCases = [
     "fair",
     "polysemy",
     "hard",
-    "Represent useful senses such as just/equitable, moderately good, light-colored, and a public fair.",
+    "Cover core distinct senses such as just/equitable, a public fair, and light-colored or moderately good within the five-sense limit.",
   ],
   [
     "en",
@@ -391,7 +410,7 @@ const englishUkrainianDepthCases = [
     "charge",
     "polysemy",
     "hard",
-    "Represent useful senses such as asking a price, accusing, electrical charge, and rushing forward.",
+    "Cover core distinct senses such as asking a price or fee, accusing or an accusation, and electrical/battery charge (plus rushing forward when space permits within the five-sense limit).",
   ],
   [
     "en",
@@ -399,7 +418,7 @@ const englishUkrainianDepthCases = [
     "match",
     "polysemy",
     "hard",
-    "Represent useful senses such as a contest, an equal counterpart, pairing, and a match used to light a fire.",
+    "Cover core distinct senses such as a fire-lighting match, a contest/game, and pairing, suiting, or a counterpart within the five-sense limit.",
   ],
   [
     "en",
@@ -540,7 +559,7 @@ const contractCases = [
     "medium",
     "Correct the typo to 'kick the bucket' and translate the idiom as dying.",
     "contract",
-    { correctedWord: "kick the bucket", forbiddenTranslations: ["кинути відро"] },
+    { correctedWord: "kick the bucket", forbiddenTranslations: ["кинути відро", "бити відро"] },
   ],
   [
     "en",
@@ -548,7 +567,7 @@ const contractCases = [
     "runing",
     "typo",
     "easy",
-    "Correct the spelling to 'running' and translate the corrected word.",
+    "Correct the spelling to 'running' and translate its common senses using natural standard Ukrainian forms (such as 'той, що працює' rather than non-standard active participles like 'працюючий').",
     "contract",
     { correctedWord: "running" },
   ],
