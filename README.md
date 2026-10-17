@@ -73,7 +73,19 @@ npm run dev
 
 Built with the [Raycast API](https://developers.raycast.com), TypeScript + React, and [Zod](https://zod.dev) for runtime validation. Each provider is a small adapter over plain `fetch` in `src/lib/providers/`; the prompt, response validation, and sense de-duplication are shared in `src/lib/translation.ts`.
 
-Tests run with `npm test`. The translation quality evals read their keys from `.env` — copy `.env.example` to start. `npm run eval` scores the Gemini provider and needs only `GEMINI_API_KEY`, which the eval judge also uses; `npm run eval:all` scores Gemini, Anthropic, and OpenAI side by side and also needs `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`.
+Tests run with `npm test`.
+
+## Translation evaluations
+
+Set `GEMINI_API_KEY` in `.env` using [`.env.example`](.env.example), then run:
+
+```bash
+npm run eval:validate # configuration check; no keys or model calls
+npm run eval:smoke    # 12 fixed multilingual cases
+npm run eval          # 96-case regression suite
+```
+
+Results include JSON and a Markdown failure breakdown. See [the evaluation guide](docs/evaluations.md) for all-pairs coverage, provider comparisons, role configuration, and how to assess failures.
 
 ## License
 
