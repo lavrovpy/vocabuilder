@@ -590,6 +590,40 @@ describe("translateText", () => {
 
     const result = await translateText("Hello world", TEST_CONFIG, pair, undefined);
     expect(result.translation).toBe("Привіт світ");
+    expect(result.languagePair).toEqual(pair);
+  });
+
+  describe("text typed in the target language", () => {
+    const ukEn: LanguagePair = { source: pair.target, target: pair.source };
+
+    function respondWith(...payloads: object[]) {
+      for (const payload of payloads) {
+        vi.mocked(fetch).mockResolvedValueOnce(
+          new Response(JSON.stringify(geminiJsonBody(payload)), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }
+    }
+
+    it("translates again with the pair reversed and reports the pair it used", async () => {
+      respondWith({ translation: "", inputInTargetLanguage: true }, { translation: "Мовчазна згода не є згодою." });
+
+      const result = await translateText("Tacit consent is not consent.", TEST_CONFIG, ukEn, undefined);
+
+      expect(fetch).toHaveBeenCalledTimes(2);
+      expect(result).toEqual({ translation: "Мовчазна згода не є згодою.", languagePair: pair });
+    });
+
+    it("reverses at most once: a second target-language verdict is invalid-response", async () => {
+      respondWith({ translation: "", inputInTargetLanguage: true }, { translation: "", inputInTargetLanguage: true });
+
+      await expect(translateText("Tacit consent is not consent.", TEST_CONFIG, ukEn, undefined)).rejects.toThrow(
+        "invalid-response",
+      );
+      expect(fetch).toHaveBeenCalledTimes(2);
+    });
   });
 
   it("requests structured JSON output for text translations", async () => {

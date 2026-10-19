@@ -69,6 +69,7 @@ export const WordResponseSchema = z.object({
 
 export const TextResponseSchema = z.object({
   translation: z.string(),
+  inputInTargetLanguage: z.boolean().optional(),
 });
 
 // Response JSON schemas are written in the Gemini dialect (with `propertyOrdering`);
@@ -155,10 +156,15 @@ export const TextResponseJsonSchema = {
       type: "string",
       description: "Translated text in the target language.",
     },
+    inputInTargetLanguage: {
+      type: "boolean",
+      description:
+        "True only when the text is written in the target language rather than the source one; translation is then empty.",
+    },
   },
   required: ["translation"],
   additionalProperties: false,
-  propertyOrdering: ["translation"],
+  propertyOrdering: ["translation", "inputInTargetLanguage"],
 } as const;
 
 export const TranslationSchema = z.object({
