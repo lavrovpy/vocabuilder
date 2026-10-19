@@ -65,6 +65,7 @@ describe("translateWord", () => {
     expect(result.senses).toHaveLength(1);
     expect(result.senses[0].translation).toBe("привіт");
     expect(result.senses[0].partOfSpeech).toBe("interjection");
+    expect(result.languagePair).toEqual(pair);
   });
 
   it("requests structured JSON output for word translations", async () => {
@@ -187,6 +188,52 @@ describe("translateWord", () => {
     await expect(translateWord("xqzptl", TEST_CONFIG, pair, undefined)).rejects.toMatchObject({
       message: "word-not-found",
       cause: { domain: "outcome", kind: "word-not-found" },
+    });
+  });
+
+  describe("input typed in the target language", () => {
+    const ukEn: LanguagePair = { source: pair.target, target: pair.source };
+    const tacitSense = {
+      translation: "мовчазний",
+      partOfSpeech: "adjective",
+      example: "Вони дали мовчазну згоду на план.",
+      exampleTranslation: "They gave their tacit approval to the plan.",
+    };
+
+    function respondWith(...payloads: object[]) {
+      for (const payload of payloads) {
+        vi.mocked(fetch).mockResolvedValueOnce(
+          new Response(JSON.stringify(geminiJsonBody(payload)), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }
+    }
+
+    it("looks the word up again with the pair reversed and reports the pair it used", async () => {
+      respondWith({ senses: [], inputInTargetLanguage: true }, { senses: [tacitSense] });
+
+      const result = await translateWord("tacit", TEST_CONFIG, ukEn, undefined);
+
+      expect(fetch).toHaveBeenCalledTimes(2);
+      expect(result.languagePair).toEqual(pair);
+      expect(result.senses).toEqual([tacitSense]);
+    });
+
+    it("reverses at most once: a second target-language verdict is invalid-response", async () => {
+      respondWith({ senses: [], inputInTargetLanguage: true }, { senses: [], inputInTargetLanguage: true });
+
+      await expect(translateWord("tacit", TEST_CONFIG, ukEn, undefined)).rejects.toThrow("invalid-response");
+      expect(fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it("reports word-not-found when the reversed lookup finds nothing", async () => {
+      respondWith({ senses: [], inputInTargetLanguage: true }, { senses: [], notAWord: true });
+
+      await expect(translateWord("tacit", TEST_CONFIG, ukEn, undefined)).rejects.toMatchObject({
+        cause: { domain: "outcome", kind: "word-not-found" },
+      });
     });
   });
 

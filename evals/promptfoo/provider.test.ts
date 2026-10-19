@@ -299,6 +299,40 @@ describe("VocabuilderTranslateWordProvider", () => {
     expect(body.model).toBe("llama3");
   });
 
+  it("projects the pair the lookup actually used when the input was in the target language", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "AIza-eval");
+    const sense = {
+      translation: "мовчазний",
+      partOfSpeech: "adjective",
+      example: "Вони дали мовчазну згоду.",
+      exampleTranslation: "They gave tacit approval.",
+    };
+    for (const payload of [{ senses: [], inputInTargetLanguage: true }, { senses: [sense] }]) {
+      fetchMock.mockResolvedValueOnce(
+        Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify(payload) }] } }] }),
+      );
+    }
+    const ukEnVars = {
+      input: "tacit",
+      sourceLanguageCode: "uk",
+      sourceLanguageName: "Ukrainian",
+      targetLanguageCode: "en",
+      targetLanguageName: "English",
+    };
+    const provider = new VocabuilderTranslateWordProvider({ config: { provider: "gemini" } });
+
+    const response = await provider.callApi("tacit", { vars: ukEnVars } as unknown as Parameters<
+      typeof provider.callApi
+    >[1]);
+
+    expect(JSON.parse(response.output as string)).toMatchObject({
+      status: "ok",
+      languagePair: { source: { code: "en" }, target: { code: "uk" } },
+      languagePairSwitched: true,
+      senses: [sense],
+    });
+  });
+
   it("surfaces missing-model for an openai-compatible entry without a model", async () => {
     vi.stubEnv("OPENAI_COMPATIBLE_API_KEY", "local");
     vi.stubEnv("OPENAI_COMPATIBLE_BASE_URL", "http://localhost:11434/v1");

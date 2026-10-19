@@ -65,6 +65,8 @@ function buildWordPrompt(normalizedWord: string, languagePair: LanguagePair): st
   return `Translate the ${source.name} vocabulary item ${asJsonStringLiteral(normalizedWord)} to ${target.name}.
 The vocabulary item may be a single word, a phrasal verb (e.g. "give up", "break down"), or an idiom / fixed expression (e.g. "red herring", "kick the bucket").
 
+LANGUAGE CHECK (apply before the rules below): if the input is neither a ${source.name} word or expression nor a misspelling of one, but it IS a ${target.name} word or expression, the user typed it in the wrong language — respond with: { "senses": [], "inputInTargetLanguage": true }. When the item exists in both languages (a shared word, cognate or loanword), treat it as ${source.name} and translate it normally.
+
 CRITICAL RULES:
 1. If the input is a misspelling or typo of a REAL word or expression, correct it and translate the corrected form. Put the corrected form in "correctedWord". This applies to phrases too — e.g. "red hering" → "red herring", "kik the bucket" → "kick the bucket", "runing" → "running". Prefer correction over rejection whenever a plausible correction exists.
 2. Only if NO plausible correction exists and the input is truly gibberish / random letters / not in any dictionary or idiom reference, respond with: { "senses": [], "notAWord": true }
@@ -116,13 +118,31 @@ async function translateWordRaw(
   return requestJson(config, prompt, WordResponseJsonSchema, (v) => WordResponseSchema.parse(v), signal);
 }
 
+export type WordLookup = {
+  senses: WordSense[];
+  correctedWord?: string;
+  /** The pair the senses belong to: the requested one, or its reverse when the input was in the target language. */
+  languagePair: LanguagePair;
+};
+
+// Not `swapLanguagePair` from languages.ts: that module imports @raycast/api,
+// which the eval harness cannot load (see AGENTS.md → Evals).
+function reversedPair({ source, target }: LanguagePair): LanguagePair {
+  return { source: target, target: source };
+}
+
 export async function translateWord(
   word: string,
   config: ProviderConfig,
   languagePair: LanguagePair,
   signal: AbortSignal | undefined,
-): Promise<WordResponse> {
-  const parsed = await translateWordRaw(word, config, languagePair, signal);
+): Promise<WordLookup> {
+  let pair = languagePair;
+  let parsed = await translateWordRaw(word, config, pair, signal);
+  if (parsed.inputInTargetLanguage) {
+    pair = reversedPair(languagePair);
+    parsed = await translateWordRaw(word, config, pair, signal);
+  }
 
   if (parsed.notAWord) {
     throw providerError({ domain: "outcome", kind: "word-not-found", surface: "translate" });
@@ -136,7 +156,11 @@ export async function translateWord(
     });
   }
 
-  return { ...parsed, senses: dedupeSenses(parsed.senses).slice(0, MAX_WORD_SENSES) };
+  return {
+    senses: dedupeSenses(parsed.senses).slice(0, MAX_WORD_SENSES),
+    correctedWord: parsed.correctedWord,
+    languagePair: pair,
+  };
 }
 
 // --- In-source tests for private functions ---
