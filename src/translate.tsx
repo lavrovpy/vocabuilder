@@ -440,7 +440,20 @@ export default function Translate() {
         senses: wordResult.senses,
       };
 
-      wordLookupCacheRef.current.set({ ...lookupScope, word: cacheWord }, pending);
+      const resultPairPrefix = storageKeyPrefix(wordResult.languagePair);
+      if (resultPairPrefix !== lookupScope.pairPrefix) {
+        // The pair must switch before the senses show: saving a sense writes to
+        // the active pair's history.
+        const switched = await langResult.selectPairValue(languagePairValue(wordResult.languagePair));
+        if (!switched || controller.signal.aborted) return;
+        void showToast({
+          style: Toast.Style.Success,
+          title: `Switched to ${languagePairTitle(switched)}`,
+          message: `"${word}" looks like ${switched.source.name}.`,
+        });
+      }
+
+      wordLookupCacheRef.current.set({ ...wordLookupScope(resultPairPrefix, providerPrefs), word: cacheWord }, pending);
       setPendingWord(pending);
     } catch (err) {
       if (controller.signal.aborted) return;

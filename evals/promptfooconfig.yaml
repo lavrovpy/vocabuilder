@@ -64,9 +64,11 @@ defaultTest:
         a language learner.
 
         Evaluation criteria:
-        1. Target language quality: translations and examples are in the requested target
-           language. When the target is Ukrainian, fail for Russian drift or Russian-only
-           wording unless the source term itself requires it.
+        1. Target language quality: translations and examples are in the target language of
+           the output's languagePair. That is the requested target unless languagePairSwitched
+           is true, which means the input was typed in the requested target language and the
+           app looked it up in the reverse direction. When the target is Ukrainian, fail for
+           Russian drift or Russian-only wording unless the source term itself requires it.
         2. Sense accuracy: each listed translation matches the input and the case intent.
            Extra senses may be included only when they are real, useful senses of the input.
         3. Idioms and phrasal verbs: translate idioms, phrasal verbs, and fixed expressions by
@@ -329,3 +331,51 @@ tests:
       expect:
         status: error
         error: word-not-found
+
+  - description: "wrong direction: tacit typed into Ukrainian → English"
+    metadata:
+      category: wrong-direction
+    vars:
+      input: tacit
+      sourceLanguageCode: uk
+      sourceLanguageName: Ukrainian
+      targetLanguageCode: en
+      targetLanguageName: English
+      intent: >-
+        "tacit" is English, not Ukrainian, so the app should switch to English → Ukrainian and
+        give Ukrainian glosses such as "мовчазний" or "негласний", with English example sentences
+        containing "tacit" and Ukrainian renderings of them.
+      expect:
+        languagePairSwitched: true
+
+  - description: "wrong direction: привіт typed into English → Ukrainian"
+    metadata:
+      category: wrong-direction
+    vars:
+      input: привіт
+      sourceLanguageCode: en
+      sourceLanguageName: English
+      targetLanguageCode: uk
+      targetLanguageName: Ukrainian
+      intent: >-
+        "привіт" is Ukrainian, so the app should switch to Ukrainian → English and translate it
+        as a greeting such as "hi" or "hello".
+      expect:
+        languagePairSwitched: true
+
+  - description: "shared spelling: Gift stays German in German → English"
+    metadata:
+      category: wrong-direction
+    vars:
+      input: Gift
+      sourceLanguageCode: de
+      sourceLanguageName: German
+      targetLanguageCode: en
+      targetLanguageName: English
+      intent: >-
+        "Gift" is a real German word meaning poison, so the app must keep German → English and
+        translate it as "poison", not treat it as the English word "gift".
+      expect:
+        languagePairSwitched: false
+        forbiddenTranslations:
+          - present

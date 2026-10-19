@@ -64,6 +64,7 @@ export const WordResponseSchema = z.object({
   senses: z.array(WordSenseSchema),
   correctedWord: z.string().optional(),
   notAWord: z.boolean().optional(),
+  inputInTargetLanguage: z.boolean().optional(),
 });
 
 export const TextResponseSchema = z.object({
@@ -136,10 +137,15 @@ export const WordResponseJsonSchema = {
       type: "boolean",
       description: "True only when no plausible word or expression correction exists.",
     },
+    inputInTargetLanguage: {
+      type: "boolean",
+      description:
+        "True only when the input is a target-language item and not a source-language one; senses are then empty.",
+    },
   },
   required: ["senses"],
   additionalProperties: false,
-  propertyOrdering: ["senses", "correctedWord", "notAWord"],
+  propertyOrdering: ["senses", "correctedWord", "notAWord", "inputInTargetLanguage"],
 } as const;
 
 export const TextResponseJsonSchema = {

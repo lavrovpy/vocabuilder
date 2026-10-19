@@ -1,11 +1,10 @@
 import { z } from "zod";
 import type { ApiProvider, CallApiContextParams, ProviderOptions, ProviderResponse } from "promptfoo";
-import { translateWord } from "../../src/lib/translation";
+import { translateWord, type WordLookup } from "../../src/lib/translation";
 import { isProviderError, isOutcome } from "../../src/lib/providerError";
 import { resolveProviderConfig } from "../../src/lib/providers";
 import { PROVIDER_IDS, type ProviderConfig, type ProviderId } from "../../src/lib/providers/types";
 import type { LanguagePair } from "../../src/lib/languages";
-import type { WordResponse } from "../../src/lib/types";
 
 export function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown, prefix: string, hint: string): T {
   const parsed = schema.safeParse(data);
@@ -68,11 +67,12 @@ export const EvalVarsSchema = z
     input: v.input,
   }));
 
-function projectSuccess(input: string, pair: LanguagePair, response: WordResponse): Record<string, unknown> {
+function projectSuccess(input: string, pair: LanguagePair, response: WordLookup): Record<string, unknown> {
   return {
     status: "ok",
     input,
-    languagePair: pair,
+    languagePair: response.languagePair,
+    languagePairSwitched: response.languagePair.source.code !== pair.source.code,
     correctedWord: response.correctedWord ?? null,
     senses: response.senses,
   };

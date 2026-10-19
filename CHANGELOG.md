@@ -1,5 +1,9 @@
 # VocaBuilder Changelog
 
+## [Lookups typed in the other language] - {PR_MERGE_DATE}
+
+- A word typed in the language you translate into, such as an English word while Ukrainian → English is selected, now switches the translate screen to the reverse pair and translates it there, instead of returning a garbled result. A toast names the new pair. Words spelled the same in both languages, such as German `Gift`, are still looked up in the source language.
+
 ## [More AI providers, clearer word details, and Anki export] - {PR_MERGE_DATE}
 
 - Translation now works with Gemini, Anthropic, OpenAI, or any server that speaks the OpenAI Chat Completions API, such as OpenRouter, Ollama, or LM Studio. With the new `Provider` preference left on Auto-Detect, the provider is recognized from your API key.
