@@ -125,6 +125,12 @@ export type WordLookup = {
   languagePair: LanguagePair;
 };
 
+export type TextLookup = {
+  translation: string;
+  /** The pair the translation belongs to, as in {@link WordLookup}. */
+  languagePair: LanguagePair;
+};
+
 // Not `swapLanguagePair` from languages.ts: that module imports @raycast/api,
 // which the eval harness cannot load (see AGENTS.md → Evals).
 function reversedPair({ source, target }: LanguagePair): LanguagePair {
@@ -226,15 +232,41 @@ export async function translateText(
   config: ProviderConfig,
   languagePair: LanguagePair,
   signal: AbortSignal | undefined,
-): Promise<TextResponse> {
+): Promise<TextLookup> {
   const normalizedText = normalizeTextInput(text);
   if (!normalizedText) {
     throw providerError({ domain: "outcome", kind: "invalid-text-input", surface: "translate" });
   }
 
+  let pair = languagePair;
+  let parsed = await translateTextRaw(normalizedText, config, pair, signal);
+  if (parsed.inputInTargetLanguage) {
+    pair = reversedPair(languagePair);
+    parsed = await translateTextRaw(normalizedText, config, pair, signal);
+  }
+
+  if (parsed.inputInTargetLanguage) {
+    throw providerError({
+      domain: "infrastructure",
+      kind: "invalid-response",
+      surface: "translate",
+      provider: config.provider,
+    });
+  }
+
+  return { translation: parsed.translation, languagePair: pair };
+}
+
+function translateTextRaw(
+  normalizedText: string,
+  config: ProviderConfig,
+  languagePair: LanguagePair,
+  signal: AbortSignal | undefined,
+): Promise<TextResponse> {
   const { source, target } = languagePair;
 
   const prompt = `Translate the following ${source.name} text to ${target.name}.
+If the text is written in ${target.name} rather than ${source.name}, the user typed it in the wrong language — do not translate it; respond with: { "translation": "", "inputInTargetLanguage": true }. Text that mixes languages counts as ${source.name} when most of it is ${source.name}.
 Respond ONLY with valid JSON:
 { "translation": "..." }
 

@@ -237,4 +237,4 @@ This is a translator and vocabulary builder app that supports non-Latin scripts 
 - History can hold several rows for the same lemma when gloss or part of speech differs; saving the same sense again reuses the existing row id and updates its timestamp.
 - Flashcard spaced-repetition progress is keyed by `Translation.id` via required `translationId` on each progress record, not by the lemma string alone.
 - Sense deduplication compares translation and part of speech only; same gloss+POS with different examples is treated as one sense.
-- A word typed in the target language comes back from the model as `inputInTargetLanguage`; `translateWord` then repeats the lookup once with the pair reversed and returns the pair it used, and the Translate screen switches to that pair before showing senses.
+- A word or text typed in the target language comes back from the model as `inputInTargetLanguage`; `translateWord`/`translateText` then repeat the request once with the pair reversed and return the pair they used, and the Translate screen switches to that pair before showing or saving the result.

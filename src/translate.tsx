@@ -24,7 +24,7 @@ import { reportUnexpectedError } from "./lib/errorReporting";
 import { providerError, isProviderError } from "./lib/providerError";
 import { resolveProviderConfig, selectedProvider, type ProviderPreferences } from "./lib/providers";
 import { looksLikeWordAttempt, normalizeWordInput, normalizeTextInput } from "./lib/input";
-import { storageKeyPrefix } from "./lib/languages";
+import { storageKeyPrefix, type LanguagePair } from "./lib/languages";
 import { languagePairTitle, languagePairValue, swapLanguagePair } from "./lib/languageSession";
 import { posColor } from "./lib/colors";
 import { SHORTCUTS } from "./lib/shortcuts";
@@ -395,6 +395,21 @@ export default function Translate() {
     await closeMainWindow({ clearRootSearch: true });
   }
 
+  // A lookup comes back on the reverse pair when the input was in the target
+  // language. The pair must switch before the result shows: saving writes to
+  // the active pair's history.
+  async function switchToResultPair(pair: LanguagePair, input: string, controller: AbortController) {
+    if (storageKeyPrefix(pair) === lookupScope.pairPrefix) return true;
+    const switched = await langResult.selectPairValue(languagePairValue(pair));
+    if (!switched || controller.signal.aborted) return false;
+    void showToast({
+      style: Toast.Style.Success,
+      title: `Switched to ${languagePairTitle(switched)}`,
+      message: `"${truncate(input, 40)}" looks like ${switched.source.name}.`,
+    });
+    return true;
+  }
+
   async function fetchWordTranslation(word: string) {
     if (!languagePair) return;
     const cacheWord = normalizeWordInput(word) ?? word;
@@ -440,20 +455,12 @@ export default function Translate() {
         senses: wordResult.senses,
       };
 
-      const resultPairPrefix = storageKeyPrefix(wordResult.languagePair);
-      if (resultPairPrefix !== lookupScope.pairPrefix) {
-        // The pair must switch before the senses show: saving a sense writes to
-        // the active pair's history.
-        const switched = await langResult.selectPairValue(languagePairValue(wordResult.languagePair));
-        if (!switched || controller.signal.aborted) return;
-        void showToast({
-          style: Toast.Style.Success,
-          title: `Switched to ${languagePairTitle(switched)}`,
-          message: `"${word}" looks like ${switched.source.name}.`,
-        });
-      }
+      if (!(await switchToResultPair(wordResult.languagePair, word, controller))) return;
 
-      wordLookupCacheRef.current.set({ ...wordLookupScope(resultPairPrefix, providerPrefs), word: cacheWord }, pending);
+      wordLookupCacheRef.current.set(
+        { ...wordLookupScope(storageKeyPrefix(wordResult.languagePair), providerPrefs), word: cacheWord },
+        pending,
+      );
       setPendingWord(pending);
     } catch (err) {
       if (controller.signal.aborted) return;
@@ -492,6 +499,7 @@ export default function Translate() {
       );
 
       if (controller.signal.aborted) return;
+      if (!(await switchToResultPair(textResult.languagePair, text, controller))) return;
 
       const translation: Translation = {
         id: `text-${Date.now()}`,
@@ -505,7 +513,7 @@ export default function Translate() {
       };
 
       setResult(translation);
-      const saved = await saveTranslation(translation, languagePair);
+      const saved = await saveTranslation(translation, textResult.languagePair);
       if (saved) {
         setResult(saved);
         setRecentHistory((prev) => [saved, ...prev.filter((h) => h.id !== saved.id)].slice(0, 5));
