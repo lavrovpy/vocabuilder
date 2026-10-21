@@ -6,6 +6,8 @@ import { createLogger } from "./logger";
 
 const log = createLogger("storage");
 
+const MAX_HISTORY_ENTRIES = 1000;
+
 function historyKey(pair: LanguagePair): string {
   return `vocabuilder-history-${storageKeyPrefix(pair)}`;
 }
@@ -91,7 +93,11 @@ export async function saveTranslation(t: Translation, pair: LanguagePair): Promi
   const existing = history.find((h) => senseMatchesStoredTranslation(h, t));
   const merged: Translation = existing ? { ...t, id: existing.id, timestamp: Date.now() } : t;
   const updated = [merged, ...history.filter((h) => h.id !== merged.id)];
-  await LocalStorage.setItem(key, JSON.stringify(updated));
+  const kept = updated.slice(0, MAX_HISTORY_ENTRIES);
+  await LocalStorage.setItem(key, JSON.stringify(kept));
+  if (kept.length < updated.length) {
+    await pruneOrphanedProgress(pair, kept);
+  }
   return merged;
 }
 
@@ -105,11 +111,27 @@ export async function deleteTranslation(id: string, pair: LanguagePair): Promise
 
   const updated = history.filter((h) => h.id !== id);
   await LocalStorage.setItem(key, JSON.stringify(updated));
+  await pruneOrphanedProgress(pair, updated);
   return true;
 }
 
 export async function clearHistory(pair: LanguagePair): Promise<void> {
   await LocalStorage.removeItem(historyKey(pair));
+  await LocalStorage.removeItem(flashcardKey(pair));
+}
+
+/** Drops flashcard progress whose `translationId` is not in `history`; a corrupt progress key is left as is. */
+async function pruneOrphanedProgress(pair: LanguagePair, history: Translation[]): Promise<void> {
+  const key = flashcardKey(pair);
+  const raw = await LocalStorage.getItem<string>(key);
+  if (!raw) return;
+  const progress = await parseStoredArray(key, flashcardCorruptBackupKey(pair), raw, z.array(FlashcardProgressSchema));
+  if (!progress) return;
+
+  const ids = new Set(history.map((h) => h.id));
+  const kept = progress.filter((p) => ids.has(flashcardProgressStorageKey(p)));
+  if (kept.length === progress.length) return;
+  await LocalStorage.setItem(key, JSON.stringify(kept));
 }
 
 async function getFlashcardProgress(pair: LanguagePair): Promise<Map<string, FlashcardProgress>> {
