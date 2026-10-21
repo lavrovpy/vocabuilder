@@ -248,6 +248,47 @@ describe("translateWord", () => {
     await expect(translateWord("zzzqqq", TEST_CONFIG, pair, undefined)).rejects.toThrow("invalid-response");
   });
 
+  describe("blank glosses", () => {
+    const sense = (translation: string) => ({
+      translation,
+      partOfSpeech: "noun",
+      example: "Це набір інструментів.",
+      exampleTranslation: "This is a set of tools.",
+    });
+
+    function respondWithSenses(translations: string[]) {
+      vi.mocked(fetch).mockResolvedValue(
+        new Response(JSON.stringify(geminiJsonBody({ senses: translations.map(sense) })), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    }
+
+    it.each(["", "   ", "\n\t", "　"])("drops a sense whose translation is %j and keeps the rest", async (blank) => {
+      respondWithSenses(["набір", blank, "комплект"]);
+
+      const result = await translateWord("set", TEST_CONFIG, pair, undefined);
+      expect(result.senses.map((s) => s.translation)).toEqual(["набір", "комплект"]);
+    });
+
+    it("drops blank senses before the five-sense trim, so they do not crowd out valid ones", async () => {
+      respondWithSenses(["", " ", "набір", "комплект", "сет", "партія", "серія"]);
+
+      const result = await translateWord("set", TEST_CONFIG, pair, undefined);
+      expect(result.senses.map((s) => s.translation)).toEqual(["набір", "комплект", "сет", "партія", "серія"]);
+    });
+
+    it("throws invalid-response when every sense is blank", async () => {
+      respondWithSenses(["", "  ", "　"]);
+
+      await expect(translateWord("set", TEST_CONFIG, pair, undefined)).rejects.toMatchObject({
+        message: "invalid-response",
+        cause: { domain: "infrastructure", kind: "invalid-response", surface: "translate", provider: "gemini" },
+      });
+    });
+  });
+
   it("keeps senses even when exampleTranslation does not contain the exact input", async () => {
     const payload = {
       senses: [
@@ -624,6 +665,30 @@ describe("translateText", () => {
       );
       expect(fetch).toHaveBeenCalledTimes(2);
     });
+
+    it("rejects a blank translation from the reversed retry as invalid-response", async () => {
+      respondWith({ translation: "", inputInTargetLanguage: true }, { translation: " 　 " });
+
+      await expect(translateText("Tacit consent is not consent.", TEST_CONFIG, ukEn, undefined)).rejects.toMatchObject({
+        cause: { domain: "infrastructure", kind: "invalid-response", provider: "gemini" },
+      });
+      expect(fetch).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it.each(["", "  ", "　"])("throws invalid-response when the translation is %j", async (blank) => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(geminiJsonBody({ translation: blank })), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await expect(translateText("Hello world", TEST_CONFIG, pair, undefined)).rejects.toMatchObject({
+      message: "invalid-response",
+      cause: { domain: "infrastructure", kind: "invalid-response", surface: "translate", provider: "gemini" },
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it("requests structured JSON output for text translations", async () => {
