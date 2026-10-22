@@ -288,7 +288,7 @@
     "eslint": "^10.9.1",
     "husky": "^9.1.7",
     "prettier": "^3.9.6",
-    "promptfoo": "^0.122.2",
+    "promptfoo": "^0.124.1",
     "tsx": "^4.23.13",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11"
@@ -314,9 +314,11 @@
     "macOS"
   ],
   "overrides": {
-    "brace-expansion": "5.0.9",
+    "brace-expansion@5": "5.0.12",
     "js-yaml@4": "4.3.2",
     "fast-uri": "3.1.8",
-    "sharp": "0.35.5"
+    "sharp": "0.35.5",
+    "esbuild@0.27": "0.28.1",
+    "basic-ftp": "6.2.3"
   }
 }
