@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { LocalStorage } from "@raycast/api";
 import { getHistory, saveTranslation, deleteTranslation, clearHistory, getSessionCards } from "./storage";
 import type { LanguagePair } from "./languages";
-import type { Translation } from "./types";
+import type { FlashcardProgress, Translation } from "./types";
 
 const pair: LanguagePair = {
   source: { code: "en", name: "English" },
@@ -10,6 +10,10 @@ const pair: LanguagePair = {
 };
 
 const HISTORY_KEY = "vocabuilder-history-en-uk";
+const FLASHCARD_KEY = "vocabuilder-flashcards-en-uk";
+const HISTORY_CAP = 1000;
+
+const store = (LocalStorage as unknown as { _store: Map<string, string> })._store;
 
 function makeTranslation(overrides: Partial<Translation> = {}): Translation {
   return {
@@ -23,6 +27,36 @@ function makeTranslation(overrides: Partial<Translation> = {}): Translation {
     type: "word",
     ...overrides,
   };
+}
+
+function makeProgress(translationId: string): FlashcardProgress {
+  return {
+    word: `word-${translationId}`,
+    translationId,
+    easeFactor: 2.5,
+    interval: 1,
+    repetitions: 1,
+    nextReviewDate: 0,
+  };
+}
+
+/** Newest first, as stored: `row-0` is the newest and `row-${count - 1}` the oldest. */
+function makeHistory(count: number): Translation[] {
+  return Array.from({ length: count }, (_, i) =>
+    makeTranslation({ id: `row-${i}`, word: `word${i}`, timestamp: count - i }),
+  );
+}
+
+function storedProgressIds(): string[] {
+  return (JSON.parse(store.get(FLASHCARD_KEY)!) as FlashcardProgress[]).map((p) => p.translationId);
+}
+
+function storedHistoryIds(): string[] {
+  return (JSON.parse(store.get(HISTORY_KEY)!) as Translation[]).map((t) => t.id);
+}
+
+function flashcardWrites(): unknown[][] {
+  return vi.mocked(LocalStorage.setItem).mock.calls.filter(([key]) => key === FLASHCARD_KEY);
 }
 
 beforeEach(() => {
@@ -123,6 +157,49 @@ describe("saveTranslation", () => {
     const result = await saveTranslation(makeTranslation(), pair);
     expect(result).toBeNull();
   });
+
+  it("evicts the oldest row and its progress when saving at the cap", async () => {
+    const oldest = `row-${HISTORY_CAP - 1}`;
+    store.set(HISTORY_KEY, JSON.stringify(makeHistory(HISTORY_CAP)));
+    store.set(FLASHCARD_KEY, JSON.stringify([makeProgress("row-0"), makeProgress(oldest)]));
+
+    await saveTranslation(makeTranslation({ id: "fresh", word: "fresh" }), pair);
+
+    const ids = storedHistoryIds();
+    expect(ids).toHaveLength(HISTORY_CAP);
+    expect(ids[0]).toBe("fresh");
+    expect(ids).not.toContain(oldest);
+    expect(storedProgressIds()).toEqual(["row-0"]);
+  });
+
+  it("evicts nothing when re-saving an existing sense at the cap", async () => {
+    const history = makeHistory(HISTORY_CAP);
+    const oldest = history[HISTORY_CAP - 1];
+    store.set(HISTORY_KEY, JSON.stringify(history));
+    store.set(FLASHCARD_KEY, JSON.stringify([makeProgress(oldest.id)]));
+
+    const merged = await saveTranslation({ ...oldest, id: "new-id", timestamp: Date.now() }, pair);
+
+    expect(merged?.id).toBe(oldest.id);
+    const ids = storedHistoryIds();
+    expect(ids).toHaveLength(HISTORY_CAP);
+    expect(ids[0]).toBe(oldest.id);
+    expect(new Set(ids)).toEqual(new Set(history.map((t) => t.id)));
+    expect(storedProgressIds()).toEqual([oldest.id]);
+    expect(flashcardWrites()).toHaveLength(0);
+  });
+
+  it("leaves corrupt flashcard storage untouched when an eviction happens", async () => {
+    store.set(HISTORY_KEY, JSON.stringify(makeHistory(HISTORY_CAP)));
+    store.set(FLASHCARD_KEY, "corrupt progress");
+
+    await saveTranslation(makeTranslation({ id: "fresh", word: "fresh" }), pair);
+
+    expect(store.get(FLASHCARD_KEY)).toBe("corrupt progress");
+    const ids = storedHistoryIds();
+    expect(ids[0]).toBe("fresh");
+    expect(ids).toHaveLength(HISTORY_CAP);
+  });
 });
 
 describe("deleteTranslation", () => {
@@ -134,6 +211,44 @@ describe("deleteTranslation", () => {
 
     const stored = (LocalStorage as unknown as { _store: Map<string, string> })._store.get(HISTORY_KEY);
     expect(JSON.parse(stored!)).toHaveLength(0);
+  });
+
+  it("removes the deleted row's progress and keeps the others", async () => {
+    store.set(HISTORY_KEY, JSON.stringify(makeHistory(3)));
+    store.set(FLASHCARD_KEY, JSON.stringify([makeProgress("row-0"), makeProgress("row-1"), makeProgress("row-2")]));
+
+    await deleteTranslation("row-1", pair);
+
+    expect(storedProgressIds()).toEqual(["row-0", "row-2"]);
+  });
+
+  it("prunes progress orphaned by earlier deletes", async () => {
+    store.set(HISTORY_KEY, JSON.stringify(makeHistory(2)));
+    store.set(FLASHCARD_KEY, JSON.stringify([makeProgress("row-0"), makeProgress("deleted-long-ago")]));
+
+    await deleteTranslation("row-1", pair);
+
+    expect(storedProgressIds()).toEqual(["row-0"]);
+  });
+
+  it("does not rewrite progress when the deleted row had none and nothing is orphaned", async () => {
+    store.set(HISTORY_KEY, JSON.stringify(makeHistory(2)));
+    store.set(FLASHCARD_KEY, JSON.stringify([makeProgress("row-0")]));
+
+    await deleteTranslation("row-1", pair);
+
+    expect(flashcardWrites()).toHaveLength(0);
+  });
+
+  it("leaves corrupt flashcard storage untouched and still deletes the row", async () => {
+    store.set(HISTORY_KEY, JSON.stringify(makeHistory(2)));
+    store.set(FLASHCARD_KEY, "corrupt progress");
+
+    const deleted = await deleteTranslation("row-1", pair);
+
+    expect(deleted).toBe(true);
+    expect(store.get(FLASHCARD_KEY)).toBe("corrupt progress");
+    expect(storedHistoryIds()).toEqual(["row-0"]);
   });
 });
 
@@ -147,6 +262,21 @@ describe("clearHistory", () => {
     await clearHistory(pair);
 
     expect(LocalStorage.removeItem).toHaveBeenCalledWith(HISTORY_KEY);
+  });
+
+  it("removes the pair's flashcard progress and leaves other pairs alone", async () => {
+    const otherHistory = JSON.stringify([makeTranslation({ id: "uk-row" })]);
+    const otherProgress = JSON.stringify([makeProgress("uk-row")]);
+    store.set(HISTORY_KEY, JSON.stringify(makeHistory(1)));
+    store.set(FLASHCARD_KEY, JSON.stringify([makeProgress("row-0")]));
+    store.set("vocabuilder-history-uk-en", otherHistory);
+    store.set("vocabuilder-flashcards-uk-en", otherProgress);
+
+    await clearHistory(pair);
+
+    expect(store.has(FLASHCARD_KEY)).toBe(false);
+    expect(store.get("vocabuilder-history-uk-en")).toBe(otherHistory);
+    expect(store.get("vocabuilder-flashcards-uk-en")).toBe(otherProgress);
   });
 });
 

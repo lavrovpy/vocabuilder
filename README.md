@@ -9,7 +9,7 @@ A [Raycast](https://raycast.com) extension that translates words and short text 
 - **Typo correction** — misspelled word input is auto-corrected before translating, with a visual indicator showing the original input
 - **Word pronunciation** — hear the source word or its translation through Gemini or OpenAI speech, or the macOS system voice for providers without a speech model
 - **Flashcards** — review saved word translations with spaced repetition
-- **Separate history per language pair** — 17 languages in any pairing, switchable from a dropdown inside each command; each pair keeps its own history and flashcard deck
+- **Separate history per language pair** — 17 languages in any pairing, switchable from a dropdown inside each command; each pair keeps its own flashcard deck and its latest 1,000 history entries
 - **History export** — export saved history as JSON, an Anki-ready `Basic` note file, or Quizlet-ready TSV
 - **Clipboard suggestion** — optionally prefill a safe word or short phrase from the clipboard when the command opens
 
