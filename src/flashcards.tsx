@@ -1,7 +1,7 @@
 import { Action, ActionPanel, closeMainWindow, Color, Icon, List, showToast, Toast } from "@raycast/api";
 import PronounceAction from "./components/PronounceAction";
 import { DetailMetadata } from "./components/DetailMetadata";
-import { useEffect, useReducer } from "react";
+import { useEffect, useReducer, useRef } from "react";
 import LanguageConfigError from "./components/LanguageConfigError";
 import LanguagePairDropdown from "./components/LanguagePairDropdown";
 import { useLanguagePair } from "./hooks/useLanguagePair";
@@ -9,6 +9,7 @@ import { LanguagePair, storageKeyPrefix } from "./lib/languages";
 import { languagePairTitle, languagePairValue, swapLanguagePair } from "./lib/languageSession";
 import { buildFlashcardDetailMarkdown } from "./lib/markdown";
 import { SHORTCUTS } from "./lib/shortcuts";
+import { createSingleFlight } from "./lib/singleFlight";
 import { getSessionCards, saveFlashcardProgress } from "./lib/storage";
 import { FlashcardProgress, Rating, Translation } from "./lib/types";
 
@@ -83,7 +84,7 @@ type StudyAction =
       progressMap: Map<string, FlashcardProgress>;
     }
   | { type: "reveal" }
-  | { type: "rate"; rating: Rating; updated: FlashcardProgress }
+  | { type: "rate"; cardId: string; rating: Rating; updated: FlashcardProgress }
   | { type: "reset" };
 
 function reducer(state: StudyState, action: StudyAction): StudyState {
@@ -98,6 +99,9 @@ function reducer(state: StudyState, action: StudyAction): StudyState {
     case "reveal":
       return { ...state, revealed: true };
     case "rate": {
+      // The rating is dispatched after its save resolves, and by then the user
+      // may have switched pairs (a new deck) or the card may already be rated.
+      if (state.phase !== "studying" || state.sessionCards[state.currentIndex].id !== action.cardId) return state;
       const next = state.currentIndex + 1;
       const isDone = next >= state.sessionCards.length;
       return {
@@ -105,7 +109,7 @@ function reducer(state: StudyState, action: StudyAction): StudyState {
         phase: isDone ? "done" : "studying",
         currentIndex: isDone ? state.currentIndex : next,
         revealed: false,
-        progressMap: new Map(state.progressMap).set(state.sessionCards[state.currentIndex].id, action.updated),
+        progressMap: new Map(state.progressMap).set(action.cardId, action.updated),
         againCount: state.againCount + (action.rating === "again" ? 1 : 0),
         goodCount: state.goodCount + (action.rating === "good" ? 1 : 0),
         easyCount: state.easyCount + (action.rating === "easy" ? 1 : 0),
@@ -138,6 +142,7 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
   const langResult = useLanguagePair(props.languagePair);
 
   const [state, dispatch] = useReducer(reducer, initialState);
+  const rateOnce = useRef(createSingleFlight()).current;
 
   const languagePair = langResult.pair;
   const defaultPair = langResult.defaultPair;
@@ -187,21 +192,25 @@ export default function Flashcards(props: { languagePair?: LanguagePair }) {
     void handleLanguagePairChange(languagePairValue(swapped));
   }
 
-  async function handleRate(rating: Rating) {
+  // Until the next render this closure still holds the card being rated, so a
+  // repeat press while its save is pending would save and count it twice.
+  function handleRate(rating: Rating) {
     if (!languagePair) return;
     const card = state.sessionCards[state.currentIndex];
     const existing = state.progressMap.get(card.id) ?? freshProgress(card.word, card.id);
-    const updated = updateProgress(existing, rating, Date.now());
-    const saved = await saveFlashcardProgress(updated, languagePair);
-    if (!saved) {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "Flashcard storage is corrupted",
-        message: "Progress was not saved to avoid overwriting existing data.",
-      });
-      return;
-    }
-    dispatch({ type: "rate", rating, updated });
+    return rateOnce(async () => {
+      const updated = updateProgress(existing, rating, Date.now());
+      const saved = await saveFlashcardProgress(updated, languagePair);
+      if (!saved) {
+        await showToast({
+          style: Toast.Style.Failure,
+          title: "Flashcard storage is corrupted",
+          message: "Progress was not saved to avoid overwriting existing data.",
+        });
+        return;
+      }
+      dispatch({ type: "rate", cardId: card.id, rating, updated });
+    });
   }
 
   if (state.phase === "loading") {
@@ -413,6 +422,63 @@ if (import.meta.vitest) {
 
       expect(done.phase).toBe("done");
       expect(done.sessionCards).toEqual([]);
+    });
+
+    const progressFor = (card: Translation, rating: Rating) =>
+      updateProgress(freshProgress(card.word, card.id), rating, 0);
+    const revealedDeck = (cards: Translation[]) =>
+      reducer(reducer(initialState, { type: "loaded", cards, progressMap: new Map() }), { type: "reveal" });
+
+    it("advances, counts and records progress under the rated card", () => {
+      const [hello, world] = [makeCard("hello"), makeCard("world")];
+      const studying = revealedDeck([hello, world]);
+
+      const helloGood = progressFor(hello, "good");
+      const afterHello = reducer(studying, { type: "rate", cardId: hello.id, rating: "good", updated: helloGood });
+      expect(afterHello).toMatchObject({ phase: "studying", currentIndex: 1, revealed: false, goodCount: 1 });
+      expect(afterHello.progressMap.get(hello.id)).toBe(helloGood);
+
+      const worldAgain = progressFor(world, "again");
+      const afterWorld = reducer(afterHello, { type: "rate", cardId: world.id, rating: "again", updated: worldAgain });
+      expect(afterWorld).toMatchObject({ phase: "done", currentIndex: 1, goodCount: 1, againCount: 1 });
+      expect(afterWorld.progressMap.get(world.id)).toBe(worldAgain);
+    });
+
+    it("ignores a repeat rating for a card that is no longer current", () => {
+      const [hello, world] = [makeCard("hello"), makeCard("world")];
+      const studying = revealedDeck([hello, world]);
+      const rated = reducer(studying, {
+        type: "rate",
+        cardId: hello.id,
+        rating: "good",
+        updated: progressFor(hello, "good"),
+      });
+
+      const repeat = reducer(rated, {
+        type: "rate",
+        cardId: hello.id,
+        rating: "again",
+        updated: progressFor(hello, "again"),
+      });
+
+      expect(repeat).toBe(rated);
+    });
+
+    it("ignores a rating whose save resolves after the deck changed", () => {
+      const [hello, world, apple] = [makeCard("hello"), makeCard("world"), makeCard("apple")];
+      const lateRating: StudyAction = {
+        type: "rate",
+        cardId: hello.id,
+        rating: "good",
+        updated: progressFor(hello, "good"),
+      };
+      const studying = reducer(initialState, { type: "loaded", cards: [hello, world], progressMap: new Map() });
+
+      const loading = reducer(studying, { type: "reset" });
+      expect(reducer(loading, lateRating)).toBe(loading);
+
+      const nextDeck = reducer(loading, { type: "loaded", cards: [apple], progressMap: new Map() });
+      expect(reducer(nextDeck, lateRating)).toBe(nextDeck);
     });
   });
 }
