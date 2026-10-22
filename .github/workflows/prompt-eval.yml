@@ -31,10 +31,33 @@ concurrency:
 
 jobs:
   eval:
-    name: Translate Prompt Eval
+    name: Translate Prompt Eval (${{ matrix.provider }})
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - provider: gemini
+            script: eval
+            secret: GEMINI_API_KEY
+          - provider: anthropic
+            script: eval:anthropic
+            secret: ANTHROPIC_API_KEY
+          - provider: openai
+            script: eval:openai
+            secret: OPENAI_API_KEY
+
     steps:
+      - name: Check provider key
+        env:
+          PROVIDER_KEY: ${{ secrets[matrix.secret] }}
+        run: |
+          if [ -z "$PROVIDER_KEY" ]; then
+            echo "::error title=Missing secret::${{ matrix.secret }} is not set. Add it as a repository Actions secret to run the ${{ matrix.provider }} eval."
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v6
 
@@ -47,17 +70,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # CI holds only a Gemini key, so it runs the gemini entry alone.
+      # Every leg needs GEMINI_API_KEY besides its own key: the llm-rubric judge runs on Gemini.
+      # Env keys cannot be expressions, so the leg's key is exported under its name in the script.
       - name: Run prompt eval
+        id: eval
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: npm run eval
+          PROVIDER_KEY: ${{ secrets[matrix.secret] }}
+        run: |
+          export "${{ matrix.secret }}=$PROVIDER_KEY"
+          npm run ${{ matrix.script }}
 
       - name: Upload eval artifact
-        if: always()
+        if: always() && steps.eval.outcome != 'skipped'
         uses: actions/upload-artifact@v4
         with:
-          name: prompt-eval-results
+          name: prompt-eval-results-${{ matrix.provider }}
           path: evals/results/*.json
           if-no-files-found: warn
           retention-days: 30
