@@ -165,6 +165,26 @@ tests:
       targetLanguageName: Ukrainian
       intent: Translate both the punctuation-mark sense and the anatomical sense of "colon" naturally. Accept either товста кишка or ободова кишка for the anatomical sense.
 
+  - description: "polysemy: ratchets"
+    metadata:
+      category: polysemy
+    vars:
+      input: ratchets
+      sourceLanguageCode: en
+      sourceLanguageName: English
+      targetLanguageCode: uk
+      targetLanguageName: Ukrainian
+      intent: >-
+        Translate the inflected English form "ratchets" naturally into Ukrainian.
+        Allow legitimate mechanical noun meanings and common verb meanings, but
+        keep senses genuinely distinct rather than splitting synonymous glosses.
+        Each paired example must demonstrate its listed gloss and the same sense.
+        Any transcription or inflection metadata must accurately describe the
+        English source form, including plural noun or third-person singular verb
+        usage as appropriate. Do not treat a regular inflection as a spelling error.
+      expect:
+        correctedWord: null
+
   - description: "idiom: red herring"
     metadata:
       category: idiom
