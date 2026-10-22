@@ -55,7 +55,7 @@ English, Ukrainian, Polish, German, French, Spanish, Italian, Portuguese, Dutch,
 | `⌘ ⇧ T` | Toggle source and target languages |
 | `⌘ D` | Delete entry (from History) |
 | `⌘ ⇧ D` | Clear all history |
-| `⌘ E` | Export history as JSON |
+| `⌘ ⇧ J` | Export history as JSON |
 | `⌘ ⇧ A` | Export word history for Anki |
 | `⌘ ⇧ Q` | Export word history for Quizlet |
 
