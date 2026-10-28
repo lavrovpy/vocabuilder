@@ -235,7 +235,7 @@ export default function History(props: { languagePair?: LanguagePair }) {
                   <Action
                     title="Export as JSON"
                     icon={Icon.Document}
-                    shortcut={{ modifiers: ["cmd"], key: "e" }}
+                    shortcut={SHORTCUTS.exportJson}
                     onAction={async () => {
                       try {
                         const content = formatJson(history);
