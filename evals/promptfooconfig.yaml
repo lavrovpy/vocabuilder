@@ -16,9 +16,9 @@ prompts:
   - "{{input}}"
 
 # One entry per native vendor so results compare side by side; each reads its
-# key from .env (see evals/promptfoo/provider.ts). `npm run eval` and
-# `eval:smoke` select vocabuilder-gemini by label; `npm run eval:all` runs every
-# entry. Keep the labels in step with those package.json filters.
+# key from .env (see evals/promptfoo/provider.ts). The package.json eval scripts
+# and the CI matrix in .github/workflows/prompt-eval.yml select entries by
+# label; keep the labels in step with them.
 providers:
   - id: file://promptfoo/provider.ts
     label: vocabuilder-gemini

@@ -174,7 +174,7 @@ The suite runs once per native vendor: `promptfooconfig.yaml` has one provider e
 
 **Suite configuration**
 
-- **The default scripts run only the gemini entry.** `eval` and `eval:smoke` pass `--filter-providers '^vocabuilder-gemini$'`, so they work with just `GEMINI_API_KEY` (all CI holds) — an entry whose key is missing errors, and errors count against the pass-rate threshold. `eval:all` drops the filter. The filter matches labels before providers are instantiated; keep the labels and the filter in step.
+- **Each script selects its entries by label.** `eval` and `eval:smoke` pass `--filter-providers '^vocabuilder-gemini$'`, so they work with just `GEMINI_API_KEY`; `eval:anthropic` and `eval:openai` select their own entry and also need `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` — an entry whose key is missing errors, and errors count against the pass-rate threshold. `eval:all` drops the filter. CI (`.github/workflows/prompt-eval.yml`) runs `eval`, `eval:anthropic` and `eval:openai` as one matrix leg each, with `GEMINI_API_KEY` plus the leg's own key from repository secrets, and fails a leg before promptfoo starts when that key is empty. The filter matches labels before providers are instantiated; keep the labels, the script filters and the CI matrix in step.
 - **Suite-wide settings live in `evals/promptfooconfig.yaml`, not in `package.json` scripts or `.env`.** Promptfoo `PROMPTFOO_*` env vars belong in the top-level `env:` block (currently `PROMPTFOO_PASS_RATE_THRESHOLD` and `PROMPTFOO_REQUEST_BACKOFF_MS`); CLI-flag defaults belong under `commandLineOptions:` (`maxConcurrency`, `delay`, `share: false`). One source of truth so CI, the IDE plugin, and ad-hoc `promptfoo eval -c …` runs all behave the same.
 - **Precedence: CLI flags > YAML `env:` block > `process.env` (loaded from `.env`) > built-in defaults.** A CLI flag like `--max-concurrency 4` overrides the YAML for one-off tuning, but a `.env` value cannot override anything pinned in the YAML `env:` block — to change a pinned var, edit the YAML. `.env` only takes effect for `PROMPTFOO_*` vars *not* set in the YAML.
 - **Pass-rate threshold sits at 75%** because the model-graded judge can return transient service errors under load and one flake should not fail the whole run. The built-in promptfoo default is `100`, so removing the YAML entry silently breaks this guarantee. Tighten back toward 100% once the judge layer is reliable.
@@ -184,6 +184,7 @@ The suite runs once per native vendor: `promptfooconfig.yaml` has one provider e
 
 - `npm run eval` — full suite on the gemini entry, writes `evals/results/promptfoo.json`; needs only `GEMINI_API_KEY` (the judge runs on Gemini too)
 - `npm run eval:smoke` — random sample of 10 cases on the gemini entry for fast local iteration
+- `npm run eval:anthropic`, `npm run eval:openai` — full suite on that vendor's entry, writes `evals/results/promptfoo-anthropic.json` or `promptfoo-openai.json`; needs `GEMINI_API_KEY` plus `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`
 - `npm run eval:all` — full suite across every vendor entry side by side, writes `evals/results/promptfoo-all.json`; also needs `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`
 - `npm run eval:validate` — config-only validation, no model calls and no keys needed
 - `npm run eval:results` — open the Promptfoo viewer
