@@ -157,6 +157,64 @@ describe("resolveTtsConfig", () => {
       expect.objectContaining({ cause: expect.objectContaining({ kind: "provider-undetected", surface: "tts" }) }),
     );
   });
+
+  describe("with a Pronunciation API Key", () => {
+    const anthropic: ProviderPreferences = {
+      provider: "auto",
+      apiKey: "sk-ant-api03-abc",
+      apiBaseUrl: "https://gateway.example.com/v1",
+    };
+
+    it.each([
+      [" sk-proj-speech ", "openai", "sk-proj-speech", "gpt-4o-mini-tts"],
+      ["AIzaSpeech", "gemini", "AIzaSpeech", "gemini-3.1-flash-tts-preview"],
+    ] as const)("gives an Anthropic translator the voice of the %j key's provider", (key, provider, apiKey, model) => {
+      expect(resolveTtsConfig({ ...anthropic, pronunciationApiKey: key })).toEqual({
+        provider,
+        apiKey,
+        model,
+        baseUrl: "",
+      });
+    });
+
+    it("never sends the speech key to the translation API Server URL, even for the same provider", () => {
+      const config = resolveTtsConfig({
+        provider: "openai",
+        apiKey: "sk-translate",
+        apiBaseUrl: "https://gateway.example.com/v1",
+        pronunciationApiKey: "sk-speech",
+      });
+      expect(config).toMatchObject({ apiKey: "sk-speech", baseUrl: "" });
+    });
+
+    it("speaks even when the translation key is unrecognized", () => {
+      expect(resolveTtsConfig({ provider: "auto", apiKey: "ollama", pronunciationApiKey: "AIzaSpeech" })).toMatchObject(
+        { provider: "gemini" },
+      );
+    });
+
+    it("applies the Text-to-Speech Model and the legacy-model rule to the speech key's provider", () => {
+      expect(resolveTtsConfig({ ...anthropic, pronunciationApiKey: "sk-x", ttsModel: "gpt-custom-tts" })?.model).toBe(
+        "gpt-custom-tts",
+      );
+      expect(resolveTtsConfig({ ...anthropic, pronunciationApiKey: "sk-x", ttsModel: "tts-1" })).toBeNull();
+    });
+
+    it("falls back to the translation provider when the key is blank", () => {
+      expect(resolveTtsConfig({ ...anthropic, pronunciationApiKey: "   " })).toBeNull();
+    });
+
+    it.each([
+      ["sk-ant-api03-speech", "anthropic"],
+      ["ollama", "unknown"],
+    ] as const)("rejects the key %j, which has no speech service", (pronunciationApiKey, provider) => {
+      expect(() => resolveTtsConfig({ ...anthropic, pronunciationApiKey })).toThrow(
+        expect.objectContaining({
+          cause: { domain: "infrastructure", kind: "unsupported-speech-key", surface: "tts", provider },
+        }),
+      );
+    });
+  });
 });
 
 describe("registry", () => {

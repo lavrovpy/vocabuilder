@@ -37,7 +37,7 @@
       "type": "dropdown",
       "required": false,
       "title": "Provider",
-      "description": "AI service used for translation and pronunciation. Auto-detect picks Gemini, Anthropic or OpenAI from the API key prefix; choose a provider explicitly for any other key.",
+      "description": "AI service used for translation, and for pronunciation unless a Pronunciation API Key is set. Auto-detect picks Gemini, Anthropic or OpenAI from the API key prefix; choose a provider explicitly for any other key.",
       "default": "auto",
       "data": [
         {
@@ -247,7 +247,7 @@
       "type": "textfield",
       "required": false,
       "title": "Text-to-Speech Model",
-      "description": "Model ID used for word pronunciation. Leave empty for the provider default: gemini-3.1-flash-tts-preview (Gemini), gpt-4o-mini-tts (OpenAI). Anthropic and OpenAI-Compatible Servers use the macOS system voice. OpenAI tts-1 and tts-1-hd also use the system voice to preserve the selected language.",
+      "description": "Model ID used for word pronunciation. Leave empty for the speech provider's default: gemini-3.1-flash-tts-preview (Gemini), gpt-4o-mini-tts (OpenAI). OpenAI tts-1 and tts-1-hd use the macOS system voice to preserve the selected language.",
       "placeholder": "Provider default"
     },
     {
@@ -255,7 +255,7 @@
       "type": "dropdown",
       "required": false,
       "title": "Pronunciation",
-      "description": "Provider voice uses Gemini or OpenAI speech and falls back to the macOS system voice when it is unavailable. Other providers always use the macOS system voice.",
+      "description": "Provider voice uses Gemini or OpenAI speech and falls back to the macOS system voice when it is unavailable. Anthropic and OpenAI-Compatible Servers have no speech, so they use the macOS system voice unless you set a Pronunciation API Key.",
       "default": "auto",
       "data": [
         {
@@ -267,6 +267,14 @@
           "value": "system"
         }
       ]
+    },
+    {
+      "name": "pronunciationApiKey",
+      "type": "password",
+      "required": false,
+      "title": "Pronunciation API Key",
+      "description": "Optional. A Gemini (AIza…) or OpenAI (sk-…) key used only for pronunciation, so words get that provider's voice whichever provider translates, for example with an Anthropic key. Always sent to that provider's official endpoint, never to API Server URL. Leave empty to use your translation provider's voice.",
+      "placeholder": "AIza… or sk-…"
     },
     {
       "name": "readClipboardOnOpen",

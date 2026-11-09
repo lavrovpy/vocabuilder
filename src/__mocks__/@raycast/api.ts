@@ -25,6 +25,7 @@ export const getPreferenceValues = vi.fn(() => ({
   translationModel: "",
   ttsModel: "",
   pronunciation: "auto",
+  pronunciationApiKey: "",
 }));
 
 export const environment = {

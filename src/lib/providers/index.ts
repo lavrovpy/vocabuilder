@@ -15,6 +15,7 @@ export type ProviderPreferences = {
   apiBaseUrl?: string;
   translationModel?: string;
   ttsModel?: string;
+  pronunciationApiKey?: string;
 };
 
 type ProviderDefaults = {
@@ -114,17 +115,39 @@ export function resolveProviderConfig(prefs: ProviderPreferences): ProviderConfi
   };
 }
 
-/** `null` selects the system voice when the provider or model cannot honor a pronunciation language. */
-export function resolveTtsConfig(prefs: ProviderPreferences): TtsConfig | null {
+type SpeechEndpoint = Omit<TtsConfig, "model">;
+
+// The dedicated key always goes to its provider's official endpoint: "API Server
+// URL" belongs to the translation key, and a proxy configured for one vendor must
+// never receive another vendor's key.
+function dedicatedSpeechEndpoint(key: string): SpeechEndpoint {
+  const provider = detectProviderFromKey(key);
+  if (provider && hasProviderTts(provider)) return { provider, apiKey: key, baseUrl: "" };
+  throw providerError({
+    domain: "infrastructure",
+    kind: "unsupported-speech-key",
+    surface: "tts",
+    provider: provider ?? "unknown",
+  });
+}
+
+function translationSpeechEndpoint(prefs: ProviderPreferences): SpeechEndpoint | null {
   const provider = resolveProviderId(prefs, "tts");
   if (!hasProviderTts(provider)) return null;
-  const model = prefs.ttsModel?.trim() || PROVIDER_DEFAULTS[provider].ttsModel;
+  return { provider, apiKey: prefs.apiKey.trim(), baseUrl: prefs.apiBaseUrl ?? "" };
+}
+
+/**
+ * Speech uses the "Pronunciation API Key" when one is set, otherwise the
+ * translation provider. `null` selects the system voice when that provider or
+ * model cannot honor a pronunciation language.
+ */
+export function resolveTtsConfig(prefs: ProviderPreferences): TtsConfig | null {
+  const speechKey = prefs.pronunciationApiKey?.trim();
+  const endpoint = speechKey ? dedicatedSpeechEndpoint(speechKey) : translationSpeechEndpoint(prefs);
+  if (!endpoint) return null;
+  const model = prefs.ttsModel?.trim() || PROVIDER_DEFAULTS[endpoint.provider].ttsModel;
   // Legacy OpenAI speech models ignore instructions, the only field carrying the selected language.
-  if (provider === "openai" && (model === "tts-1" || model === "tts-1-hd")) return null;
-  return {
-    provider,
-    apiKey: prefs.apiKey.trim(),
-    model,
-    baseUrl: prefs.apiBaseUrl ?? "",
-  };
+  if (endpoint.provider === "openai" && (model === "tts-1" || model === "tts-1-hd")) return null;
+  return { ...endpoint, model };
 }

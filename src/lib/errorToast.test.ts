@@ -13,7 +13,6 @@ describe("defaultToastFor", () => {
 
   it.each([
     ["network-offline", /internet/i],
-    ["invalid-api-key", /api key/i],
     ["invalid-base-url", /api url/i],
   ] as const)("%s is surface-agnostic", (kind, titlePattern) => {
     const a = infra({ kind, surface: "translate" });
@@ -31,6 +30,25 @@ describe("defaultToastFor", () => {
     expect(infra({ kind: "invalid-api-key", surface: "translate", provider: "openai" }).title).toBe(
       "Invalid OpenAI API key",
     );
+  });
+
+  it("invalid-api-key on speech points at the Pronunciation API Key first, since that key wins when set", () => {
+    expect(infra({ kind: "invalid-api-key", surface: "tts", provider: "openai" })).toEqual({
+      title: "Invalid OpenAI API key",
+      message:
+        'Update "Pronunciation API Key", or "API Key" if the pronunciation key is empty, in extension preferences.',
+    });
+  });
+
+  it.each([
+    ["anthropic", "Anthropic has no speech service"],
+    ["unknown", "Pronunciation key not recognized"],
+  ] as const)("unsupported-speech-key for %s names the keys that work", (provider, title) => {
+    expect(infra({ kind: "unsupported-speech-key", surface: "tts", provider })).toEqual({
+      title,
+      message:
+        'Set "Pronunciation API Key" to a Gemini (AIza…) or OpenAI (sk-…) key, or clear it to use your translation provider\'s voice.',
+    });
   });
 
   // An OpenAI-compatible server is not the vendor that issued the key, so the

@@ -1,5 +1,9 @@
 # VocaBuilder Changelog
 
+## [Provider voice for every translation provider] - {PR_MERGE_DATE}
+
+- A new optional `Pronunciation API Key` preference takes a Gemini or OpenAI key and uses it only for pronunciation, so words translated with Anthropic or an OpenAI-compatible server can be spoken by Gemini or OpenAI instead of the macOS system voice. That covers Belarusian, which has no macOS voice. The key always goes to the provider's official endpoint, never to `API Server URL`, and `Text-to-Speech Model` applies to its provider. Leave it empty to keep pronunciation as it was.
+
 ## [Lookups typed in the other language] - {PR_MERGE_DATE}
 
 - A word or sentence typed in the language you translate into, such as English while Ukrainian → English is selected, now switches the translate screen to the reverse pair and translates it there, instead of returning a garbled result. A toast names the new pair. Words spelled the same in both languages, such as German `Gift`, are still looked up in the source language, and a sentence that mixes in a few target-language words stays in the selected direction.
