@@ -95,7 +95,7 @@ describe("defaultToastFor", () => {
     const tts = infra({ kind: "model-not-found", surface: "tts", model: "X" });
 
     expect(t.message).toContain("Translation Model");
-    expect(tts.message).toContain("Text-to-Speech Model");
+    expect(tts.message).toContain("Pronunciation Model");
     expect(t.message).toContain("X");
     expect(tts.message).toContain("X");
   });
@@ -112,7 +112,7 @@ describe("defaultToastFor", () => {
     expect(t.message).toContain("Translation Model");
     expect(t.message).toContain("gw.corp:8443");
     expect(tts.message).toContain("API Server URL");
-    expect(tts.message).toContain("Text-to-Speech Model");
+    expect(tts.message).toContain("Pronunciation Model");
   });
 
   it("model-not-found keeps the single-preference copy on the default endpoint", () => {

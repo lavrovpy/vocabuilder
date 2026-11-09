@@ -61,8 +61,8 @@ export function defaultToastFor(cause: ProviderErrorCause): ToastSpec {
       };
 
     case "model-not-found": {
-      const prefName = cause.surface === "tts" ? "Text-to-Speech Model" : "Translation Model";
-      const verb = cause.surface === "tts" ? "TTS" : "Translation";
+      const prefName = cause.surface === "tts" ? "Pronunciation Model" : "Translation Model";
+      const verb = cause.surface === "tts" ? "Pronunciation" : "Translation";
       const model = cause.model ?? "the configured model";
       // A custom endpoint makes 404 ambiguous — the model may be fine and the
       // base URL wrong — so name both preferences rather than sending the user

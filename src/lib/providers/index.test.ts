@@ -193,7 +193,7 @@ describe("resolveTtsConfig", () => {
       );
     });
 
-    it("applies the Text-to-Speech Model and the legacy-model rule to the speech key's provider", () => {
+    it("applies the Pronunciation Model and the legacy-model rule to the speech key's provider", () => {
       expect(resolveTtsConfig({ ...anthropic, pronunciationApiKey: "sk-x", ttsModel: "gpt-custom-tts" })?.model).toBe(
         "gpt-custom-tts",
       );
