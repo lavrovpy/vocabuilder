@@ -18,14 +18,16 @@ A [Raycast](https://raycast.com) extension that translates words and short text 
 1. Get an API key from [Google AI Studio](https://aistudio.google.com) (Gemini, free tier available), the [Anthropic Console](https://console.anthropic.com), or the [OpenAI Platform](https://platform.openai.com).
 2. Run the **Translate** command and paste the key when prompted. With **Provider** left on Auto-Detect, the extension recognizes Gemini (`AIza…`), Anthropic (`sk-ant-…`), and OpenAI (`sk-…`) keys.
 3. For an OpenAI-compatible server, open the extension preferences, set **Provider** to OpenAI-Compatible Server, and fill in **API Server URL** (for example `https://openrouter.ai/api/v1` or `http://localhost:11434/v1`) and **Translation Model**. Local servers that need no key accept any value in **API Key**.
-4. (Optional) In the preferences, set default languages, override the translation or speech model, choose the macOS system voice for pronunciation, or enable clipboard suggestions on open.
+4. (Optional) In the preferences, set default languages, override the translation or speech model, add a separate key for pronunciation, choose the macOS system voice for pronunciation, or enable clipboard suggestions on open.
 
 | Provider | Default translation model | Pronunciation |
 | --- | --- | --- |
 | Gemini | `gemini-3.5-flash-lite` | `gemini-3.1-flash-tts-preview` |
-| Anthropic | `claude-haiku-5-5` | macOS system voice |
+| Anthropic | `claude-haiku-5-5` | macOS system voice, or a **Pronunciation API Key** |
 | OpenAI | `gpt-6-luna` | `gpt-4o-mini-tts` |
-| OpenAI-compatible | none — set **Translation Model** | macOS system voice |
+| OpenAI-compatible | none — set **Translation Model** | macOS system voice, or a **Pronunciation API Key** |
+
+To hear Gemini or OpenAI speech while another provider translates, for example Anthropic, paste a Gemini or OpenAI key into **Pronunciation API Key**. It is used only for pronunciation and always goes to that provider's official endpoint. **Pronunciation Model** then applies to that provider.
 
 OpenAI speech overrides `tts-1` and `tts-1-hd` use the macOS system voice to preserve the selected pronunciation language. Pronunciation is unavailable when that language has no system voice.
 

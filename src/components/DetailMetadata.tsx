@@ -90,6 +90,9 @@ if (import.meta.vitest) {
       expect(titles(gemini)).toEqual(["Pronounce Word", "Pronounce Translation"]);
       expect(titles({ ...gemini, provider: "anthropic", apiKey: "sk-ant-api03-abc" })).toEqual(["Pronounce Word"]);
       expect(titles({ ...gemini, pronunciation: "system" })).toEqual(["Pronounce Word"]);
+      expect(
+        titles({ ...gemini, provider: "anthropic", apiKey: "sk-ant-api03-abc", pronunciationApiKey: "AIzaSpeech" }),
+      ).toEqual(["Pronounce Word", "Pronounce Translation"]);
     });
 
     it.each(["tts-1", "tts-1-hd"])("hides unsupported system-voice languages for OpenAI model %s", (ttsModel) => {

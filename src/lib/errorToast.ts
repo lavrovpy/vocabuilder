@@ -54,12 +54,15 @@ export function defaultToastFor(cause: ProviderErrorCause): ToastSpec {
     case "invalid-api-key":
       return {
         title: namedProvider ? `Invalid ${label} API key` : "API key rejected",
-        message: 'Update "API Key" in extension preferences.',
+        message:
+          cause.surface === "tts"
+            ? 'Update "Pronunciation API Key", or "API Key" if the pronunciation key is empty, in extension preferences.'
+            : 'Update "API Key" in extension preferences.',
       };
 
     case "model-not-found": {
-      const prefName = cause.surface === "tts" ? "Text-to-Speech Model" : "Translation Model";
-      const verb = cause.surface === "tts" ? "TTS" : "Translation";
+      const prefName = cause.surface === "tts" ? "Pronunciation Model" : "Translation Model";
+      const verb = cause.surface === "tts" ? "Pronunciation" : "Translation";
       const model = cause.model ?? "the configured model";
       // A custom endpoint makes 404 ambiguous — the model may be fine and the
       // base URL wrong — so name both preferences rather than sending the user
@@ -90,6 +93,13 @@ export function defaultToastFor(cause: ProviderErrorCause): ToastSpec {
       return {
         title: "Model required",
         message: 'OpenAI-compatible servers need "Translation Model" set in extension preferences.',
+      };
+
+    case "unsupported-speech-key":
+      return {
+        title: namedProvider ? `${label} has no speech service` : "Pronunciation key not recognized",
+        message:
+          'Set "Pronunciation API Key" to a Gemini (AIza…) or OpenAI (sk-…) key, or clear it to use your translation provider\'s voice.',
       };
 
     case "request-failed": {

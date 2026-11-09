@@ -15,7 +15,8 @@ export type ProviderInfrastructureKind =
   | "invalid-response"
   | "empty-response"
   | "provider-undetected"
-  | "missing-model";
+  | "missing-model"
+  | "unsupported-speech-key";
 
 export type ProviderOutcomeKind = "word-not-found" | "invalid-word-input" | "invalid-text-input";
 
@@ -36,7 +37,7 @@ export type ProviderInfrastructureCause = {
   domain: "infrastructure";
   kind: ProviderInfrastructureKind;
   surface: ProviderErrorSurface;
-  /** `"unknown"` only for `provider-undetected`, where no provider could be chosen. */
+  /** `"unknown"` only for `provider-undetected` and `unsupported-speech-key`, where no provider matched the key. */
   provider: ProviderId | "unknown";
   model?: string;
   /**

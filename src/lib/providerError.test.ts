@@ -199,6 +199,11 @@ describe("isTransient", () => {
         infra({ kind: "missing-model", surface: "translate", domain: "infrastructure", provider: "openai-compatible" }),
       ),
     ).toBe(false);
+    expect(
+      isTransient(
+        infra({ kind: "unsupported-speech-key", surface: "tts", domain: "infrastructure", provider: "anthropic" }),
+      ),
+    ).toBe(false);
   });
 
   it("outcome-domain errors are NEVER transient — deterministic verdicts, not retryable", () => {

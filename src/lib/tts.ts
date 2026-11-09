@@ -42,8 +42,9 @@ export type PronunciationPreferences = ProviderPreferences & { pronunciation?: "
  * - `system`: the macOS voice directly — "System Voice" was chosen, the provider has no
  *   speech endpoint, or its endpoint does not cover the language;
  * - `provider`: the provider's speech endpoint, with the system voice as fallback;
- * - `misconfigured`: the provider preferences are invalid (an unrecognized key on Auto);
- *   pressing the action reports `error` through the TTS error router.
+ * - `misconfigured`: the provider preferences are invalid (an unrecognized key on Auto, or a
+ *   Pronunciation API Key with no speech service); pressing the action reports `error`
+ *   through the TTS error router.
  */
 export type PronunciationPlan =
   | { kind: "unavailable" }
@@ -256,6 +257,25 @@ if (import.meta.vitest) {
       const plan = planPronunciation("en", prefs({ apiKey: "ollama" }));
       expect(plan.kind).toBe("misconfigured");
       expect(plan.kind === "misconfigured" && plan.error).toMatchObject({ message: "provider-undetected" });
+    });
+
+    it("gives an Anthropic translator provider speech, including Belarusian, through a Pronunciation API Key", () => {
+      const plan = planPronunciation(
+        "be",
+        prefs({ apiKey: "sk-ant-api03-abc", pronunciationApiKey: "sk-proj-speech" }),
+      );
+      expect(plan).toMatchObject({ kind: "provider", config: { provider: "openai", apiKey: "sk-proj-speech" } });
+    });
+
+    it("lets System Voice win over a Pronunciation API Key", () => {
+      expect(
+        planPronunciation("en", prefs({ pronunciation: "system", pronunciationApiKey: "sk-proj-speech" })),
+      ).toEqual({ kind: "system" });
+    });
+
+    it("keeps the action for a Pronunciation API Key without speech so pressing it explains why", () => {
+      const plan = planPronunciation("en", prefs({ pronunciationApiKey: "sk-ant-api03-abc" }));
+      expect(plan.kind === "misconfigured" && plan.error).toMatchObject({ message: "unsupported-speech-key" });
     });
 
     it("hides the action for an unrecognized key when no voice at all covers the language", () => {

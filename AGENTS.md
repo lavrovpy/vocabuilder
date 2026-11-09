@@ -64,6 +64,8 @@ After the PR is opened, the Raycast team reviews it and may request changes. Onc
 
 Translation and pronunciation run against one of four providers, chosen by the `provider` preference or, on Auto, by `detectProviderFromKey` (`sk-ant-` → anthropic, `AIza` → gemini, `sk-` → openai). Everything above the transport seam is shared: prompt builders, sense de-dup and the `MAX_WORD_SENSES` trim, Zod validation, outcome errors, history, caches.
 
+Speech follows the translation provider unless `pronunciationApiKey` is set. `resolveTtsConfig` then detects the speech provider from that key alone and sends it to the provider's official endpoint, never to `apiBaseUrl`, which belongs to the translation key. A key whose provider has no speech endpoint throws `unsupported-speech-key`. This is how Anthropic and OpenAI-compatible users get provider speech.
+
 ## Layout
 
 - `src/lib/translation.ts` — `translateWord`/`translateText`; build the prompt, call `jsonTransportFor(config.provider)`, validate with `WordResponseSchema`/`TextResponseSchema`
@@ -86,7 +88,7 @@ A `JsonTransport` takes a `ProviderConfig` and `{ prompt, schema, signal }` and 
 
 ## Defaults
 
-`PROVIDER_DEFAULTS` in `src/lib/providers/index.ts` holds the default translation and speech models, and `DEFAULT_BASE_URLS` in `src/lib/baseUrl.ts` the default server origins; both live in code because one set of preferences serves every provider, so `translationModel`, `ttsModel` and `apiBaseUrl` have no `default` in `package.json`. Each default model carries its own `reasoningEffort` (OpenAI `reasoning_effort: "none"`, Anthropic `output_config.effort: "low"` — Haiku 5.5 otherwise thinks at `medium` on every lookup), sent only when "Translation Model" is empty; a custom model gets its own default effort. Lower effort rather than disabling thinking: Opus 5.5 and Sonnet 5.5 reject `thinking: {type: "disabled"}`. OpenAI-compatible has no default model (`missing-model`) and no default URL (`invalid-base-url`). Anthropic and OpenAI-compatible have no speech endpoint and pronounce with the macOS system voice.
+`PROVIDER_DEFAULTS` in `src/lib/providers/index.ts` holds the default translation and speech models, and `DEFAULT_BASE_URLS` in `src/lib/baseUrl.ts` the default server origins; both live in code because one set of preferences serves every provider, so `translationModel`, `ttsModel` and `apiBaseUrl` have no `default` in `package.json`. Each default model carries its own `reasoningEffort` (OpenAI `reasoning_effort: "none"`, Anthropic `output_config.effort: "low"` — Haiku 5.5 otherwise thinks at `medium` on every lookup), sent only when "Translation Model" is empty; a custom model gets its own default effort. Lower effort rather than disabling thinking: Opus 5.5 and Sonnet 5.5 reject `thinking: {type: "disabled"}`. OpenAI-compatible has no default model (`missing-model`) and no default URL (`invalid-base-url`). Anthropic and OpenAI-compatible have no speech endpoint and pronounce with the macOS system voice unless a Pronunciation API Key is set.
 
 # Error Handling
 
@@ -108,7 +110,7 @@ A centralized tagged-cause pattern routes every provider-derived failure (Gemini
 
 ## Two domains
 
-- **`infrastructure`** — transport/API/network failures the user cannot fix from the prompt. Drives retries, fallbacks, and "open preferences" actions. Kinds: `network-offline`, `invalid-api-key`, `model-not-found`, `invalid-base-url`, `request-failed`, `invalid-response`, `empty-response`, plus the configuration kinds `provider-undetected` (Auto provider, unrecognized key prefix) and `missing-model` (OpenAI-compatible without a model). Carries `surface` (`"translate" | "tts"`) and a required `provider` (`"unknown"` only for `provider-undetected`), plus optional `model`, `status`, `body`, `rateLimit`.
+- **`infrastructure`** — transport/API/network failures the user cannot fix from the prompt. Drives retries, fallbacks, and "open preferences" actions. Kinds: `network-offline`, `invalid-api-key`, `model-not-found`, `invalid-base-url`, `request-failed`, `invalid-response`, `empty-response`, plus the configuration kinds `provider-undetected` (Auto provider, unrecognized key prefix) `missing-model` (OpenAI-compatible without a model) and `unsupported-speech-key` (a Pronunciation API Key for a provider without speech, TTS only). Carries `surface` (`"translate" | "tts"`) and a required `provider` (`"unknown"` only for `provider-undetected` and an unrecognized `unsupported-speech-key`), plus optional `model`, `status`, `body`, `rateLimit`.
 - **`outcome`** — deterministic verdicts the translation pipeline produced: input-validation failures or "this is not a word." Never retried, never fall back. Kinds: `word-not-found`, `invalid-word-input`, `invalid-text-input`. Surface is locked to the literal `"translate"` at the type level — widen to `ProviderErrorSurface` only when TTS gains its first outcome kind. Outcome causes carry no `provider`: they are pipeline verdicts, not transport failures.
 
 The compiler enforces the split: you cannot construct an outcome cause with `surface: "tts"` or with HTTP `status`, and `isTransient` short-circuits on `domain !== "infrastructure"` so outcomes can never trigger a retry by accident.
@@ -129,7 +131,7 @@ The compiler enforces the split: you cannot construct an outcome cause with `sur
 
 ## Pronounce fallback orchestrator
 
-`planPronunciation(langCode, prefs)` picks the path before anything plays: `unavailable` (hide the action), `system` (the user chose System Voice, the provider has no speech endpoint, or its speech doesn't cover the language), `provider` (provider TTS with the fallback below), or `misconfigured` (Auto with an unrecognized key; pressing the action routes `provider-undetected` through `routeTtsError`).
+`planPronunciation(langCode, prefs)` picks the path before anything plays: `unavailable` (hide the action), `system` (the user chose System Voice, the provider has no speech endpoint, or its speech doesn't cover the language), `provider` (provider TTS with the fallback below), or `misconfigured` (Auto with an unrecognized key, or a Pronunciation API Key without speech; pressing the action routes the configuration error through `routeTtsError`).
 
 `runPronounceWithFallback` is a pure async function returning a `PronounceOutcome` verdict: `primary | aborted | fallback-ok | failed`. The component owns the UI; this function owns the decision sequence. `runSystemVoice` covers the `system` plan: success is silent, because no provider failed and a "Using system voice" toast would announce a fallback that never happened.
 
