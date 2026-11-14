@@ -153,7 +153,8 @@ export async function translateWord(
   if (parsed.notAWord) {
     throw providerError({ domain: "outcome", kind: "word-not-found", surface: "translate" });
   }
-  if (parsed.senses.length === 0) {
+  const senses = parsed.senses.filter((sense) => sense.translation.trim() !== "");
+  if (senses.length === 0) {
     throw providerError({
       domain: "infrastructure",
       kind: "invalid-response",
@@ -163,7 +164,7 @@ export async function translateWord(
   }
 
   return {
-    senses: dedupeSenses(parsed.senses).slice(0, MAX_WORD_SENSES),
+    senses: dedupeSenses(senses).slice(0, MAX_WORD_SENSES),
     correctedWord: parsed.correctedWord,
     languagePair: pair,
   };
@@ -245,7 +246,7 @@ export async function translateText(
     parsed = await translateTextRaw(normalizedText, config, pair, signal);
   }
 
-  if (parsed.inputInTargetLanguage) {
+  if (parsed.inputInTargetLanguage || parsed.translation.trim() === "") {
     throw providerError({
       domain: "infrastructure",
       kind: "invalid-response",

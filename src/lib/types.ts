@@ -67,6 +67,10 @@ export const WordResponseSchema = z.object({
   inputInTargetLanguage: z.boolean().optional(),
 });
 
+// No `.min(1)` on `translation` here or in WordSenseSchema: the wrong-language
+// verdict is `{ "translation": "", "inputInTargetLanguage": true }`, and one
+// blank word sense should be dropped, not fail the lookup. translation.ts
+// rejects blank glosses after parsing instead.
 export const TextResponseSchema = z.object({
   translation: z.string(),
   inputInTargetLanguage: z.boolean().optional(),
