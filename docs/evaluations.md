@@ -6,14 +6,14 @@ The suite tests the production `translateWord` result: validated, deduplicated s
 
 Use the project's Node/npm versions from `.nvmrc`. Set `GEMINI_API_KEY` in `.env`, starting from [`.env.example`](../.env.example). The default candidate uses the extension's Gemini model; the judge defaults to `google:gemini-3-flash-preview`.
 
-| Command                  |         Cases | Candidates                | Use                                                                                   |
-| ------------------------ | ------------: | ------------------------- | ------------------------------------------------------------------------------------- |
-| `npm run eval:validate`  |             — | —                         | Check configuration without keys or model calls.                                      |
-| `npm run eval:smoke`     |            12 | Gemini                    | Quick iteration with fixed Latin, Cyrillic, and CJK cases.                            |
-| `npm run eval`           |            96 | Gemini                    | Routine regression check across all 17 supported languages.                           |
-| `npm run eval:matrix`    |           272 | Gemini                    | Check every directed language pair with a common-word probe.                          |
-| `npm run eval:all`       |           368 | Gemini                    | Run standard and matrix coverage together.                                            |
-| `npm run eval:providers` | 96 per vendor | Gemini, Anthropic, OpenAI | Compare production providers; also requires `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`. |
+| Command                  |          Cases | Candidates                | Use                                                                                   |
+| ------------------------ | -------------: | ------------------------- | ------------------------------------------------------------------------------------- |
+| `npm run eval:validate`  |              — | —                         | Check configuration without keys or model calls.                                      |
+| `npm run eval:smoke`     |             12 | Gemini                    | Quick iteration with fixed Latin, Cyrillic, and CJK cases.                            |
+| `npm run eval`           |            100 | Gemini                    | Routine regression check across all 17 supported languages.                           |
+| `npm run eval:matrix`    |            272 | Gemini                    | Check every directed language pair with a common-word probe.                          |
+| `npm run eval:all`       |            372 | Gemini                    | Run standard and matrix coverage together.                                            |
+| `npm run eval:providers` | 100 per vendor | Gemini, Anthropic, OpenAI | Compare production providers; also requires `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`. |
 
 Live runs make a candidate request and a semantic judge request for each case, except when input validation rejects the candidate locally. The matrix is intentionally opt-in because of its cost.
 
@@ -55,7 +55,7 @@ Use `npm run eval:results` for Promptfoo's viewer. Regenerate the standard summa
 mise exec -- npx tsx evals/promptfoo/report.ts evals/results/promptfoo-smoke.json evals/results/summary-smoke.md
 ```
 
-CI runs the 96-case Gemini suite and uploads JSON and Markdown artifacts even when the evaluation fails.
+CI runs the 100-case Gemini suite and uploads JSON and Markdown artifacts even when the evaluation fails.
 
 The **75% aggregate threshold is a permissive compatibility gate**, not release acceptance. Inspect every zero-pass pair and every subgroup below 75%, even when the overall run passes:
 

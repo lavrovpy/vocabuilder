@@ -82,7 +82,7 @@ Set `GEMINI_API_KEY` in `.env` using [`.env.example`](.env.example), then run:
 ```bash
 npm run eval:validate # configuration check; no keys or model calls
 npm run eval:smoke    # 12 fixed multilingual cases
-npm run eval          # 96-case regression suite
+npm run eval          # 100-case regression suite
 ```
 
 Results include JSON and a Markdown failure breakdown. See [the evaluation guide](docs/evaluations.md) for all-pairs coverage, provider comparisons, role configuration, and how to assess failures.

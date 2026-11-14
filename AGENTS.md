@@ -150,7 +150,7 @@ Default runs select Gemini. `eval:providers` compares the gemini, anthropic and 
 ## Layout
 
 - `evals/promptfooconfig.yaml` — suite settings plus deterministic and model-graded assertions; semantic quality defaults to `google:gemini-3-flash-preview` via `EVAL_JUDGE_PROVIDER_ID`
-- `evals/promptfoo/cases.cjs` — generated 96-case risk-based dataset plus an optional 272-case common-word matrix covering every directed language pair
+- `evals/promptfoo/cases.cjs` — generated 100-case risk-based dataset plus an optional 272-case common-word matrix covering every directed language pair
 - `evals/promptfoo/assert-output.cjs` — deterministic application-contract assertion for projections, corrections, rejections, sense uniqueness, exact source-form examples, and known-wrong translations
 - `evals/promptfoo/judge-prompt.txt` — isolated, injection-resistant judge wrapper
 - `evals/promptfoo/provider.ts` — custom Promptfoo provider that calls production `translateWord` with the entry's `config.provider` (and optional `config.model`), reading credentials from `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `OPENAI_COMPATIBLE_API_KEY` and honoring optional `EVAL_TRANSLATION_*` / `EVAL_JUDGE_*` role overrides
@@ -179,7 +179,7 @@ Default runs select Gemini. `eval:providers` compares the gemini, anthropic and 
 
 **Suite configuration**
 
-- **The default scripts run only the gemini entry.** `eval`, `eval:smoke`, `eval:matrix`, and `eval:all` pass `--filter-providers '^vocabuilder-gemini$'`, so they work with just `GEMINI_API_KEY` (all CI holds) — an entry whose key is missing errors, and errors count against the pass-rate threshold. `eval:providers` drops the provider filter to compare Gemini, Anthropic, and OpenAI on the 96-case standard suite. The filter matches labels before providers are instantiated; keep the labels and the filter in step.
+- **The default scripts run only the gemini entry.** `eval`, `eval:smoke`, `eval:matrix`, and `eval:all` pass `--filter-providers '^vocabuilder-gemini$'`, so they work with just `GEMINI_API_KEY` (all CI holds) — an entry whose key is missing errors, and errors count against the pass-rate threshold. `eval:providers` drops the provider filter to compare Gemini, Anthropic, and OpenAI on the 100-case standard suite. The filter matches labels before providers are instantiated; keep the labels and the filter in step.
 - **Keep role configuration independent, with production defaults.** Live evals on the default Gemini entry need `GEMINI_API_KEY` (the CI secret). Set `EVAL_TRANSLATION_*` and `EVAL_JUDGE_*` (or per-provider `*_BASE_URL` / `*_MODEL`) only to point a role at a proxy or a different model; an explicit role value never falls back to the other role.
 - **Keep judge credentials out of Promptfoo config.** The launcher preserves candidate keys before mapping the judge key to a native variable; preserve missing candidate keys too, so candidates cannot borrow judge credentials. Add a deliberate mapping for another key-based judge provider. Keep secrets in the process environment because raw Promptfoo JSON can retain assertion-provider config.
 - **Generate summaries after completed failing evaluations.** Preserve the evaluator's exit status and clear previous output before starting so early failures cannot leave stale reports.
