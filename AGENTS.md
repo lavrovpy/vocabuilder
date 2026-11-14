@@ -151,8 +151,10 @@ The suite runs once per native vendor: `promptfooconfig.yaml` has one provider e
 
 ## Layout
 
-- `evals/promptfooconfig.yaml` — eval cases plus the `llm-rubric` assertion judged by `google:gemini-3-flash-preview`
-- `evals/promptfoo/provider.ts` — custom Promptfoo provider that calls production `translateWord` with the entry's `config.provider` (and optional `config.model`), reading the key from `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `OPENAI_COMPATIBLE_API_KEY`
+- `evals/promptfooconfig.yaml` — eval cases plus the `llm-rubric` assertion; the judge's provider ID and URL come from `EVAL_JUDGE_PROVIDER_ID`/`EVAL_JUDGE_API_BASE_URL` (default `google:gemini-3-flash-preview`)
+- `evals/promptfoo/run.ts` — wrapper every `eval*` script goes through: loads `.env`, fills the `EVAL_*` defaults, hands the judge key to the judge's native variable without lending it to a candidate, runs Promptfoo, and with `--summary` writes the Markdown report even when the run falls below the threshold (keeping Promptfoo's exit code)
+- `evals/promptfoo/report.ts` — turns a results JSON into the Markdown summary: pass rate overall and by provider, language pair and any case metadata (`category`, `difficulty`, `tier`) present, plus every failure's reason with likely API keys redacted
+- `evals/promptfoo/provider.ts` — custom Promptfoo provider that calls production `translateWord` with the entry's `config.provider` (and optional `config.model`), reading the key from `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `OPENAI_COMPATIBLE_API_KEY`, and the optional URL and model from `<VENDOR>_BASE_URL`/`<VENDOR>_MODEL`; `EVAL_TRANSLATION_*` overrides the gemini candidate alone
 - `evals/promptfoo/transform-vars.cjs` — `JSON.stringify` of each case's `expect` block, surfaced to the rubric template as `{{expectJson}}`
 - `evals/promptfoo/provider.test.ts` — Vitest coverage for the Zod schemas, the `parseOrThrow` helper, error projection, and per-provider config and credential resolution
 
@@ -176,17 +178,21 @@ The suite runs once per native vendor: `promptfooconfig.yaml` has one provider e
 
 **Suite configuration**
 
-- **The default scripts run only the gemini entry.** `eval` and `eval:smoke` pass `--filter-providers '^vocabuilder-gemini$'`, so they work with just `GEMINI_API_KEY` (all CI holds) — an entry whose key is missing errors, and errors count against the pass-rate threshold. `eval:all` drops the filter. The filter matches labels before providers are instantiated; keep the labels and the filter in step.
-- **Suite-wide settings live in `evals/promptfooconfig.yaml`, not in `package.json` scripts or `.env`.** Promptfoo `PROMPTFOO_*` env vars belong in the top-level `env:` block (currently `PROMPTFOO_PASS_RATE_THRESHOLD` and `PROMPTFOO_REQUEST_BACKOFF_MS`); CLI-flag defaults belong under `commandLineOptions:` (`maxConcurrency`, `delay`, `share: false`). One source of truth so CI, the IDE plugin, and ad-hoc `promptfoo eval -c …` runs all behave the same.
+- **Each script selects its entries by label.** `eval` and `eval:smoke` pass `--filter-providers '^vocabuilder-gemini$'`, so they work with just `GEMINI_API_KEY`; `eval:anthropic` and `eval:openai` select their own entry and also need `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` — an entry whose key is missing errors, and errors count against the pass-rate threshold. `eval:providers` drops the filter. The filter matches labels before providers are instantiated; keep the labels, the script filters and the CI matrix in step.
+- **CI runs one matrix leg per vendor.** `.github/workflows/prompt-eval.yml` runs `eval`, `eval:anthropic` and `eval:openai` as separate legs, each with `GEMINI_API_KEY` (the judge) plus its own key from repository secrets, and appends each leg's summary to the job summary. The gemini leg fails when its key is missing; the anthropic and openai legs only warn and skip, so they cost nothing until their secrets are added.
+- **Run evals through `run.ts`, not bare `promptfoo`.** The judge's provider ID and URL are `{{env.…}}` templates that `run.ts` fills; a bare `promptfoo eval -c …` sees them empty.
+- **Suite-wide settings live in `evals/promptfooconfig.yaml`, not in `package.json` scripts or `.env`.** Promptfoo `PROMPTFOO_*` env vars belong in the top-level `env:` block (currently `PROMPTFOO_PASS_RATE_THRESHOLD` and `PROMPTFOO_REQUEST_BACKOFF_MS`); CLI-flag defaults belong under `commandLineOptions:` (`maxConcurrency`, `delay`, `share: false`). One source of truth so CI, the IDE plugin, and every script behave the same.
 - **Precedence: CLI flags > YAML `env:` block > `process.env` (loaded from `.env`) > built-in defaults.** A CLI flag like `--max-concurrency 4` overrides the YAML for one-off tuning, but a `.env` value cannot override anything pinned in the YAML `env:` block — to change a pinned var, edit the YAML. `.env` only takes effect for `PROMPTFOO_*` vars *not* set in the YAML.
 - **Pass-rate threshold sits at 75%** because the model-graded judge can return transient service errors under load and one flake should not fail the whole run. The built-in promptfoo default is `100`, so removing the YAML entry silently breaks this guarantee. Tighten back toward 100% once the judge layer is reliable.
 - **Do not write tests that assert literal strings appear in config files** (`package.json`, YAML, etc.). They have no oracle: editing the config means editing the test, no bug ever caught. Promptfoo's loader catches broken file references when the eval actually runs.
 
 ## Running
 
-- `npm run eval` — full suite on the gemini entry, writes `evals/results/promptfoo.json`; needs only `GEMINI_API_KEY` (the judge runs on Gemini too)
+- `npm run eval` — full suite on the gemini entry, writes `evals/results/promptfoo.json` and `summary.md`; needs only `GEMINI_API_KEY` (the judge runs on Gemini too)
 - `npm run eval:smoke` — random sample of 10 cases on the gemini entry for fast local iteration
-- `npm run eval:all` — full suite across every vendor entry side by side, writes `evals/results/promptfoo-all.json`; also needs `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`
+- `npm run eval:anthropic`, `npm run eval:openai` — full suite on that vendor's entry, writes `promptfoo-<vendor>.json` and `summary-<vendor>.md`; needs `GEMINI_API_KEY` plus that vendor's key
+- `npm run eval:providers` — full suite across every vendor entry side by side, writes `promptfoo-providers.json` and `summary-providers.md`; needs all three keys
+- `npm run eval:report` — rebuild `summary.md` from an existing `promptfoo.json`
 - `npm run eval:validate` — config-only validation, no model calls and no keys needed
 - `npm run eval:results` — open the Promptfoo viewer
 

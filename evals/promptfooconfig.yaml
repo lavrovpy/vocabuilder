@@ -16,9 +16,9 @@ prompts:
   - "{{input}}"
 
 # One entry per native vendor so results compare side by side; each reads its
-# key from .env (see evals/promptfoo/provider.ts). `npm run eval` and
-# `eval:smoke` select vocabuilder-gemini by label; `npm run eval:all` runs every
-# entry. Keep the labels in step with those package.json filters.
+# key from .env (see evals/promptfoo/provider.ts). The package.json eval scripts
+# and the CI matrix in .github/workflows/prompt-eval.yml select entries by
+# label; keep the labels in step with them.
 providers:
   - id: file://promptfoo/provider.ts
     label: vocabuilder-gemini
@@ -37,10 +37,13 @@ defaultTest:
   options:
     transformVars: file://promptfoo/transform-vars.cjs
   assert:
+    # The judge's ID and URL come from EVAL_JUDGE_*, which evals/promptfoo/run.ts
+    # fills with defaults; a bare `promptfoo eval` leaves them empty.
     - type: llm-rubric
       provider:
-        id: google:gemini-3-flash-preview
+        id: "{{env.EVAL_JUDGE_PROVIDER_ID}}"
         config:
+          apiBaseUrl: "{{env.EVAL_JUDGE_API_BASE_URL}}"
           temperature: 0
           maxOutputTokens: 8192
           retries: 3

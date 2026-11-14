@@ -31,33 +31,82 @@ concurrency:
 
 jobs:
   eval:
-    name: Translate Prompt Eval
+    name: Translate Prompt Eval (${{ matrix.provider }})
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The gemini leg is required: GEMINI_API_KEY also runs the judge for every leg.
+          - provider: gemini
+            script: eval
+            secret: GEMINI_API_KEY
+            optional: false
+          - provider: anthropic
+            script: eval:anthropic
+            secret: ANTHROPIC_API_KEY
+            optional: true
+          - provider: openai
+            script: eval:openai
+            secret: OPENAI_API_KEY
+            optional: true
+
     steps:
+      - name: Check provider key
+        id: key
+        env:
+          PROVIDER_KEY: ${{ secrets[matrix.secret] }}
+        run: |
+          if [ -n "$PROVIDER_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ matrix.optional }}" = "true" ]; then
+            echo "::warning title=Eval skipped::${{ matrix.secret }} is not set, so the ${{ matrix.provider }} eval did not run. Add it as a repository Actions secret to enable this leg."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error title=Missing secret::${{ matrix.secret }} is not set. Add it as a repository Actions secret to run the ${{ matrix.provider }} eval."
+            exit 1
+          fi
+
       - name: Checkout
+        if: steps.key.outputs.present == 'true'
         uses: actions/checkout@v6
 
       - name: Set up Node.js
+        if: steps.key.outputs.present == 'true'
         uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
           cache: npm
 
       - name: Install dependencies
+        if: steps.key.outputs.present == 'true'
         run: npm ci
 
-      # CI holds only a Gemini key, so it runs the gemini entry alone.
+      # Env keys cannot be expressions, so the leg's key is exported under its name in the script.
       - name: Run prompt eval
+        id: eval
+        if: steps.key.outputs.present == 'true'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: npm run eval
+          PROVIDER_KEY: ${{ secrets[matrix.secret] }}
+        run: |
+          export "${{ matrix.secret }}=$PROVIDER_KEY"
+          npm run ${{ matrix.script }}
+
+      - name: Publish eval summary
+        if: always() && steps.eval.outcome != 'skipped'
+        run: |
+          for summary in evals/results/summary*.md; do
+            [ -f "$summary" ] && cat "$summary" >> "$GITHUB_STEP_SUMMARY"
+          done
+          true
 
       - name: Upload eval artifact
-        if: always()
+        if: always() && steps.eval.outcome != 'skipped'
         uses: actions/upload-artifact@v4
         with:
-          name: prompt-eval-results
-          path: evals/results/*.json
+          name: prompt-eval-results-${{ matrix.provider }}
+          path: evals/results/*
           if-no-files-found: warn
           retention-days: 30
