@@ -147,14 +147,26 @@ Key invariant: **the failure toast must not flash when the system-voice fallback
 
 A Promptfoo-driven end-to-end harness over the production `translateWord` path. The eval target is the processed application behavior users rely on: a parsed, schema-validated, de-duplicated translation result, or a mapped domain error. It is not a raw model-output eval.
 
-The suite runs once per native vendor: `promptfooconfig.yaml` has one provider entry each for gemini, anthropic and openai (labels `vocabuilder-<provider>`), so results compare side by side. An `openai-compatible` entry can be added with a `model`; it reads `OPENAI_COMPATIBLE_BASE_URL`.
+Every run names its candidates and its judge on the command line: `npm run eval -- --model <route>[/<model>] [--model …] --judge <route>/<model>`. Both flags are required, and both take `<route>/<model>` split at the first slash, the convention Inspect AI and LiteLLM use. A route names who receives the request and bills it.
+
+| Route | `--model` (candidate) | `--judge` (Promptfoo ID it becomes) | Credentials |
+|---|---|---|---|
+| `gemini` | yes; route alone = production default | `google:<model>` | `GEMINI_API_KEY` (judge also `GOOGLE_API_KEY`) |
+| `anthropic` | yes; route alone = production default | `anthropic:messages:<model>` | `ANTHROPIC_API_KEY` |
+| `openai` | yes; route alone = production default | `openai:responses:<model>` | `OPENAI_API_KEY` |
+| `openrouter` | model required; runs through the app's `openai-compatible` transport | `openrouter:<model>` | `OPENROUTER_API_KEY` |
+| `openai-compatible` | model required | — | `OPENAI_COMPATIBLE_API_KEY`, `OPENAI_COMPATIBLE_BASE_URL` |
+| `vertex` | — (no app transport) | `vertex:<model>` | Google Cloud login (ADC) + `GOOGLE_CLOUD_PROJECT` |
+| `bedrock` | — (no app transport) | `bedrock:converse:<model-id>` | AWS credentials + `AWS_BEDROCK_REGION` |
+
+A route alone (`--model anthropic`) leaves the model unset, so the app sends its default model with that model's own `reasoningEffort`. Passing the default's ID explicitly is a different request (the effort is dropped), so CI and release checks use the route alone.
 
 ## Layout
 
-- `evals/promptfooconfig.yaml` — eval cases plus the `llm-rubric` assertion; the judge's provider ID and URL come from `EVAL_JUDGE_PROVIDER_ID`/`EVAL_JUDGE_API_BASE_URL` (default `google:gemini-3-flash-preview`)
-- `evals/promptfoo/run.ts` — wrapper every `eval*` script goes through: loads `.env`, fills the `EVAL_*` defaults, hands the judge key to the judge's native variable without lending it to a candidate, runs Promptfoo, and with `--summary` writes the Markdown report even when the run falls below the threshold (keeping Promptfoo's exit code)
-- `evals/promptfoo/report.ts` — turns a results JSON into the Markdown summary: pass rate overall and by provider, language pair and any case metadata (`category`, `difficulty`, `tier`) present, plus every failure's reason with likely API keys redacted
-- `evals/promptfoo/provider.ts` — custom Promptfoo provider that calls production `translateWord` with the entry's `config.provider` (and optional `config.model`), reading the key from `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `OPENAI_COMPATIBLE_API_KEY`, and the optional URL and model from `<VENDOR>_BASE_URL`/`<VENDOR>_MODEL`; `EVAL_TRANSLATION_*` overrides the gemini candidate alone
+- `evals/promptfooconfig.yaml` — eval cases and the `llm-rubric` assertion. Its one provider entry and its judge (`defaultTest.options.provider`) are defaults for a bare `promptfoo` run; `npm run eval` replaces both
+- `evals/promptfoo/run.ts` — wrapper every `eval*` script goes through. For `eval` it parses `--model`/`--judge`, checks each route's variables before any request, writes a second config with one provider entry per `--model` and the judge, selects those entries with `--filter-providers`, names the output after the candidates (`evals/results/promptfoo-<route>-<model|default>[+…].json` and `summary-….md`), and writes the summary even when the run falls below the threshold (keeping Promptfoo's exit code). It owns `-o`, `--filter-providers`, `--providers` and `--grader`; every other argument goes to Promptfoo
+- `evals/promptfoo/report.ts` — turns a results JSON into the Markdown summary: the judge, pass rate overall and by provider, language pair and any case metadata (`category`, `difficulty`, `tier`) present, plus every failure's reason with likely API keys redacted
+- `evals/promptfoo/provider.ts` — custom Promptfoo provider that calls production `translateWord` with the entry's `config.provider` (a candidate route) and optional `config.model`, reading the route's key and an optional `GEMINI_BASE_URL`/`ANTHROPIC_BASE_URL`/`OPENAI_BASE_URL` server override
 - `evals/promptfoo/transform-vars.cjs` — `JSON.stringify` of each case's `expect` block, surfaced to the rubric template as `{{expectJson}}`
 - `evals/promptfoo/provider.test.ts` — Vitest coverage for the Zod schemas, the `parseOrThrow` helper, error projection, and per-provider config and credential resolution
 
@@ -178,9 +190,10 @@ The suite runs once per native vendor: `promptfooconfig.yaml` has one provider e
 
 **Suite configuration**
 
-- **Each script selects its entries by label.** `eval` and `eval:smoke` pass `--filter-providers '^vocabuilder-gemini$'`, so they work with just `GEMINI_API_KEY`; `eval:anthropic` and `eval:openai` select their own entry and also need `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` — an entry whose key is missing errors, and errors count against the pass-rate threshold. `eval:providers` drops the filter. The filter matches labels before providers are instantiated; keep the labels, the script filters and the CI matrix in step.
-- **CI runs one matrix leg per vendor.** `.github/workflows/prompt-eval.yml` runs `eval`, `eval:anthropic` and `eval:openai` as separate legs, each with `GEMINI_API_KEY` (the judge) plus its own key from repository secrets, and appends each leg's summary to the job summary. The gemini leg fails when its key is missing; the anthropic and openai legs only warn and skip, so they cost nothing until their secrets are added.
-- **Run evals through `run.ts`, not bare `promptfoo`.** The judge's provider ID and URL are `{{env.…}}` templates that `run.ts` fills; a bare `promptfoo eval -c …` sees them empty.
+- **Keep the judge in `defaultTest.options.provider`.** Promptfoo merges the generated config over the YAML and the generated judge replaces that object whole; a `provider:` on the `llm-rubric` assertion itself would override `--judge` silently.
+- **Only the Google judges get sampling settings.** `gemini` and `vertex` judges run with `temperature: 0`; current Claude models and OpenAI reasoning models reject a non-default temperature, so the other routes use their defaults.
+- **Judge credentials.** `EVAL_JUDGE_API_KEY` (and `EVAL_JUDGE_API_BASE_URL`) give a key-based judge its own key or server; the runner puts the key in the judge's native variable and keeps a candidate on the same route on its own key, never the judge's. Both are rejected for `vertex` and `bedrock`, which sign in with cloud credentials. For a Vertex judge the runner removes `GOOGLE_API_KEY` and `VERTEX_API_KEY`, because Promptfoo silently switches Vertex to API-key "express mode" when either is set.
+- **CI runs one matrix leg per vendor.** `.github/workflows/prompt-eval.yml` runs `npm run eval -- --model <vendor> --judge "$EVAL_JUDGE"` for gemini, anthropic and openai, each with `GEMINI_API_KEY` (the judge) plus its own key from repository secrets, and appends each leg's summary to the job summary. The gemini leg fails when its key is missing; the anthropic and openai legs only warn and skip, so they cost nothing until their secrets are added. A Vertex or Bedrock judge in CI would also need the cloud's sign-in action and `id-token: write`.
 - **Suite-wide settings live in `evals/promptfooconfig.yaml`, not in `package.json` scripts or `.env`.** Promptfoo `PROMPTFOO_*` env vars belong in the top-level `env:` block (currently `PROMPTFOO_PASS_RATE_THRESHOLD` and `PROMPTFOO_REQUEST_BACKOFF_MS`); CLI-flag defaults belong under `commandLineOptions:` (`maxConcurrency`, `delay`, `share: false`). One source of truth so CI, the IDE plugin, and every script behave the same.
 - **Precedence: CLI flags > YAML `env:` block > `process.env` (loaded from `.env`) > built-in defaults.** A CLI flag like `--max-concurrency 4` overrides the YAML for one-off tuning, but a `.env` value cannot override anything pinned in the YAML `env:` block — to change a pinned var, edit the YAML. `.env` only takes effect for `PROMPTFOO_*` vars *not* set in the YAML.
 - **Pass-rate threshold sits at 75%** because the model-graded judge can return transient service errors under load and one flake should not fail the whole run. The built-in promptfoo default is `100`, so removing the YAML entry silently breaks this guarantee. Tighten back toward 100% once the judge layer is reliable.
@@ -188,11 +201,11 @@ The suite runs once per native vendor: `promptfooconfig.yaml` has one provider e
 
 ## Running
 
-- `npm run eval` — full suite on the gemini entry, writes `evals/results/promptfoo.json` and `summary.md`; needs only `GEMINI_API_KEY` (the judge runs on Gemini too)
-- `npm run eval:smoke` — random sample of 10 cases on the gemini entry for fast local iteration
-- `npm run eval:anthropic`, `npm run eval:openai` — full suite on that vendor's entry, writes `promptfoo-<vendor>.json` and `summary-<vendor>.md`; needs `GEMINI_API_KEY` plus that vendor's key
-- `npm run eval:providers` — full suite across every vendor entry side by side, writes `promptfoo-providers.json` and `summary-providers.md`; needs all three keys
-- `npm run eval:report` — rebuild `summary.md` from an existing `promptfoo.json`
+- `npm run eval -- --model gemini --judge gemini/gemini-3-flash-preview` — what CI runs; needs only `GEMINI_API_KEY`
+- `npm run eval -- --model gemini --model anthropic --model openai --judge gemini/gemini-3-flash-preview` — the production defaults side by side in one run
+- `npm run eval -- --model anthropic/claude-sonnet-5-5 --judge vertex/gemini-3.1-pro` — a specific model under a Vertex judge
+- Append any Promptfoo option, e.g. `--filter-sample 10` for a quick local run
+- `npm run eval:report -- evals/results/promptfoo-<slug>.json` — rebuild that run's summary
 - `npm run eval:validate` — config-only validation, no model calls and no keys needed
 - `npm run eval:results` — open the Promptfoo viewer
 

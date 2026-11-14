@@ -4,8 +4,8 @@ env:
   PROMPTFOO_PASS_RATE_THRESHOLD: 75
   PROMPTFOO_REQUEST_BACKOFF_MS: 10000
 
-# maxConcurrency drives parallelism; each test fires 2 calls (provider + Gemini
-# rubric judge), so peak in-flight ≈ 2 × this value. Transient 429s are absorbed
+# maxConcurrency drives parallelism; each test fires 2 calls (candidate + rubric
+# judge), so peak in-flight ≈ 2 × this value. Transient 429s are absorbed
 # by the app's own retry layer (src/lib/providers/transport.ts) and promptfoo's PROMPTFOO_REQUEST_BACKOFF_MS.
 # `delay` is intentionally omitted — it only applies at maxConcurrency: 1.
 commandLineOptions:
@@ -15,39 +15,29 @@ commandLineOptions:
 prompts:
   - "{{input}}"
 
-# One entry per native vendor so results compare side by side; each reads its
-# key from .env (see evals/promptfoo/provider.ts). The package.json eval scripts
-# and the CI matrix in .github/workflows/prompt-eval.yml select entries by
-# label; keep the labels in step with them.
+# `npm run eval` replaces this entry and the judge below with the ones named by
+# --model and --judge (evals/promptfoo/run.ts). They are here so the file still
+# validates on its own and a bare `promptfoo eval` runs the production default.
 providers:
   - id: file://promptfoo/provider.ts
     label: vocabuilder-gemini
     config:
       provider: gemini
-  - id: file://promptfoo/provider.ts
-    label: vocabuilder-anthropic
-    config:
-      provider: anthropic
-  - id: file://promptfoo/provider.ts
-    label: vocabuilder-openai
-    config:
-      provider: openai
 
 defaultTest:
   options:
     transformVars: file://promptfoo/transform-vars.cjs
+    # The judge. Keep it here, not on the assertion: an assertion-level provider
+    # would override the one run.ts sets from --judge.
+    provider:
+      id: google:gemini-3-flash-preview
+      config:
+        temperature: 0
+        maxOutputTokens: 8192
+        retries: 3
+        timeout: 60000
   assert:
-    # The judge's ID and URL come from EVAL_JUDGE_*, which evals/promptfoo/run.ts
-    # fills with defaults; a bare `promptfoo eval` leaves them empty.
     - type: llm-rubric
-      provider:
-        id: "{{env.EVAL_JUDGE_PROVIDER_ID}}"
-        config:
-          apiBaseUrl: "{{env.EVAL_JUDGE_API_BASE_URL}}"
-          temperature: 0
-          maxOutputTokens: 8192
-          retries: 3
-          timeout: 60000
       value: |
         Judge the Vocabuilder translation output for this case.
 
