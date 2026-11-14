@@ -13,98 +13,44 @@ export function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown, prefix: str
   throw new Error(`${prefix} (${fields}) — ${hint}`);
 }
 
+/** `--model` routes: the app's providers, plus OpenRouter served through `openai-compatible`. */
+export const CANDIDATE_ROUTES = [...PROVIDER_IDS, "openrouter"] as const;
+export type CandidateRoute = (typeof CANDIDATE_ROUTES)[number];
+
 const ProviderConfigSchema = z.object({
-  provider: z.enum(PROVIDER_IDS),
+  provider: z.enum(CANDIDATE_ROUTES),
   model: z.string().trim().min(1).optional(),
 });
 
 type EvalProviderConfig = z.infer<typeof ProviderConfigSchema>;
 
-export const DEFAULT_JUDGE_PROVIDER_ID = "google:gemini-3-flash-preview";
-export const DEFAULT_GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com";
-export const DEFAULT_GEMINI_TRANSLATION_MODEL = resolveProviderConfig({
-  provider: "gemini",
-  apiKey: "placeholder",
-}).model;
-
-const EvalEnvironmentSchema = z.object({
-  EVAL_TRANSLATION_API_KEY: z.string().min(1),
-  EVAL_TRANSLATION_API_BASE_URL: z.string().url(),
-  EVAL_TRANSLATION_MODEL: z.string().min(1),
-  EVAL_JUDGE_API_KEY: z.string().min(1),
-  EVAL_JUDGE_API_BASE_URL: z.string().url(),
-  EVAL_JUDGE_PROVIDER_ID: z.string().regex(/^[^\s:]+(?::[^\s:]+)+$/),
-});
-
-type EvalEnvironment = z.infer<typeof EvalEnvironmentSchema>;
-
-function firstNonEmpty(...values: Array<string | undefined>): string | undefined {
-  for (const value of values) {
-    const trimmed = value?.trim();
-    if (trimmed) return trimmed;
-  }
-  return undefined;
-}
-
-/** Non-secret defaults so YAML interpolation and `eval:validate` work without live keys. */
-export function resolveEvalDefaults(env: NodeJS.ProcessEnv) {
-  return {
-    EVAL_TRANSLATION_API_BASE_URL: firstNonEmpty(env.EVAL_TRANSLATION_API_BASE_URL) ?? DEFAULT_GEMINI_API_BASE_URL,
-    EVAL_TRANSLATION_MODEL: firstNonEmpty(env.EVAL_TRANSLATION_MODEL) ?? DEFAULT_GEMINI_TRANSLATION_MODEL,
-    EVAL_JUDGE_API_BASE_URL: firstNonEmpty(env.EVAL_JUDGE_API_BASE_URL) ?? DEFAULT_GEMINI_API_BASE_URL,
-    EVAL_JUDGE_PROVIDER_ID: firstNonEmpty(env.EVAL_JUDGE_PROVIDER_ID) ?? DEFAULT_JUDGE_PROVIDER_ID,
-  };
-}
-
-export function parseEvalEnvironment(env: NodeJS.ProcessEnv): EvalEnvironment {
-  return parseOrThrow(
-    EvalEnvironmentSchema,
-    {
-      ...resolveEvalDefaults(env),
-      EVAL_TRANSLATION_API_KEY: firstNonEmpty(env.EVAL_TRANSLATION_API_KEY, env.GEMINI_API_KEY),
-      EVAL_JUDGE_API_KEY: firstNonEmpty(env.EVAL_JUDGE_API_KEY, env.GEMINI_API_KEY),
-    },
-    "Invalid eval environment",
-    "set GEMINI_API_KEY, or the EVAL_TRANSLATION_* and EVAL_JUDGE_* variables listed in .env.example.",
-  );
-}
-
-type ProviderEnvSpec = {
+type CandidateEnvSpec = {
+  provider: ProviderId;
   apiKey: string;
-  roleApiKey?: string;
-  baseUrl: string;
-  roleBaseUrl?: string;
+  /** Optional override; required when `requireBaseUrl` is set. */
+  baseUrl?: string;
   requireBaseUrl?: boolean;
-  model: string;
-  roleModel?: string;
+  fixedBaseUrl?: string;
 };
 
-const PROVIDER_ENV = {
-  gemini: {
-    apiKey: "GEMINI_API_KEY",
-    roleApiKey: "EVAL_TRANSLATION_API_KEY",
-    baseUrl: "GEMINI_BASE_URL",
-    roleBaseUrl: "EVAL_TRANSLATION_API_BASE_URL",
-    model: "GEMINI_MODEL",
-    roleModel: "EVAL_TRANSLATION_MODEL",
-  },
-  anthropic: {
-    apiKey: "ANTHROPIC_API_KEY",
-    baseUrl: "ANTHROPIC_BASE_URL",
-    model: "ANTHROPIC_MODEL",
-  },
-  openai: {
-    apiKey: "OPENAI_API_KEY",
-    baseUrl: "OPENAI_BASE_URL",
-    model: "OPENAI_MODEL",
-  },
+const CANDIDATE_ENV = {
+  gemini: { provider: "gemini", apiKey: "GEMINI_API_KEY", baseUrl: "GEMINI_BASE_URL" },
+  anthropic: { provider: "anthropic", apiKey: "ANTHROPIC_API_KEY", baseUrl: "ANTHROPIC_BASE_URL" },
+  openai: { provider: "openai", apiKey: "OPENAI_API_KEY", baseUrl: "OPENAI_BASE_URL" },
   "openai-compatible": {
+    provider: "openai-compatible",
     apiKey: "OPENAI_COMPATIBLE_API_KEY",
     baseUrl: "OPENAI_COMPATIBLE_BASE_URL",
     requireBaseUrl: true,
-    model: "OPENAI_COMPATIBLE_MODEL",
   },
-} as const satisfies Record<ProviderId, ProviderEnvSpec>;
+  openrouter: { provider: "openai-compatible", apiKey: "OPENROUTER_API_KEY", fixedBaseUrl: "https://openrouter.ai/api/v1" },
+} as const satisfies Record<CandidateRoute, CandidateEnvSpec>;
+
+/** The variables a candidate route cannot run without, for the runner's pre-flight check. */
+export function requiredCandidateEnv(route: CandidateRoute): string[] {
+  const spec: CandidateEnvSpec = CANDIDATE_ENV[route];
+  return spec.requireBaseUrl && spec.baseUrl ? [spec.apiKey, spec.baseUrl] : [spec.apiKey];
+}
 
 const RequiredEnvValue = z.string().trim().min(1);
 
@@ -113,36 +59,26 @@ export function candidateCredentialEnvName(nativeEnvName: string): string {
 }
 
 /**
- * Read the credentials for one provider from the environment. Called on the first
+ * Read the credentials for one candidate from the environment. Called on the first
  * request rather than in the constructor because `promptfoo validate` instantiates
  * every provider, and a config check must not require every vendor's key.
  */
 function resolveEvalProviderConfig(config: EvalProviderConfig, env: NodeJS.ProcessEnv): ProviderConfig {
-  const names: ProviderEnvSpec = PROVIDER_ENV[config.provider];
-  const required = [names.apiKey, names.requireBaseUrl ? names.baseUrl : undefined].filter(
-    (name): name is string => name !== undefined,
-  );
-  const roleKey = names.roleApiKey ? firstNonEmpty(env[names.roleApiKey]) : undefined;
-  const candidateEnv = {
-    ...env,
-    [names.apiKey]: roleKey ?? env[candidateCredentialEnvName(names.apiKey)] ?? env[names.apiKey],
-  };
+  const spec: CandidateEnvSpec = CANDIDATE_ENV[config.provider];
+  const required = requiredCandidateEnv(config.provider);
+  const candidateEnv = { ...env, [spec.apiKey]: env[candidateCredentialEnvName(spec.apiKey)] ?? env[spec.apiKey] };
   const values = parseOrThrow(
     z.object(Object.fromEntries(required.map((name) => [name, RequiredEnvValue]))),
     candidateEnv,
-    `Missing environment for the ${config.provider} eval provider`,
-    "set it in .env, or skip this provider with --filter-providers.",
+    `Missing environment for the ${config.provider} eval candidate`,
+    "set it in .env.",
   );
-  const apiBaseUrl = names.requireBaseUrl
-    ? values[names.baseUrl]
-    : (firstNonEmpty(env[names.baseUrl], names.roleBaseUrl ? env[names.roleBaseUrl] : undefined) ?? "");
-  const translationModel =
-    config.model ?? firstNonEmpty(env[names.model], names.roleModel ? env[names.roleModel] : undefined) ?? "";
+  const apiBaseUrl = spec.fixedBaseUrl ?? (spec.baseUrl ? env[spec.baseUrl]?.trim() : undefined) ?? "";
   return resolveProviderConfig({
-    provider: config.provider,
-    apiKey: values[names.apiKey],
+    provider: spec.provider,
+    apiKey: values[spec.apiKey],
     apiBaseUrl,
-    translationModel,
+    translationModel: config.model ?? "",
   });
 }
 
@@ -222,7 +158,7 @@ export default class VocabuilderTranslateWordProvider implements ApiProvider {
       ProviderConfigSchema,
       options.config ?? {},
       "Invalid provider config",
-      "each vocabuilder entry in promptfooconfig.yaml must set config.provider.",
+      "each vocabuilder entry must set config.provider to a candidate route.",
     );
     this.optionEnv = options.env as NodeJS.ProcessEnv | undefined;
   }

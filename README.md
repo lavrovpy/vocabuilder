@@ -80,12 +80,12 @@ Tests run with `npm test`.
 Set `GEMINI_API_KEY` in `.env` using [`.env.example`](.env.example), then run:
 
 ```bash
-npm run eval:validate # configuration check; no keys or model calls
-npm run eval:smoke    # 12 fixed multilingual cases
-npm run eval          # standard regression suite
+npm run eval:validate                                                    # configuration check; no keys or model calls
+npm run eval:smoke -- --model gemini --judge gemini/gemini-3-flash-preview # 12 fixed multilingual cases
+npm run eval -- --model gemini --judge gemini/gemini-3-flash-preview       # standard regression suite
 ```
 
-Results include JSON and a Markdown failure breakdown. See [the evaluation guide](docs/evaluations.md) for all-pairs coverage, provider comparisons, role configuration, and how to assess failures.
+Repeat `--model` (`--model gemini --model anthropic --model openai`) to compare providers side by side. Results include JSON and a Markdown failure breakdown. See [the evaluation guide](docs/evaluations.md) for every `--model` and `--judge` route, all-pairs coverage, and how to assess failures.
 
 ## License
 

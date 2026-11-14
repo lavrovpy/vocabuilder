@@ -144,6 +144,13 @@ function groupTable(title: string, groups: Map<string, GroupStats>): string {
   return lines.join("\n");
 }
 
+/** Scores from different judges are not comparable, so the summary names the one used. */
+function judgeOf(document: unknown): string | undefined {
+  const options = recordAt(recordAt(recordAt(document, "config"), "defaultTest"), "options");
+  if (typeof options?.provider === "string") return options.provider;
+  return stringAt(recordAt(options, "provider"), "id");
+}
+
 const GROUPINGS = [
   ["By provider", "provider"],
   ["By language pair", "pair"],
@@ -158,10 +165,12 @@ function buildEvaluationReport(document: unknown, generatedAt = new Date()): str
   rows.forEach((row) => addRow(overall, row));
   const unsuccessful = rows.filter((row) => !row.success);
 
+  const judge = judgeOf(document);
   const sections = [
     "# Vocabuilder Evaluation Report",
     "",
     `Generated: ${generatedAt.toISOString()}`,
+    ...(judge ? ["", `Judge: \`${escapeCell(judge)}\``] : []),
     "",
     `Overall: **${overall.passed}/${overall.total} passed (${percentage(overall.passed, overall.total)})**, ${overall.failed} failed, ${overall.errors} provider errors.`,
     "",
@@ -195,11 +204,19 @@ export async function writeEvaluationReport(inputPath: string, outputPath: strin
   process.stdout.write(`Wrote evaluation summary to ${outputPath}\n`);
 }
 
+/** `results/promptfoo-<slug>.json` → `results/summary-<slug>.md`, the pair `npm run eval` writes. */
+function defaultSummaryPath(inputPath: string): string {
+  const name = path.basename(inputPath, ".json").replace(/^promptfoo-/, "");
+  return path.join(path.dirname(inputPath), `summary-${name}.md`);
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  writeEvaluationReport(
-    path.resolve(process.argv[2] ?? "evals/results/promptfoo.json"),
-    path.resolve(process.argv[3] ?? "evals/results/summary.md"),
-  ).catch((error: unknown) => {
+  const [input, output] = process.argv.slice(2);
+  if (!input) {
+    process.stderr.write("Usage: npm run eval:report -- evals/results/promptfoo-<slug>.json [summary.md]\n");
+    process.exit(1);
+  }
+  writeEvaluationReport(path.resolve(input), path.resolve(output ?? defaultSummaryPath(input))).catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
     process.stderr.write(`Evaluation report failed: ${message}\n`);
     process.exitCode = 1;
@@ -236,6 +253,20 @@ if (import.meta.vitest) {
       expect(report).toContain("| en->uk | 50.0% | 1 | 1 | 0 | 2 |");
       expect(report).toContain("| idiom | 0.0% | 0 | 1 | 0 | 1 |");
       expect(report).toContain("Literal translation.");
+    });
+
+    it("pairs a results file with the summary name npm run eval gives it", () => {
+      expect(defaultSummaryPath("evals/results/promptfoo-gemini-default+anthropic-default.json")).toBe(
+        path.join("evals/results", "summary-gemini-default+anthropic-default.md"),
+      );
+    });
+
+    it("names the judge from the run's config", () => {
+      const report = buildEvaluationReport({
+        config: { defaultTest: { options: { provider: { id: "vertex:gemini-3.1-pro", config: {} } } } },
+        results: { results: [{ success: true }] },
+      });
+      expect(report).toContain("Judge: `vertex:gemini-3.1-pro`");
     });
 
     it("groups by provider label and leaves out groupings no case is tagged with", () => {

@@ -4,58 +4,52 @@ The suite tests the production `translateWord` result: validated, deduplicated s
 
 ## Choose a run
 
-Use the project's Node/npm versions from `.nvmrc`. Set `GEMINI_API_KEY` in `.env`, starting from [`.env.example`](../.env.example). The default candidate uses the extension's Gemini model; the judge defaults to `google:gemini-3-flash-preview`.
+Use the project's Node/npm versions from `.nvmrc`. Set `GEMINI_API_KEY` in `.env`, starting from [`.env.example`](../.env.example). Every live run names its candidates and its judge:
 
-| Command                  |          Cases | Candidates                | Use                                                                                   |
-| ------------------------ | -------------: | ------------------------- | ------------------------------------------------------------------------------------- |
-| `npm run eval:validate`  |              — | —                         | Check configuration without keys or model calls.                                      |
-| `npm run eval:smoke`     |             12 | Gemini                    | Quick iteration with fixed Latin, Cyrillic, and CJK cases.                            |
-| `npm run eval`           |            105 | Gemini                    | Routine regression check across all 17 supported languages.                           |
-| `npm run eval:matrix`    |            272 | Gemini                    | Check every directed language pair with a common-word probe.                          |
-| `npm run eval:all`       |            377 | Gemini                    | Run standard and matrix coverage together.                                            |
-| `npm run eval:providers` | 105 per vendor | Gemini, Anthropic, OpenAI | Compare production providers; also requires `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`. |
+```bash
+npm run eval -- --model gemini --judge gemini/gemini-3-flash-preview                        # what CI runs
+npm run eval -- --model gemini --model anthropic --model openai --judge gemini/gemini-3-flash-preview
+npm run eval -- --model anthropic/claude-sonnet-5-5 --judge vertex/gemini-3.1-pro
+```
 
-Live runs make a candidate request and a semantic judge request for each case, except when input validation rejects the candidate locally. The matrix is intentionally opt-in because of its cost.
+| Command                 | Cases | Use                                                          |
+| ----------------------- | ----: | ------------------------------------------------------------ |
+| `npm run eval:validate` |     — | Check configuration without keys or model calls.             |
+| `npm run eval:smoke`    |    12 | Quick iteration with fixed Latin, Cyrillic, and CJK cases.   |
+| `npm run eval`          |   105 | Routine regression check across all 17 supported languages.  |
+| `npm run eval:matrix`   |   272 | Check every directed language pair with a common-word probe. |
+
+The three run scripts take the same `--model` and `--judge` flags, and the case count applies to each `--model`. Any other argument goes to Promptfoo, such as `--filter-first-n 2`. Live runs make a candidate request and a semantic judge request for each case, except when input validation rejects the candidate locally. The matrix is intentionally opt-in because of its cost.
 
 ## Configure candidates and the judge
 
-Candidate keys come from their native variables: `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, and `OPENAI_API_KEY`. Candidate models and endpoints use the extension's defaults unless overridden.
+Both flags take `<route>/<model>`, split at the first slash. A route alone (`--model anthropic`) runs the extension's default model for that provider with its own reasoning effort; passing the default's ID explicitly drops that effort, so CI uses the route alone. `--judge` always needs a model.
 
-| Setting                                                                                                          | Scope                                                                                             |
-| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `EVAL_TRANSLATION_API_KEY`, `EVAL_TRANSLATION_API_BASE_URL`, `EVAL_TRANSLATION_MODEL`                            | Gemini candidate only.                                                                            |
-| `GEMINI_BASE_URL` / `GEMINI_MODEL`, `ANTHROPIC_BASE_URL` / `ANTHROPIC_MODEL`, `OPENAI_BASE_URL` / `OPENAI_MODEL` | Candidate vendor overrides. A vendor's URL/model takes precedence over the Gemini role overrides. |
-| `EVAL_JUDGE_API_KEY`                                                                                             | Judge only; defaults to `GEMINI_API_KEY`.                                                         |
-| `EVAL_JUDGE_API_BASE_URL`                                                                                        | Judge only; defaults to Google's API origin.                                                      |
-| `EVAL_JUDGE_PROVIDER_ID`                                                                                         | Judge provider and model, such as `google:gemini-3-flash-preview`.                                |
+| Route               | `--model`                                              | `--judge` becomes             | Credentials                                                |
+| ------------------- | ------------------------------------------------------ | ----------------------------- | ---------------------------------------------------------- |
+| `gemini`            | route alone = production default                       | `google:<model>`              | `GEMINI_API_KEY` (the judge also accepts `GOOGLE_API_KEY`) |
+| `anthropic`         | route alone = production default                       | `anthropic:messages:<model>`  | `ANTHROPIC_API_KEY`                                        |
+| `openai`            | route alone = production default                       | `openai:responses:<model>`    | `OPENAI_API_KEY`                                           |
+| `openrouter`        | model required; uses the `openai-compatible` transport | `openrouter:<model>`          | `OPENROUTER_API_KEY`                                       |
+| `openai-compatible` | model required                                         | —                             | `OPENAI_COMPATIBLE_API_KEY`, `OPENAI_COMPATIBLE_BASE_URL`  |
+| `vertex`            | —                                                      | `vertex:<model>`              | Google Cloud login (ADC) and `GOOGLE_CLOUD_PROJECT`        |
+| `bedrock`           | —                                                      | `bedrock:converse:<model-id>` | AWS credentials and `AWS_BEDROCK_REGION`                   |
 
-A candidate entry's `config.model` takes precedence over environment model overrides. Keep the judge's key, endpoint, and provider ID consistent when switching vendors or using a proxy. For example, an OpenAI judge uses:
+A missing route, model, or variable stops the run before any request. `GEMINI_BASE_URL`, `ANTHROPIC_BASE_URL` and `OPENAI_BASE_URL` point a candidate at another server, such as a local proxy.
 
-```dotenv
-EVAL_JUDGE_API_KEY=<judge key>
-EVAL_JUDGE_API_BASE_URL=https://api.openai.com/v1
-EVAL_JUDGE_PROVIDER_ID=openai:responses:gpt-6-luna
-```
-
-`OPENAI_API_KEY` still belongs to the OpenAI candidate. The launcher preserves candidate credentials before mapping the judge key to the native variable Promptfoo requires. A missing candidate key remains an error even when a judge key exists for that vendor.
+`EVAL_JUDGE_API_KEY` and `EVAL_JUDGE_API_BASE_URL` give a key-based judge its own key or server. The runner puts that key in the judge's native variable and keeps a candidate on the same route on its own key, so an OpenAI judge with `EVAL_JUDGE_API_KEY` never lends that key to an OpenAI candidate, and a missing candidate key is still an error. Both variables are rejected for `vertex` and `bedrock`, which sign in with cloud credentials. Only the `gemini` and `vertex` judges run with `temperature: 0`; current Claude and OpenAI reasoning models reject a non-default temperature.
 
 Keys stay in the process environment. Keep them out of YAML provider configuration because that configuration can be retained in exported results.
 
-To evaluate an OpenAI-compatible server, add an entry to [`promptfooconfig.yaml`](../evals/promptfooconfig.yaml) with `config.provider: openai-compatible` and `config.model`. Set `OPENAI_COMPATIBLE_API_KEY` and `OPENAI_COMPATIBLE_BASE_URL`; run the launcher with a matching provider filter. The normal scripts retain their native-vendor selection.
-
 ## Read the results
 
-Results live in the ignored `evals/results/` directory. The standard run writes `promptfoo.json` and `summary.md`; smoke, matrix, all, and providers runs append the corresponding suffix to both names, such as `promptfoo-smoke.json` and `summary-smoke.md`.
+Results live in the ignored `evals/results/` directory, named after the candidates: `--model gemini --model openai/gpt-6` writes `promptfoo-gemini-default+openai-gpt-6.json` and `summary-gemini-default+openai-gpt-6.md`. The smoke, standard, and matrix scripts share that name, so each run replaces the previous one for the same candidates.
 
-The Markdown report groups pass rates by language pair, category, difficulty, and tier, then lists individual failures and provider errors. Completed runs generate the report even below the pass-rate threshold and retain the failing exit code. Starting a run clears its previous JSON and summary so an early failure cannot leave a stale report.
+The Markdown report names the judge and groups pass rates by provider, language pair, category, difficulty, and tier, then lists individual failures and provider errors. Completed runs generate the report even below the pass-rate threshold and retain the failing exit code. Starting a run clears its previous JSON and summary so an early failure cannot leave a stale report.
 
-Use `npm run eval:results` for Promptfoo's viewer. Regenerate the standard summary with `npm run eval:report`, or another summary with:
+Use `npm run eval:results` for Promptfoo's viewer. Rebuild a summary with `npm run eval:report -- evals/results/promptfoo-<slug>.json`.
 
-```bash
-mise exec -- npx tsx evals/promptfoo/report.ts evals/results/promptfoo-smoke.json evals/results/summary-smoke.md
-```
-
-CI runs the standard Gemini suite and uploads JSON and Markdown artifacts even when the evaluation fails.
+CI runs the standard suite once per vendor (gemini, anthropic, openai) under the Gemini judge, and uploads JSON and Markdown artifacts even when the evaluation fails. The gemini leg is required; the other legs warn and skip when their key is not a repository secret.
 
 The **75% aggregate threshold is a permissive compatibility gate**, not release acceptance. Inspect every zero-pass pair and every subgroup below 75%, even when the overall run passes:
 
@@ -82,6 +76,6 @@ Add cases in [`cases.cjs`](../evals/promptfoo/cases.cjs). Keep IDs stable, class
 
 Keep exact application expectations in the deterministic assertion and linguistic judgments in the rubric. Address related-language drift in the production prompt rather than expanding forbidden-word lists. Changes to the exact source-form example contract must update the production prompt, assertion, and cases together.
 
-Configuration policy lives in [`promptfooconfig.yaml`](../evals/promptfooconfig.yaml): threshold, backoff, concurrency, and sharing. `.env` holds run-specific credentials and model/endpoint overrides. YAML-pinned environment values take precedence over `.env`.
+Configuration policy lives in [`promptfooconfig.yaml`](../evals/promptfooconfig.yaml): threshold, backoff, concurrency, and sharing. `.env` holds run-specific credentials and server overrides. YAML-pinned environment values take precedence over `.env`.
 
 Before submitting changes, run `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, and `npm run eval:validate`. Launcher regression tests use mocked HTTP and local echo-provider evaluations, so they need no live keys or paid calls.
