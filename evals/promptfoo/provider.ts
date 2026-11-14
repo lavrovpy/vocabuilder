@@ -13,7 +13,7 @@ export function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown, prefix: str
   throw new Error(`${prefix} (${fields}) — ${hint}`);
 }
 
-export const ProviderConfigSchema = z.object({
+const ProviderConfigSchema = z.object({
   provider: z.enum(PROVIDER_IDS),
   model: z.string().trim().min(1).optional(),
 });
@@ -27,7 +27,7 @@ export const DEFAULT_GEMINI_TRANSLATION_MODEL = resolveProviderConfig({
   apiKey: "placeholder",
 }).model;
 
-export const EvalEnvironmentSchema = z.object({
+const EvalEnvironmentSchema = z.object({
   EVAL_TRANSLATION_API_KEY: z.string().min(1),
   EVAL_TRANSLATION_API_BASE_URL: z.string().url(),
   EVAL_TRANSLATION_MODEL: z.string().min(1),
@@ -36,7 +36,7 @@ export const EvalEnvironmentSchema = z.object({
   EVAL_JUDGE_PROVIDER_ID: z.string().regex(/^[^\s:]+(?::[^\s:]+)+$/),
 });
 
-export type EvalEnvironment = z.infer<typeof EvalEnvironmentSchema>;
+type EvalEnvironment = z.infer<typeof EvalEnvironmentSchema>;
 
 function firstNonEmpty(...values: Array<string | undefined>): string | undefined {
   for (const value of values) {

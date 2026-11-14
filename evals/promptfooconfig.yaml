@@ -16,9 +16,9 @@ prompts:
   - "{{input}}"
 
 # One entry per native vendor so results compare side by side; each reads its
-# key from .env (see evals/promptfoo/provider.ts). Default scripts select
-# vocabuilder-gemini by label; `npm run eval:providers` runs every entry on the
-# standard suite. Keep the labels in step with those package.json filters.
+# key from .env (see evals/promptfoo/provider.ts). The package.json eval scripts
+# and the CI matrix in .github/workflows/prompt-eval.yml select entries by
+# label; keep the labels in step with them.
 providers:
   - id: file://promptfoo/provider.ts
     label: vocabuilder-gemini
@@ -41,6 +41,8 @@ defaultTest:
     - type: javascript
       metric: application_contract
       value: file://promptfoo/assert-output.cjs
+    # The judge's ID and URL come from EVAL_JUDGE_*, which evals/promptfoo/run.ts
+    # fills with defaults; a bare `promptfoo eval` leaves them empty.
     - type: llm-rubric
       metric: translation_quality
       provider:

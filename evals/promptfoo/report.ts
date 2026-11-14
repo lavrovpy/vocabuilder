@@ -73,6 +73,9 @@ function extractMetadata(row: UnknownRecord): Record<string, string> {
     const target = stringAt(vars, "targetLanguageCode");
     if (source && target) metadata.pair = `${source}->${target}`;
   }
+  const provider = recordAt(row, "provider");
+  const providerName = stringAt(provider, "label") ?? stringAt(provider, "id");
+  if (providerName) metadata.provider = providerName;
   return metadata;
 }
 
@@ -141,6 +144,14 @@ function groupTable(title: string, groups: Map<string, GroupStats>): string {
   return lines.join("\n");
 }
 
+const GROUPINGS = [
+  ["By provider", "provider"],
+  ["By language pair", "pair"],
+  ["By category", "category"],
+  ["By difficulty", "difficulty"],
+  ["By tier", "tier"],
+] as const;
+
 function buildEvaluationReport(document: unknown, generatedAt = new Date()): string {
   const rows = extractRows(document);
   const overall = blankStats();
@@ -154,13 +165,9 @@ function buildEvaluationReport(document: unknown, generatedAt = new Date()): str
     "",
     `Overall: **${overall.passed}/${overall.total} passed (${percentage(overall.passed, overall.total)})**, ${overall.failed} failed, ${overall.errors} provider errors.`,
     "",
-    groupTable("By language pair", groupRows(rows, "pair")),
-    "",
-    groupTable("By category", groupRows(rows, "category")),
-    "",
-    groupTable("By difficulty", groupRows(rows, "difficulty")),
-    "",
-    groupTable("By tier", groupRows(rows, "tier")),
+    ...GROUPINGS.filter(([, field]) => rows.some((row) => row.metadata[field] !== undefined)).flatMap(
+      ([title, field]) => ["", groupTable(title, groupRows(rows, field))],
+    ),
   ];
 
   if (unsuccessful.length > 0) {
@@ -229,6 +236,34 @@ if (import.meta.vitest) {
       expect(report).toContain("| en->uk | 50.0% | 1 | 1 | 0 | 2 |");
       expect(report).toContain("| idiom | 0.0% | 0 | 1 | 0 | 1 |");
       expect(report).toContain("Literal translation.");
+    });
+
+    it("groups by provider label and leaves out groupings no case is tagged with", () => {
+      const report = buildEvaluationReport({
+        results: {
+          results: [
+            {
+              success: true,
+              provider: { id: "file://promptfoo/provider.ts", label: "vocabuilder-gemini" },
+              vars: { sourceLanguageCode: "en", targetLanguageCode: "uk" },
+              metadata: { category: "baseline" },
+            },
+            {
+              success: false,
+              provider: { id: "file://promptfoo/provider.ts", label: "vocabuilder-openai" },
+              vars: { sourceLanguageCode: "en", targetLanguageCode: "uk" },
+              metadata: { category: "baseline" },
+            },
+          ],
+        },
+      });
+
+      expect(report).toContain("| vocabuilder-gemini | 100.0% | 1 | 0 | 0 | 1 |");
+      expect(report).toContain("| vocabuilder-openai | 0.0% | 0 | 1 | 0 | 1 |");
+      expect(report).toContain("| en->uk | 50.0% | 1 | 1 | 0 | 2 |");
+      expect(report).toContain("## By category");
+      expect(report).not.toContain("## By difficulty");
+      expect(report).not.toContain("## By tier");
     });
 
     it("classifies Promptfoo assertion reasons as failures rather than provider errors", () => {
