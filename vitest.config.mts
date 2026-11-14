@@ -13,7 +13,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
-    includeSource: ["src/**/*.{ts,tsx}"],
+    includeSource: ["src/**/*.{ts,tsx}", "evals/**/*.ts"],
     exclude: [...configDefaults.exclude, ".claude/**"],
   },
 });
