@@ -189,10 +189,14 @@ describe("VocabuilderTranslateWordProvider", () => {
   beforeEach(() => {
     for (const name of [
       "GEMINI_API_KEY",
+      "GEMINI_BASE_URL",
       "ANTHROPIC_API_KEY",
+      "ANTHROPIC_BASE_URL",
       "OPENAI_API_KEY",
+      "OPENAI_BASE_URL",
       "OPENAI_COMPATIBLE_API_KEY",
       "OPENAI_COMPATIBLE_BASE_URL",
+      "OPENROUTER_API_KEY",
     ]) {
       vi.stubEnv(name, "");
     }
@@ -269,6 +273,29 @@ describe("VocabuilderTranslateWordProvider", () => {
     expect(sentRequest().url).toBe(
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-custom:generateContent",
     );
+  });
+
+  it("sends a gemini candidate to GEMINI_BASE_URL when it is set", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "AIza-eval");
+    vi.stubEnv("GEMINI_BASE_URL", "http://127.0.0.1:8317");
+
+    await callWith(new VocabuilderTranslateWordProvider({ config: { provider: "gemini" } }));
+    expect(sentRequest().url).toBe(
+      "http://127.0.0.1:8317/v1beta/models/gemini-3.5-flash-lite:generateContent",
+    );
+  });
+
+  it("sends an openrouter candidate to OpenRouter with OPENROUTER_API_KEY and the given model", async () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "sk-or-eval");
+    vi.stubEnv("OPENAI_API_KEY", "sk-not-this-one");
+
+    await callWith(
+      new VocabuilderTranslateWordProvider({ config: { provider: "openrouter", model: "google/gemini-3.5-flash-lite" } }),
+    );
+    const { url, headers, body } = sentRequest();
+    expect(url).toBe("https://openrouter.ai/api/v1/chat/completions");
+    expect(headers.Authorization).toBe("Bearer sk-or-eval");
+    expect(body.model).toBe("google/gemini-3.5-flash-lite");
   });
 
   it("uses GPT-6 Luna with no reasoning by default and keeps a custom model's effort", async () => {

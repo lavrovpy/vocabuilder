@@ -75,7 +75,7 @@ npm run dev
 
 Built with the [Raycast API](https://developers.raycast.com), TypeScript + React, and [Zod](https://zod.dev) for runtime validation. Each provider is a small adapter over plain `fetch` in `src/lib/providers/`; the prompt, response validation, and sense de-duplication are shared in `src/lib/translation.ts`.
 
-Tests run with `npm test`. The translation quality evals read their keys from `.env` — copy `.env.example` to start. `npm run eval` scores the Gemini provider and needs only `GEMINI_API_KEY`, which the eval judge also uses; `npm run eval:all` scores Gemini, Anthropic, and OpenAI side by side and also needs `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`.
+Tests run with `npm test`. The translation quality evals read their keys from `.env` — copy `.env.example` to start. `npm run eval -- --model gemini --judge gemini/gemini-3-flash-preview` scores the default Gemini model and needs only `GEMINI_API_KEY`; repeat `--model` (`--model anthropic --model openai`) to compare providers side by side. The Evals section of `AGENTS.md` lists every route for `--model` and `--judge`, including Vertex, Bedrock and OpenRouter judges.
 
 ## License
 

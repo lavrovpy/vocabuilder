@@ -13,40 +13,71 @@ export function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown, prefix: str
   throw new Error(`${prefix} (${fields}) — ${hint}`);
 }
 
+/** `--model` routes: the app's providers, plus OpenRouter served through `openai-compatible`. */
+export const CANDIDATE_ROUTES = [...PROVIDER_IDS, "openrouter"] as const;
+export type CandidateRoute = (typeof CANDIDATE_ROUTES)[number];
+
 const ProviderConfigSchema = z.object({
-  provider: z.enum(PROVIDER_IDS),
+  provider: z.enum(CANDIDATE_ROUTES),
   model: z.string().trim().min(1).optional(),
 });
 
 type EvalProviderConfig = z.infer<typeof ProviderConfigSchema>;
 
-const PROVIDER_ENV = {
-  gemini: { apiKey: "GEMINI_API_KEY" },
-  anthropic: { apiKey: "ANTHROPIC_API_KEY" },
-  openai: { apiKey: "OPENAI_API_KEY" },
-  "openai-compatible": { apiKey: "OPENAI_COMPATIBLE_API_KEY", baseUrl: "OPENAI_COMPATIBLE_BASE_URL" },
-} as const satisfies Record<ProviderId, { apiKey: string; baseUrl?: string }>;
+type CandidateEnvSpec = {
+  provider: ProviderId;
+  apiKey: string;
+  /** Optional override; required when `requireBaseUrl` is set. */
+  baseUrl?: string;
+  requireBaseUrl?: boolean;
+  fixedBaseUrl?: string;
+};
+
+const CANDIDATE_ENV = {
+  gemini: { provider: "gemini", apiKey: "GEMINI_API_KEY", baseUrl: "GEMINI_BASE_URL" },
+  anthropic: { provider: "anthropic", apiKey: "ANTHROPIC_API_KEY", baseUrl: "ANTHROPIC_BASE_URL" },
+  openai: { provider: "openai", apiKey: "OPENAI_API_KEY", baseUrl: "OPENAI_BASE_URL" },
+  "openai-compatible": {
+    provider: "openai-compatible",
+    apiKey: "OPENAI_COMPATIBLE_API_KEY",
+    baseUrl: "OPENAI_COMPATIBLE_BASE_URL",
+    requireBaseUrl: true,
+  },
+  openrouter: { provider: "openai-compatible", apiKey: "OPENROUTER_API_KEY", fixedBaseUrl: "https://openrouter.ai/api/v1" },
+} as const satisfies Record<CandidateRoute, CandidateEnvSpec>;
+
+/** The variables a candidate route cannot run without, for the runner's pre-flight check. */
+export function requiredCandidateEnv(route: CandidateRoute): string[] {
+  const spec: CandidateEnvSpec = CANDIDATE_ENV[route];
+  return spec.requireBaseUrl && spec.baseUrl ? [spec.apiKey, spec.baseUrl] : [spec.apiKey];
+}
 
 const RequiredEnvValue = z.string().trim().min(1);
 
+export function candidateCredentialEnvName(nativeEnvName: string): string {
+  return `VOCABUILDER_CANDIDATE_${nativeEnvName}`;
+}
+
 /**
- * Read the credentials for one provider from the environment. Called on the first
+ * Read the credentials for one candidate from the environment. Called on the first
  * request rather than in the constructor because `promptfoo validate` instantiates
  * every provider, and a config check must not require every vendor's key.
  */
 function resolveEvalProviderConfig(config: EvalProviderConfig, env: NodeJS.ProcessEnv): ProviderConfig {
-  const names: { apiKey: string; baseUrl?: string } = PROVIDER_ENV[config.provider];
-  const required = [names.apiKey, names.baseUrl].filter((name): name is string => name !== undefined);
+  const spec: CandidateEnvSpec = CANDIDATE_ENV[config.provider];
+  const required = requiredCandidateEnv(config.provider);
+  const candidateEnv = { ...env, [spec.apiKey]: env[candidateCredentialEnvName(spec.apiKey)] ?? env[spec.apiKey] };
   const values = parseOrThrow(
     z.object(Object.fromEntries(required.map((name) => [name, RequiredEnvValue]))),
-    env,
-    `Missing environment for the ${config.provider} eval provider`,
-    "set it in .env, or skip this provider with --filter-providers.",
+    candidateEnv,
+    `Missing environment for the ${config.provider} eval candidate`,
+    "set it in .env.",
   );
+  const apiBaseUrl = spec.fixedBaseUrl ?? (spec.baseUrl ? env[spec.baseUrl]?.trim() : undefined) ?? "";
   return resolveProviderConfig({
-    provider: config.provider,
-    apiKey: values[names.apiKey],
-    apiBaseUrl: names.baseUrl ? values[names.baseUrl] : "",
+    provider: spec.provider,
+    apiKey: values[spec.apiKey],
+    apiBaseUrl,
     translationModel: config.model ?? "",
   });
 }
@@ -119,6 +150,7 @@ export function describeFailure(err: unknown): string {
 
 export default class VocabuilderTranslateWordProvider implements ApiProvider {
   private readonly settings: EvalProviderConfig;
+  private readonly optionEnv: NodeJS.ProcessEnv | undefined;
   private resolved: ProviderConfig | undefined;
 
   constructor(options: ProviderOptions = {}) {
@@ -126,8 +158,9 @@ export default class VocabuilderTranslateWordProvider implements ApiProvider {
       ProviderConfigSchema,
       options.config ?? {},
       "Invalid provider config",
-      "each vocabuilder entry in promptfooconfig.yaml must set config.provider.",
+      "each vocabuilder entry must set config.provider to a candidate route.",
     );
+    this.optionEnv = options.env as NodeJS.ProcessEnv | undefined;
   }
 
   id(): string {
@@ -142,7 +175,7 @@ export default class VocabuilderTranslateWordProvider implements ApiProvider {
       "every test case in promptfooconfig.yaml must declare its language pair.",
     );
     const input = inputVar ?? prompt.trim();
-    this.resolved ??= resolveEvalProviderConfig(this.settings, process.env);
+    this.resolved ??= resolveEvalProviderConfig(this.settings, { ...process.env, ...this.optionEnv });
     const config = this.resolved;
 
     try {
