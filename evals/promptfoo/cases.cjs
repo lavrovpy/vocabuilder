@@ -473,6 +473,14 @@ const englishUkrainianDepthCases = [
   [
     "en",
     "uk",
+    "clamshell",
+    "polysemy",
+    "hard",
+    "Translate the shell of a clam (such as 'мушля' or 'стулка мушлі'), not the animal itself ('двостулковий молюск'). Hinged plastic packaging and the flip-phone or folding-laptop form are welcome as separate senses, each glossed as one Ukrainian equivalent such as 'розкладачка' or 'розкладний'.",
+  ],
+  [
+    "en",
+    "uk",
     "red herring",
     "idiom",
     "hard",

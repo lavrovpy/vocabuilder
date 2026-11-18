@@ -106,6 +106,41 @@ describe("evaluation output contract assertion", () => {
     expect(result.reason).toContain("known-wrong form");
   });
 
+  it("rejects a word that switches between Latin and Cyrillic letters mid-word", () => {
+    const result = assertOutput(
+      successOutput({
+        senses: [
+          {
+            translation: "раковина двостулкового молюska",
+            partOfSpeech: "noun",
+            example: "Ми знайшли мушлю.",
+            exampleTranslation: "We said hello and found a clamshell.",
+          },
+        ],
+      }),
+      { vars: baseVars },
+    );
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain("found молюska");
+  });
+
+  it("accepts Latin and Cyrillic in separate words, and Latin mixed with kana", () => {
+    const result = assertOutput(
+      successOutput({
+        senses: [
+          {
+            translation: "Tシャツ",
+            partOfSpeech: "interjection",
+            example: "Привіт, я купив новий iPhone.",
+            exampleTranslation: "I said hello to my friend.",
+          },
+        ],
+      }),
+      { vars: baseVars },
+    );
+    expect(result.pass).toBe(true);
+  });
+
   it("requires the reversed pair when the case expects a switch, and the requested pair otherwise", () => {
     const switchedOutput = successOutput({
       languagePair: {

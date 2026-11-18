@@ -2,6 +2,16 @@ function normalized(value) {
   return String(value).normalize("NFKC").trim().toLowerCase();
 }
 
+// Only scripts with look-alike letters: Japanese words legitimately mix Latin
+// with kana or kanji ("Tシャツ"), so a general one-script-per-word rule is wrong.
+const CONFUSABLE_SCRIPTS = [/\p{Script=Latin}/u, /\p{Script=Cyrillic}/u, /\p{Script=Greek}/u];
+
+function mixedScriptWords(text) {
+  return (String(text).match(/[\p{L}\p{M}]+/gu) ?? []).filter(
+    (word) => CONFUSABLE_SCRIPTS.filter((script) => script.test(word)).length > 1,
+  );
+}
+
 function component(pass, reason) {
   return { pass, score: pass ? 1 : 0, reason };
 }
@@ -75,6 +85,11 @@ function checkOutput(rawOutput, context) {
       senses.every((sense) => normalized(sense.exampleTranslation).includes(normalized(sourceForm))),
       `Every source-language example must contain the exact source form ${sourceForm}.`,
     );
+
+    const mixed = senses.flatMap((sense) =>
+      [sense.translation, sense.example, sense.exampleTranslation].flatMap(mixedScriptWords),
+    );
+    add(mixed.length === 0, `No word may mix Latin, Cyrillic, or Greek letters; found ${mixed.join(", ")}.`);
 
     const renderedTranslations = normalized(senses.map((sense) => sense.translation).join("\n"));
     for (const forbidden of expect.forbiddenTranslations ?? []) {
