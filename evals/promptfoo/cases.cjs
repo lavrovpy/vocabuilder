@@ -481,6 +481,14 @@ const englishUkrainianDepthCases = [
   [
     "en",
     "uk",
+    "bellwether",
+    "polysemy",
+    "hard",
+    "Translate the common figurative sense, something that signals or sets a trend, with one Ukrainian equivalent such as 'провісник' or 'індикатор'. The literal sense, the lead sheep of a flock that wears a bell ('баран-ватажок'), is welcome as a separate sense.",
+  ],
+  [
+    "en",
+    "uk",
     "red herring",
     "idiom",
     "hard",

@@ -39,11 +39,11 @@ type GenerateCases = () => Promise<EvalCase[]>;
 const generateCases = require("./cases.cjs") as GenerateCases;
 
 describe("multilingual evaluation suite", () => {
-  it("contains 104 standard and 272 matrix cases with unique, complete classifications", async () => {
+  it("contains 105 standard and 272 matrix cases with unique, complete classifications", async () => {
     const cases = await generateCases();
-    expect(cases).toHaveLength(376);
-    expect(new Set(cases.map((testCase) => testCase.metadata.caseId)).size).toBe(376);
-    expect(cases.filter((testCase) => testCase.metadata.suite === "standard")).toHaveLength(104);
+    expect(cases).toHaveLength(377);
+    expect(new Set(cases.map((testCase) => testCase.metadata.caseId)).size).toBe(377);
+    expect(cases.filter((testCase) => testCase.metadata.suite === "standard")).toHaveLength(105);
     expect(cases.filter((testCase) => testCase.metadata.suite === "matrix")).toHaveLength(272);
 
     for (const testCase of cases) {
