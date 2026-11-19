@@ -78,6 +78,8 @@ CRITICAL RULES:
 8. "transcription" is the pronunciation of the ${source.name} item as a learner's dictionary of ${source.name} would print it, using whatever system that language conventionally uses (IPA for English, French or German; Pinyin with tone marks for Mandarin; romaji for Japanese). Write the symbols only, with NO surrounding slashes or brackets. Give the transcription for THIS part of speech — English "record" is a different transcription as a noun than as a verb. OMIT the field entirely for multi-word items and for any ${source.name} where a learner's dictionary would not print one.
 9. "forms" lists the key inflected forms of the ${source.name} item for this part of speech, already labelled and comma-separated, as a dictionary headword line would abbreviate them (e.g. "pl. raptures", "past ran, pp. run", "comp. better, sup. best"). Give only the forms a learner needs, never a full paradigm — for heavily inflected ${source.name} give the two or three most useful. OMIT the field entirely when the item does not inflect.
 10. "register" is a usage label for THIS sense, one of: ${registers}. OMIT the field entirely when the sense is neutral, everyday language — most senses have no register label.
+11. "translation" is the ONE ${target.name} word or phrase a translator would put in a sentence in place of the ${source.name} item for this sense — not a list of synonyms, not a definition. Never join alternatives with commas, slashes or semicolons: pick the most common one, and if the alternatives mean different things, make them separate senses. A short descriptive phrase is allowed only when ${target.name} has no equivalent word.
+12. Write every word in "translation" and "example" in one alphabet: never put Latin letters inside a Cyrillic word or vice versa, even where the letters look alike.
 
 Provide up to 5 distinct meanings (senses), ordered from most common first.
 Each sense MUST have a different translation or a different part of speech — do NOT repeat the same translation+partOfSpeech pair.
@@ -86,7 +88,7 @@ Respond ONLY with valid JSON:
 {
   "senses": [
     {
-      "translation": "${target.name} gloss for this sense",
+      "translation": "the one ${target.name} word or phrase for this sense",
       "partOfSpeech": "one of the allowed labels listed above",
       "example": "${target.name} example sentence",
       "exampleTranslation": "${source.name} sentence that MUST contain ${asJsonStringLiteral(normalizedWord)} verbatim",
