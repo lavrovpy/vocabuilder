@@ -457,6 +457,14 @@ const englishUkrainianDepthCases = [
   [
     "en",
     "uk",
+    "nascent",
+    "lexical-gap",
+    "hard",
+    "Convey 'just coming into existence and beginning to develop' (such as зародковий, що зароджується, новонароджений, or початковий). This is one sense: do not split it into several senses that differ only in wording, such as зародковий and той, що зароджується. The target-language example must read naturally, using a clause like що зароджуються or an adjective like молоді rather than the passive participle зароджувані, which wrongly implies someone is creating the thing.",
+  ],
+  [
+    "en",
+    "uk",
     "red herring",
     "idiom",
     "hard",
