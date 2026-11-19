@@ -89,7 +89,7 @@ export const WordResponseJsonSchema = {
         properties: {
           translation: {
             type: "string",
-            description: "Target-language gloss for this sense.",
+            description: "The one target-language word or phrase that translates this sense.",
           },
           partOfSpeech: {
             type: "string",
