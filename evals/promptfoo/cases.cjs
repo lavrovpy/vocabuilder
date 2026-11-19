@@ -447,6 +447,16 @@ const englishUkrainianDepthCases = [
   [
     "en",
     "uk",
+    "barrage",
+    "polysemy",
+    "hard",
+    "Cover the military sense of sustained artillery fire (such as загороджувальний вогонь or шквал вогню) and the figurative overwhelming stream of questions or criticism (where figurative град or потік is fine); a dam or weir sense is acceptable. Hail or hailstorm damage is wrong, and each target-language example must use the listed gloss.",
+    undefined,
+    { forbiddenTranslations: ["градобій"] },
+  ],
+  [
+    "en",
+    "uk",
     "red herring",
     "idiom",
     "hard",
