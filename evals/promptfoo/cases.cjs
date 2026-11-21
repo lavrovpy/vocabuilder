@@ -447,6 +447,14 @@ const englishUkrainianDepthCases = [
   [
     "en",
     "uk",
+    "ratchet",
+    "polysemy",
+    "hard",
+    "Cover the toothed one-way mechanism (храповик or храповий механізм) and the verb of raising something step by step so it does not slip back, as in 'ratchet up pressure' (such as нарощувати, поступово посилювати, or нагнітати for tension). The verb gloss must be a short word or collocation, not a dictionary-style paraphrase spelling out both directions such as поступово збільшувати або зменшувати. The noisemaker rattle (тріскачка) and the slang adjective for vulgar or trashy behaviour are acceptable extra senses. Each target-language example must use its listed gloss.",
+  ],
+  [
+    "en",
+    "uk",
     "barrage",
     "polysemy",
     "hard",
