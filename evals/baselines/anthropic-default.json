@@ -1,0 +1,548 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-11-21T20:41:31.322Z",
+  "candidate": "anthropic/default",
+  "judge": "anthropic:messages:claude-sonnet-5-5",
+  "promptfooVersion": "0.125.1",
+  "git": {
+    "commit": "e706ca64f26861a899286473386dd96f2b23921d",
+    "dirty": false,
+    "diffSha256": null
+  },
+  "suiteSha256": "a3ba464334f06ff7adc7ed4297f6c18563ff1b1a1b3be78e5528436e1ee2af67",
+  "caseSetSha256": "bf8baa382998b096063593cc4f0942f7355632dc6b64342cfea4f2b266683603",
+  "repeats": 3,
+  "overall": {
+    "passed": 103,
+    "failed": 212,
+    "errors": 0,
+    "passRate": 0.327
+  },
+  "cases": {
+    "be->en:дзякуй": {
+      "passed": 1,
+      "failed": 2,
+      "errors": 0
+    },
+    "be->en:калі ласка": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "cs->en:děkuji": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "cs->en:prozvonit": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "de->en:Gift": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "de->en:Haus": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "de->en:Schadenfreude": {
+      "passed": 2,
+      "failed": 1,
+      "errors": 0
+    },
+    "en->be:carefully": {
+      "passed": 3,
+      "failed": 0,
+      "errors": 0
+    },
+    "en->be:mother": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->cs:actual": {
+      "passed": 1,
+      "failed": 2,
+      "errors": 0
+    },
+    "en->cs:city": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->de:become": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->de:book": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->es:embarrassed": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->es:family": {
+      "passed": 1,
+      "failed": 2,
+      "errors": 0
+    },
+    "en->fr:actually": {
+      "passed": 3,
+      "failed": 0,
+      "errors": 0
+    },
+    "en->fr:friend": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->it:factory": {
+      "passed": 3,
+      "failed": 0,
+      "errors": 0
+    },
+    "en->it:morning": {
+      "passed": 3,
+      "failed": 0,
+      "errors": 0
+    },
+    "en->ja:book": {
+      "passed": 2,
+      "failed": 1,
+      "errors": 0
+    },
+    "en->ja:wear": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->ko:friend": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->ko:wear": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->nl:bicycle": {
+      "passed": 1,
+      "failed": 2,
+      "errors": 0
+    },
+    "en->nl:brave": {
+      "passed": 2,
+      "failed": 1,
+      "errors": 0
+    },
+    "en->pl:eventually": {
+      "passed": 3,
+      "failed": 0,
+      "errors": 0
+    },
+    "en->pl:water": {
+      "passed": 3,
+      "failed": 0,
+      "errors": 0
+    },
+    "en->pt:bread": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->pt:pretend": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->ru:accurate": {
+      "passed": 2,
+      "failed": 1,
+      "errors": 0
+    },
+    "en->ru:bread": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->sv:coffee": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->sv:semester": {
+      "passed": 2,
+      "failed": 1,
+      "errors": 0
+    },
+    "en->tr:time": {
+      "passed": 1,
+      "failed": 2,
+      "errors": 0
+    },
+    "en->tr:you": {
+      "passed": 2,
+      "failed": 1,
+      "errors": 0
+    },
+    "en->uk:bank": {
+      "passed": 1,
+      "failed": 2,
+      "errors": 0
+    },
+    "en->uk:barrage": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:beat around the bush": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:bellwether": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:break down": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:charge": {
+      "passed": 1,
+      "failed": 2,
+      "errors": 0
+    },
+    "en->uk:clamshell": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:eat": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:fahj89sdf": {
+      "passed": 3,
+      "failed": 0,
+      "errors": 0
+    },
+    "en->uk:fair": {
+      "passed": 1,
+      "failed": 2,
+      "errors": 0
+    },
+    "en->uk:give up": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:hello": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:kick the bucket": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:kik the bucket": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:light": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:look up": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:love": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:make up": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:match": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:mean": {
+      "passed": 2,
+      "failed": 1,
+      "errors": 0
+    },
+    "en->uk:nascent": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:once in a blue moon": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:ratchet": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:ratchets": {
+      "passed": 2,
+      "failed": 1,
+      "errors": 0
+    },
+    "en->uk:red hering": {
+      "passed": 3,
+      "failed": 0,
+      "errors": 0
+    },
+    "en->uk:red herring": {
+      "passed": 1,
+      "failed": 2,
+      "errors": 0
+    },
+    "en->uk:runing": {
+      "passed": 2,
+      "failed": 1,
+      "errors": 0
+    },
+    "en->uk:set": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:spill the beans": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:the best of both worlds": {
+      "passed": 3,
+      "failed": 0,
+      "errors": 0
+    },
+    "en->uk:time": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:work": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->uk:xqfjvbn": {
+      "passed": 3,
+      "failed": 0,
+      "errors": 0
+    },
+    "en->uk:zzqpplx": {
+      "passed": 3,
+      "failed": 0,
+      "errors": 0
+    },
+    "en->uk:привіт": {
+      "passed": 2,
+      "failed": 1,
+      "errors": 0
+    },
+    "en->zh:home": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "en->zh:uncle": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "es->en:gracias": {
+      "passed": 3,
+      "failed": 0,
+      "errors": 0
+    },
+    "es->en:sobremesa": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "fr->en:dépaysement": {
+      "passed": 3,
+      "failed": 0,
+      "errors": 0
+    },
+    "fr->en:merci": {
+      "passed": 1,
+      "failed": 2,
+      "errors": 0
+    },
+    "it->en:casa": {
+      "passed": 3,
+      "failed": 0,
+      "errors": 0
+    },
+    "it->en:magari": {
+      "passed": 2,
+      "failed": 1,
+      "errors": 0
+    },
+    "ja->en:もったいない": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "ja->en:水": {
+      "passed": 3,
+      "failed": 0,
+      "errors": 0
+    },
+    "ko->en:눈치": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "ko->en:안녕하세요": {
+      "passed": 3,
+      "failed": 0,
+      "errors": 0
+    },
+    "nl->en:gezellig": {
+      "passed": 2,
+      "failed": 1,
+      "errors": 0
+    },
+    "nl->en:huis": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "pl->en:dom": {
+      "passed": 2,
+      "failed": 1,
+      "errors": 0
+    },
+    "pl->en:załatwić": {
+      "passed": 1,
+      "failed": 2,
+      "errors": 0
+    },
+    "pt->en:obrigado": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "pt->en:saudade": {
+      "passed": 1,
+      "failed": 2,
+      "errors": 0
+    },
+    "ru->en:авось": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "ru->en:спасибо": {
+      "passed": 1,
+      "failed": 2,
+      "errors": 0
+    },
+    "sv->en:lagom": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "sv->en:tack": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "tr->en:geçmiş olsun": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "tr->en:merhaba": {
+      "passed": 3,
+      "failed": 0,
+      "errors": 0
+    },
+    "uk->en:tacit": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "uk->en:бабине літо": {
+      "passed": 1,
+      "failed": 2,
+      "errors": 0
+    },
+    "uk->en:дякую": {
+      "passed": 2,
+      "failed": 1,
+      "errors": 0
+    },
+    "uk->en:знічев'я": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "uk->en:накивати п'ятами": {
+      "passed": 1,
+      "failed": 2,
+      "errors": 0
+    },
+    "uk->en:ні пуху ні пера": {
+      "passed": 2,
+      "failed": 1,
+      "errors": 0
+    },
+    "uk->en:превіт": {
+      "passed": 1,
+      "failed": 2,
+      "errors": 0
+    },
+    "uk->en:таки": {
+      "passed": 1,
+      "failed": 2,
+      "errors": 0
+    },
+    "uk->en:фждлрп": {
+      "passed": 3,
+      "failed": 0,
+      "errors": 0
+    },
+    "zh->en:加油": {
+      "passed": 0,
+      "failed": 3,
+      "errors": 0
+    },
+    "zh->en:朋友": {
+      "passed": 2,
+      "failed": 1,
+      "errors": 0
+    }
+  }
+}
