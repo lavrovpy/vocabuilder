@@ -7,7 +7,7 @@ The suite tests the production `translateWord` result: validated, deduplicated s
 Use the project's Node/npm versions from `.nvmrc`. Set `ANTHROPIC_API_KEY` in `.env`, starting from [`.env.example`](../.env.example). Every live run names its candidates and its judge:
 
 ```bash
-npm run eval -- --model anthropic --judge anthropic/claude-sonnet-5-5                        # what CI runs
+npm run eval -- --model anthropic --judge anthropic/claude-sonnet-5-5                        # what the CI workflow runs
 npm run eval -- --model anthropic --model gemini --model openai --judge anthropic/claude-sonnet-5-5
 npm run eval -- --model anthropic/claude-sonnet-5-5 --judge vertex/gemini-3.1-pro
 ```
@@ -49,7 +49,7 @@ The Markdown report names the judge and groups pass rates by provider, language 
 
 Use `npm run eval:results` for Promptfoo's viewer. Rebuild a summary with `npm run eval:report -- evals/results/promptfoo-<slug>.json`.
 
-CI runs the standard suite once per vendor (anthropic, gemini, openai) under the Claude Sonnet 5.5 judge, and uploads JSON and Markdown artifacts even when the evaluation fails. The anthropic leg is required, because its key also runs the judge; the other legs warn and skip when their key is not a repository secret.
+CI runs evals only when started by hand from the Actions tab (the Prompt Eval workflow); pull requests and pushes do not trigger it. A run covers the standard suite once per vendor (anthropic, gemini, openai) under the Claude Sonnet 5.5 judge, and uploads JSON and Markdown artifacts even when the evaluation fails. The anthropic leg is required, because its key also runs the judge; the other legs warn and skip when their key is not a repository secret.
 
 The **75% aggregate threshold is a permissive compatibility gate**, not release acceptance. Inspect every zero-pass pair and every subgroup below 75%, even when the overall run passes:
 

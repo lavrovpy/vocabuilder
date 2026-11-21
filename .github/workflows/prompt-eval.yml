@@ -1,29 +1,9 @@
 name: Prompt Eval
 
+# Manual runs only. To run on every change again, restore the pull_request and
+# push triggers from git history.
 on:
   workflow_dispatch:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - "src/lib/translation.ts"
-      - "src/lib/providers/**"
-      - "src/lib/baseUrl.ts"
-      - "src/lib/providerError.ts"
-      - "src/lib/types.ts"
-      - "src/lib/input.ts"
-      - "evals/**"
-      - ".github/workflows/prompt-eval.yml"
-  push:
-    branches: [main]
-    paths:
-      - "src/lib/translation.ts"
-      - "src/lib/providers/**"
-      - "src/lib/baseUrl.ts"
-      - "src/lib/providerError.ts"
-      - "src/lib/types.ts"
-      - "src/lib/input.ts"
-      - "evals/**"
-      - ".github/workflows/prompt-eval.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
