@@ -55,7 +55,7 @@ Use `npm run eval:results` for Promptfoo's viewer. Regenerate the standard summa
 mise exec -- npx tsx evals/promptfoo/report.ts evals/results/promptfoo-smoke.json evals/results/summary-smoke.md
 ```
 
-CI runs the 100-case Gemini suite and uploads JSON and Markdown artifacts even when the evaluation fails.
+CI runs the standard Gemini suite and uploads JSON and Markdown artifacts even when the evaluation fails.
 
 The **75% aggregate threshold is a permissive compatibility gate**, not release acceptance. Inspect every zero-pass pair and every subgroup below 75%, even when the overall run passes:
 
