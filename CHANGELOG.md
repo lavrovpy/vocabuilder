@@ -1,5 +1,9 @@
 # VocaBuilder Changelog
 
+## [One translation per meaning] - {PR_MERGE_DATE}
+
+- Each meaning of a looked-up word now shows a single translation instead of several alternatives joined by commas, such as `провісник` for English `bellwether` rather than `провідник, лідер думки`. Alternatives that mean different things appear as separate meanings.
+
 ## [Provider voice for every translation provider] - {PR_MERGE_DATE}
 
 - A new optional `Pronunciation API Key` preference takes a Gemini or OpenAI key and uses it only for pronunciation, so words translated with Anthropic or an OpenAI-compatible server can be spoken by Gemini or OpenAI instead of the macOS system voice. That covers Belarusian, which has no macOS voice. The key always goes to the provider's official endpoint, never to `API Server URL`, and `Pronunciation Model` applies to its provider. Leave it empty to keep pronunciation as it was.
