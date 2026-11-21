@@ -2,7 +2,7 @@
 
 ## [One translation per meaning] - {PR_MERGE_DATE}
 
-- Each meaning of a looked-up word now shows a single translation instead of several alternatives joined by commas, such as `мушля` for English `clamshell` rather than `мушля, раковина двостулкового молюска`. Alternatives that mean different things appear as separate meanings.
+- Each meaning of a looked-up word now shows a single translation instead of several alternatives joined by commas, such as `провісник` for English `bellwether` rather than `провідник, лідер думки`. Alternatives that mean different things appear as separate meanings.
 
 ## [Provider voice for every translation provider] - {PR_MERGE_DATE}
 
