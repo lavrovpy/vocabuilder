@@ -317,6 +317,9 @@
     "eval:validate": "tsx evals/promptfoo/run.ts validate -c evals/promptfooconfig.yaml",
     "eval:report": "tsx evals/promptfoo/report.ts",
     "eval:results": "tsx evals/promptfoo/run.ts view",
+    "eval:history": "tsx evals/promptfoo/score.ts history",
+    "eval:compare": "tsx evals/promptfoo/score.ts compare",
+    "eval:baseline": "tsx evals/promptfoo/score.ts baseline",
     "prepare": "husky"
   },
   "platforms": [

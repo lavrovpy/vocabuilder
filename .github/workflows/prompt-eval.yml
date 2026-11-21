@@ -76,8 +76,8 @@ jobs:
       - name: Publish eval summary
         if: always() && steps.eval.outcome != 'skipped'
         run: |
-          for summary in evals/results/summary*.md; do
-            [ -f "$summary" ] && cat "$summary" >> "$GITHUB_STEP_SUMMARY"
+          for report in evals/results/runs/*/compare-*.md evals/results/runs/*/summary.md; do
+            [ -f "$report" ] && cat "$report" >> "$GITHUB_STEP_SUMMARY"
           done
           true
 
@@ -86,6 +86,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: prompt-eval-results-${{ matrix.provider }}
-          path: evals/results/*
+          path: evals/results/
           if-no-files-found: warn
           retention-days: 30
