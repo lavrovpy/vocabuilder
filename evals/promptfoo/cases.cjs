@@ -590,6 +590,18 @@ const englishUkrainianDepthCases = [
   ],
 ];
 
+// Pairs that skip English entirely.
+const directPairCases = [
+  [
+    "ru",
+    "uk",
+    "кощунство",
+    "language-purity",
+    "hard",
+    "Translate the noun for an outrage against something sacred with the standard Ukrainian word блюзнірство (наруга над святинею is also fine). Answering only with святотатство fails: it is a bookish word spelled exactly like the Russian one, so the user gets their own word back instead of the everyday Ukrainian equivalent. It may appear only next to блюзнірство, not as the sole gloss. The target-language example must be natural Ukrainian and use its listed gloss.",
+  ],
+];
+
 const contractCases = [
   [
     "en",
@@ -703,7 +715,7 @@ const contractCases = [
   ],
 ];
 
-const allDefinitions = [...breadthCases, ...englishUkrainianDepthCases, ...contractCases];
+const allDefinitions = [...breadthCases, ...englishUkrainianDepthCases, ...directPairCases, ...contractCases];
 
 const MATRIX_SOURCE_WORDS = Object.freeze({
   en: "water",
