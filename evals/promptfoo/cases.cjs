@@ -473,6 +473,22 @@ const englishUkrainianDepthCases = [
   [
     "en",
     "uk",
+    "clamshell",
+    "polysemy",
+    "hard",
+    "Translate the shell of a clam (such as 'мушля' or 'стулка мушлі'), not the animal itself ('двостулковий молюск'). Hinged plastic packaging and the flip-phone or folding-laptop form are welcome as separate senses, each glossed as one Ukrainian equivalent such as 'розкладачка' or 'розкладний'.",
+  ],
+  [
+    "en",
+    "uk",
+    "bellwether",
+    "polysemy",
+    "hard",
+    "Translate the common figurative sense, something that signals or sets a trend, with one Ukrainian equivalent such as 'провісник' or 'індикатор'. The literal sense, the lead sheep of a flock that wears a bell ('баран-ватажок'), is welcome as a separate sense.",
+  ],
+  [
+    "en",
+    "uk",
     "red herring",
     "idiom",
     "hard",

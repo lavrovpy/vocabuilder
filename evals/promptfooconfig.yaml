@@ -95,6 +95,13 @@ defaultTest:
         5. Learner usefulness: part-of-speech choices and ordering do not mislead a
            learner. Minor stylistic variation, regional variants, and natural
            synonyms are acceptable.
+        6. One equivalent per gloss: each "translation" is a single target-language
+           word or phrase a translator would put in a sentence in place of the
+           source item. Fail a gloss that strings alternatives together with
+           commas, slashes, or semicolons, or that defines or explains the item
+           instead of translating it (for example "мушля, раковина двостулкового
+           молюска" for "clamshell"). A short descriptive phrase passes only when
+           the target language has no single-word equivalent.
 
         Return pass=true and score=1 only if all applicable criteria pass. Otherwise
         return pass=false and score=0, naming the decisive error in the reason.

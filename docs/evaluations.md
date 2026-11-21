@@ -10,10 +10,10 @@ Use the project's Node/npm versions from `.nvmrc`. Set `GEMINI_API_KEY` in `.env
 | ------------------------ | -------------: | ------------------------- | ------------------------------------------------------------------------------------- |
 | `npm run eval:validate`  |              — | —                         | Check configuration without keys or model calls.                                      |
 | `npm run eval:smoke`     |             12 | Gemini                    | Quick iteration with fixed Latin, Cyrillic, and CJK cases.                            |
-| `npm run eval`           |            100 | Gemini                    | Routine regression check across all 17 supported languages.                           |
+| `npm run eval`           |            105 | Gemini                    | Routine regression check across all 17 supported languages.                           |
 | `npm run eval:matrix`    |            272 | Gemini                    | Check every directed language pair with a common-word probe.                          |
-| `npm run eval:all`       |            372 | Gemini                    | Run standard and matrix coverage together.                                            |
-| `npm run eval:providers` | 100 per vendor | Gemini, Anthropic, OpenAI | Compare production providers; also requires `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`. |
+| `npm run eval:all`       |            377 | Gemini                    | Run standard and matrix coverage together.                                            |
+| `npm run eval:providers` | 105 per vendor | Gemini, Anthropic, OpenAI | Compare production providers; also requires `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`. |
 
 Live runs make a candidate request and a semantic judge request for each case, except when input validation rejects the candidate locally. The matrix is intentionally opt-in because of its cost.
 
