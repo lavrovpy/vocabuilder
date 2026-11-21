@@ -16,7 +16,7 @@ const USAGE = `Usage: npm run eval -- --model <route>[/<model>] [--model …] --
             Routes: ${CANDIDATE_ROUTES.join(", ")}
   --judge   the llm-rubric grader. Routes: gemini, anthropic, openai, openrouter, vertex, bedrock
 
-Example: npm run eval -- --model gemini --judge gemini/gemini-3-flash-preview`;
+Example: npm run eval -- --model anthropic --judge anthropic/claude-sonnet-5-5`;
 
 /** The app has no production default model for these routes. */
 const MODEL_REQUIRED_ROUTES: ReadonlySet<CandidateRoute> = new Set(["openrouter", "openai-compatible"]);
@@ -36,6 +36,11 @@ type JudgeRouteSpec = {
 // temperature, so only the Google judges get the rubric's sampling settings.
 const GOOGLE_JUDGE_CONFIG = { temperature: 0, maxOutputTokens: 8192, retries: 3, timeout: 60000 };
 
+// Claude judges think adaptively, and thinking counts toward max_tokens. Promptfoo's
+// default of 2048 can run out before the verdict, and a reply without a verdict fails
+// the case. Effort is pinned because the model's default effort can change between releases.
+const ANTHROPIC_JUDGE_CONFIG = { max_tokens: 16000, effort: "high" };
+
 const JUDGE_ROUTES = {
   gemini: {
     promptfooId: (model) => `google:${model}`,
@@ -43,7 +48,11 @@ const JUDGE_ROUTES = {
     fallbackKeyEnv: ["GEMINI_API_KEY"],
     config: GOOGLE_JUDGE_CONFIG,
   },
-  anthropic: { promptfooId: (model) => `anthropic:messages:${model}`, keyEnv: "ANTHROPIC_API_KEY" },
+  anthropic: {
+    promptfooId: (model) => `anthropic:messages:${model}`,
+    keyEnv: "ANTHROPIC_API_KEY",
+    config: ANTHROPIC_JUDGE_CONFIG,
+  },
   openai: { promptfooId: (model) => `openai:responses:${model}`, keyEnv: "OPENAI_API_KEY" },
   openrouter: { promptfooId: (model) => `openrouter:${model}`, keyEnv: "OPENROUTER_API_KEY" },
   // Promptfoo silently switches Vertex to API-key "express mode" when either key variable is set.
@@ -371,7 +380,7 @@ if (import.meta.vitest) {
     });
 
     it("prints the usage with every error", () => {
-      expect(() => parseEvalArgs([])).toThrow(/Example: npm run eval -- --model gemini --judge/);
+      expect(() => parseEvalArgs([])).toThrow(/Example: npm run eval -- --model anthropic --judge/);
     });
   });
 
@@ -393,7 +402,7 @@ if (import.meta.vitest) {
     it.each([
       ["gemini/gemini-3.1-pro", "google:gemini-3.1-pro", GOOGLE_JUDGE_CONFIG],
       ["vertex/gemini-3.1-pro", "vertex:gemini-3.1-pro", GOOGLE_JUDGE_CONFIG],
-      ["anthropic/claude-opus-5-5", "anthropic:messages:claude-opus-5-5", {}],
+      ["anthropic/claude-opus-5-5", "anthropic:messages:claude-opus-5-5", ANTHROPIC_JUDGE_CONFIG],
       ["openai/gpt-6", "openai:responses:gpt-6", {}],
       ["openrouter/anthropic/claude-sonnet-5-5", "openrouter:anthropic/claude-sonnet-5-5", {}],
       ["bedrock/us.anthropic.claude-sonnet-4-5-v1:0", "bedrock:converse:us.anthropic.claude-sonnet-4-5-v1:0", {}],

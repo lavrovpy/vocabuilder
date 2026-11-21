@@ -21,9 +21,9 @@ prompts:
 # validates on its own and a bare `promptfoo eval` runs the production default.
 providers:
   - id: file://promptfoo/provider.ts
-    label: vocabuilder-gemini
+    label: vocabuilder-anthropic
     config:
-      provider: gemini
+      provider: anthropic
 
 defaultTest:
   options:
@@ -32,12 +32,10 @@ defaultTest:
     # The judge. Keep it here, not on the assertion: an assertion-level provider
     # would override the one run.ts sets from --judge.
     provider:
-      id: google:gemini-3-flash-preview
+      id: anthropic:messages:claude-sonnet-5-5
       config:
-        temperature: 0
-        maxOutputTokens: 8192
-        retries: 3
-        timeout: 60000
+        max_tokens: 16000
+        effort: high
   assert:
     - type: javascript
       metric: application_contract

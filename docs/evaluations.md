@@ -4,11 +4,11 @@ The suite tests the production `translateWord` result: validated, deduplicated s
 
 ## Choose a run
 
-Use the project's Node/npm versions from `.nvmrc`. Set `GEMINI_API_KEY` in `.env`, starting from [`.env.example`](../.env.example). Every live run names its candidates and its judge:
+Use the project's Node/npm versions from `.nvmrc`. Set `ANTHROPIC_API_KEY` in `.env`, starting from [`.env.example`](../.env.example). Every live run names its candidates and its judge:
 
 ```bash
-npm run eval -- --model gemini --judge gemini/gemini-3-flash-preview                        # what CI runs
-npm run eval -- --model gemini --model anthropic --model openai --judge gemini/gemini-3-flash-preview
+npm run eval -- --model anthropic --judge anthropic/claude-sonnet-5-5                        # what CI runs
+npm run eval -- --model anthropic --model gemini --model openai --judge anthropic/claude-sonnet-5-5
 npm run eval -- --model anthropic/claude-sonnet-5-5 --judge vertex/gemini-3.1-pro
 ```
 
@@ -37,7 +37,7 @@ Both flags take `<route>/<model>`, split at the first slash. A route alone (`--m
 
 A missing route, model, or variable stops the run before any request. `GEMINI_BASE_URL`, `ANTHROPIC_BASE_URL` and `OPENAI_BASE_URL` point a candidate at another server, such as a local proxy.
 
-`EVAL_JUDGE_API_KEY` and `EVAL_JUDGE_API_BASE_URL` give a key-based judge its own key or server. The runner puts that key in the judge's native variable and keeps a candidate on the same route on its own key, so an OpenAI judge with `EVAL_JUDGE_API_KEY` never lends that key to an OpenAI candidate, and a missing candidate key is still an error. Both variables are rejected for `vertex` and `bedrock`, which sign in with cloud credentials. Only the `gemini` and `vertex` judges run with `temperature: 0`; current Claude and OpenAI reasoning models reject a non-default temperature.
+`EVAL_JUDGE_API_KEY` and `EVAL_JUDGE_API_BASE_URL` give a key-based judge its own key or server. The runner puts that key in the judge's native variable and keeps a candidate on the same route on its own key, so an OpenAI judge with `EVAL_JUDGE_API_KEY` never lends that key to an OpenAI candidate, and a missing candidate key is still an error. Both variables are rejected for `vertex` and `bedrock`, which sign in with cloud credentials. Only the `gemini` and `vertex` judges run with `temperature: 0`; current Claude and OpenAI reasoning models reject a non-default temperature. Claude judges run with `max_tokens: 16000` and `effort: "high"`: their thinking counts toward `max_tokens`, and Promptfoo's default of 2048 can end the reply before the verdict, which fails the case.
 
 Keys stay in the process environment. Keep them out of YAML provider configuration because that configuration can be retained in exported results.
 
@@ -49,7 +49,7 @@ The Markdown report names the judge and groups pass rates by provider, language 
 
 Use `npm run eval:results` for Promptfoo's viewer. Rebuild a summary with `npm run eval:report -- evals/results/promptfoo-<slug>.json`.
 
-CI runs the standard suite once per vendor (gemini, anthropic, openai) under the Gemini judge, and uploads JSON and Markdown artifacts even when the evaluation fails. The gemini leg is required; the other legs warn and skip when their key is not a repository secret.
+CI runs the standard suite once per vendor (anthropic, gemini, openai) under the Claude Sonnet 5.5 judge, and uploads JSON and Markdown artifacts even when the evaluation fails. The anthropic leg is required, because its key also runs the judge; the other legs warn and skip when their key is not a repository secret.
 
 The **75% aggregate threshold is a permissive compatibility gate**, not release acceptance. Inspect every zero-pass pair and every subgroup below 75%, even when the overall run passes:
 

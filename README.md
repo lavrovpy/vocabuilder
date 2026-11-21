@@ -77,15 +77,15 @@ Tests run with `npm test`.
 
 ## Translation evaluations
 
-Set `GEMINI_API_KEY` in `.env` using [`.env.example`](.env.example), then run:
+Set `ANTHROPIC_API_KEY` in `.env` using [`.env.example`](.env.example), then run:
 
 ```bash
-npm run eval:validate                                                    # configuration check; no keys or model calls
-npm run eval:smoke -- --model gemini --judge gemini/gemini-3-flash-preview # 12 fixed multilingual cases
-npm run eval -- --model gemini --judge gemini/gemini-3-flash-preview       # standard regression suite
+npm run eval:validate                                                      # configuration check; no keys or model calls
+npm run eval:smoke -- --model anthropic --judge anthropic/claude-sonnet-5-5 # 12 fixed multilingual cases
+npm run eval -- --model anthropic --judge anthropic/claude-sonnet-5-5       # standard regression suite
 ```
 
-Repeat `--model` (`--model gemini --model anthropic --model openai`) to compare providers side by side. Results include JSON and a Markdown failure breakdown. See [the evaluation guide](docs/evaluations.md) for every `--model` and `--judge` route, all-pairs coverage, and how to assess failures.
+Repeat `--model` (`--model anthropic --model gemini --model openai`) to compare providers side by side. Results include JSON and a Markdown failure breakdown. See [the evaluation guide](docs/evaluations.md) for every `--model` and `--judge` route, all-pairs coverage, and how to assess failures.
 
 ## License
 

@@ -34,18 +34,18 @@ jobs:
     name: Translate Prompt Eval (${{ matrix.provider }})
     runs-on: ubuntu-latest
     env:
-      EVAL_JUDGE: gemini/gemini-3-flash-preview
+      EVAL_JUDGE: anthropic/claude-sonnet-5-5
 
     strategy:
       fail-fast: false
       matrix:
         include:
-          # The gemini leg is required: GEMINI_API_KEY also runs the judge for every leg.
-          - provider: gemini
-            secret: GEMINI_API_KEY
-            optional: false
+          # The anthropic leg is required: ANTHROPIC_API_KEY also runs the judge for every leg.
           - provider: anthropic
             secret: ANTHROPIC_API_KEY
+            optional: false
+          - provider: gemini
+            secret: GEMINI_API_KEY
             optional: true
           - provider: openai
             secret: OPENAI_API_KEY
@@ -87,7 +87,7 @@ jobs:
         id: eval
         if: steps.key.outputs.present == 'true'
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PROVIDER_KEY: ${{ secrets[matrix.secret] }}
         run: |
           export "${{ matrix.secret }}=$PROVIDER_KEY"
