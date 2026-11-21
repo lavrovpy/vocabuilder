@@ -1,10 +1,11 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { CANDIDATE_ROUTES, type CandidateRoute, candidateCredentialEnvName, requiredCandidateEnv } from "./provider";
 import { writeEvaluationReport } from "./report";
+import { fileSafe, readCodeState, recordRun, runDirName, suiteSha256 } from "./score";
 
 const PROVIDER_MODULE = fileURLToPath(new URL("./provider.ts", import.meta.url));
 const RESULTS_DIR = fileURLToPath(new URL("../results", import.meta.url));
@@ -168,10 +169,7 @@ function candidateLabel(candidate: Candidate): string {
 }
 
 function resultSlug(candidates: Candidate[]): string {
-  return candidates
-    .map((candidate) => `${candidate.route}-${candidate.model ?? "default"}`)
-    .join("+")
-    .replace(/[^\p{L}\p{N}._+-]+/gu, "-");
+  return fileSafe(candidates.map((candidate) => `${candidate.route}-${candidate.model ?? "default"}`).join("+"));
 }
 
 function escapeRegExp(value: string): string {
@@ -285,30 +283,46 @@ async function runPromptfoo(args: string[], env: NodeJS.ProcessEnv): Promise<num
   return status;
 }
 
+/**
+ * Each run gets its own directory under `<resultsDir>/runs/`, so runs never
+ * replace each other. The code state is read before Promptfoo starts, because
+ * the prompt may be edited while a long run is still going.
+ */
 async function runEval(args: string[], env: NodeJS.ProcessEnv, resultsDir: string): Promise<number> {
   const plan = parseEvalArgs(args);
-  const slug = resultSlug(plan.candidates);
-  const output = path.join(resultsDir, `promptfoo-${slug}.json`);
-  const summary = path.join(resultsDir, `summary-${slug}.md`);
-  // Clear the previous run first, so a summary never outlives a run that failed to start.
-  rmSync(output, { force: true });
-  rmSync(summary, { force: true });
-
   checkCandidateEnvironment(plan.candidates, env);
   const childEnv = judgeEnvironment(plan.judge, env);
   const filter = `^(?:${plan.candidates.map((candidate) => escapeRegExp(candidateLabel(candidate))).join("|")})$`;
 
+  const context = { recordedAt: new Date(), code: readCodeState(), suiteSha256: suiteSha256() };
+  const runDir = path.join(resultsDir, "runs", runDirName(context.recordedAt, context.code, resultSlug(plan.candidates)));
+  mkdirSync(runDir, { recursive: true });
+  if (context.code.diff) writeFileSync(path.join(runDir, "changes.patch"), context.code.diff);
+  const output = path.join(runDir, "promptfoo.json");
+  const summary = path.join(runDir, "summary.md");
+
   const directory = mkdtempSync(path.join(tmpdir(), "vocabuilder-eval-"));
+  let status: number;
   try {
     const generated = path.join(directory, "run.json");
     writeFileSync(generated, JSON.stringify(generatedConfig(plan, env)));
-    return await runPromptfoo(
+    status = await runPromptfoo(
       ["eval", ...plan.promptfooArgs, "-c", generated, "--filter-providers", filter, "-o", output, "--summary", summary],
       childEnv,
     );
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+
+  if (!existsSync(output)) return status;
+  try {
+    recordRun(runDir, JSON.parse(readFileSync(output, "utf8")), context);
+  } catch (error: unknown) {
+    process.stderr.write(`The run could not be scored: ${error instanceof Error ? error.message : String(error)}\n`);
+    return status || 1;
+  }
+  process.stdout.write(`Run recorded in ${path.relative(process.cwd(), runDir)}\n`);
+  return status;
 }
 
 async function main(): Promise<void> {
@@ -522,19 +536,14 @@ if (import.meta.vitest) {
   });
 
   describe("runEval", () => {
-    it("clears the previous results of the same candidates before rejecting missing credentials", async () => {
-      const { mkdtemp, rm, writeFile } = await import("node:fs/promises");
+    it("records no run when credentials are missing", async () => {
+      const { mkdtemp, rm } = await import("node:fs/promises");
       const directory = await mkdtemp(path.join(tmpdir(), "vocabuilder-eval-"));
       try {
-        const output = path.join(directory, "promptfoo-anthropic-default.json");
-        const summary = path.join(directory, "summary-anthropic-default.md");
-        await writeFile(output, JSON.stringify({ results: [] }));
-        await writeFile(summary, "Previous run");
         await expect(
           runEval(["--model", "anthropic", "--judge", "gemini/x"], { GEMINI_API_KEY: "g" }, directory),
         ).rejects.toThrow(/ANTHROPIC_API_KEY/);
-        expect(existsSync(output)).toBe(false);
-        expect(existsSync(summary)).toBe(false);
+        expect(existsSync(path.join(directory, "runs"))).toBe(false);
       } finally {
         await rm(directory, { recursive: true, force: true });
       }

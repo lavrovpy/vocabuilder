@@ -79,7 +79,7 @@ function extractMetadata(row: UnknownRecord): Record<string, string> {
   return metadata;
 }
 
-function extractRows(document: unknown): EvaluationRow[] {
+export function extractRows(document: unknown): EvaluationRow[] {
   return rowsFromDocument(document).map((value, index) => {
     if (!isRecord(value)) throw new Error(`Promptfoo result row ${index + 1} is not an object.`);
     const testCase = recordAt(value, "testCase") ?? recordAt(value, "test") ?? {};
@@ -145,7 +145,7 @@ function groupTable(title: string, groups: Map<string, GroupStats>): string {
 }
 
 /** Scores from different judges are not comparable, so the summary names the one used. */
-function judgeOf(document: unknown): string | undefined {
+export function judgeOf(document: unknown): string | undefined {
   const options = recordAt(recordAt(recordAt(document, "config"), "defaultTest"), "options");
   if (typeof options?.provider === "string") return options.provider;
   return stringAt(recordAt(options, "provider"), "id");
@@ -204,16 +204,15 @@ export async function writeEvaluationReport(inputPath: string, outputPath: strin
   process.stdout.write(`Wrote evaluation summary to ${outputPath}\n`);
 }
 
-/** `results/promptfoo-<slug>.json` → `results/summary-<slug>.md`, the pair `npm run eval` writes. */
+/** `<run>/promptfoo.json` → `<run>/summary.md`, the pair `npm run eval` writes. */
 function defaultSummaryPath(inputPath: string): string {
-  const name = path.basename(inputPath, ".json").replace(/^promptfoo-/, "");
-  return path.join(path.dirname(inputPath), `summary-${name}.md`);
+  return path.join(path.dirname(inputPath), "summary.md");
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [input, output] = process.argv.slice(2);
   if (!input) {
-    process.stderr.write("Usage: npm run eval:report -- evals/results/promptfoo-<slug>.json [summary.md]\n");
+    process.stderr.write("Usage: npm run eval:report -- evals/results/runs/<run>/promptfoo.json [summary.md]\n");
     process.exit(1);
   }
   writeEvaluationReport(path.resolve(input), path.resolve(output ?? defaultSummaryPath(input))).catch((error: unknown) => {
@@ -255,10 +254,9 @@ if (import.meta.vitest) {
       expect(report).toContain("Literal translation.");
     });
 
-    it("pairs a results file with the summary name npm run eval gives it", () => {
-      expect(defaultSummaryPath("evals/results/promptfoo-gemini-default+anthropic-default.json")).toBe(
-        path.join("evals/results", "summary-gemini-default+anthropic-default.md"),
-      );
+    it("writes the summary next to the results file of its run", () => {
+      const run = "evals/results/runs/2026-11-21T15-42-07Z-a5cd494-gemini-default";
+      expect(defaultSummaryPath(`${run}/promptfoo.json`)).toBe(path.join(run, "summary.md"));
     });
 
     it("names the judge from the run's config", () => {
