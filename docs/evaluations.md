@@ -43,11 +43,35 @@ Keys stay in the process environment. Keep them out of YAML provider configurati
 
 ## Read the results
 
-Results live in the ignored `evals/results/` directory, named after the candidates: `--model gemini --model openai/gpt-6` writes `promptfoo-gemini-default+openai-gpt-6.json` and `summary-gemini-default+openai-gpt-6.md`. The smoke, standard, and matrix scripts share that name, so each run replaces the previous one for the same candidates.
+Every run gets its own directory under the ignored `evals/results/runs/`, so no run replaces another. The name starts with the UTC time and the commit, and says `dirty` when the working tree had changes: `2026-11-21T15-42-07Z-a5cd494-dirty-anthropic-default/`. It holds:
 
-The Markdown report names the judge and groups pass rates by provider, language pair, category, difficulty, and tier, then lists individual failures and provider errors. Completed runs generate the report even below the pass-rate threshold and retain the failing exit code. Starting a run clears its previous JSON and summary so an early failure cannot leave a stale report.
+- `promptfoo.json`: Promptfoo's raw results.
+- `summary.md`: the Markdown report.
+- `score-<candidate>.json`: the pass count of every case for one candidate, plus the commit, a hash of the uncommitted diff, the judge, the Promptfoo version and a fingerprint of the suite files.
+- `changes.patch`: the uncommitted diff the run measured, new files included. It is written only when the tree was dirty.
+- `compare-<candidate>.md`: the comparison with the candidate's baseline, when one exists. The runner also prints it.
 
-Use `npm run eval:results` for Promptfoo's viewer. Rebuild a summary with `npm run eval:report -- evals/results/promptfoo-<slug>.json`.
+The Markdown report names the judge and groups pass rates by provider, language pair, category, difficulty, and tier, then lists individual failures and provider errors. Completed runs generate the report even below the pass-rate threshold and retain the failing exit code.
+
+Use `npm run eval:results` for Promptfoo's viewer. Rebuild a summary with `npm run eval:report -- evals/results/runs/<run>/promptfoo.json`.
+
+## Hill-climb a change
+
+A committed baseline per candidate, `evals/baselines/<candidate>.json`, holds the score of the accepted state. Its schema is `ScoreSchema` in [`score.ts`](../evals/promptfoo/score.ts).
+
+1. Record a starting baseline: run the suite with repeats, then `npm run eval:baseline`, and commit the file.
+2. Change the prompt or the pipeline, then run with the same candidate and judge:
+   ```bash
+   npm run eval -- --model anthropic --judge anthropic/claude-sonnet-5-5 --repeat 3
+   ```
+   The run prints how each case moved against the baseline.
+3. Keep the change: `npm run eval:baseline` and commit the baseline with the change in one commit. Drop it: revert the change; the run stays in `evals/results/runs/` as a record.
+
+- `npm run eval:history` lists every run with its commit, judge, repeats, case count, pass rate and suite fingerprint, and marks the runs recorded as baselines. A `+` after the commit means the run had uncommitted changes, kept in its `changes.patch`.
+- `npm run eval:compare` compares the latest run with the baselines; `npm run eval:compare -- <run> <other run>` compares two runs.
+- `eval:baseline` takes the latest run, or the one you name. It refuses a run with provider errors, and a run whose commit plus uncommitted diff is not what the working tree holds now, so a baseline always describes the code it is committed with.
+
+Compare runs only when the judge, the suite fingerprint and the Promptfoo version match; `eval:compare` warns on each mismatch. A single run is too noisy to compare: about a third of cases flip between two runs of the same code. Use `--repeat 3` or more, and read the per-case changes before the overall rate.
 
 CI runs evals only when started by hand from the Actions tab (the Prompt Eval workflow); pull requests and pushes do not trigger it. A run covers the standard suite once per vendor (anthropic, gemini, openai) under the Claude Sonnet 5.5 judge, and uploads JSON and Markdown artifacts even when the evaluation fails. The anthropic leg is required, because its key also runs the judge; the other legs warn and skip when their key is not a repository secret.
 
