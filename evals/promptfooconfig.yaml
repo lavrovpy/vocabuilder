@@ -4,11 +4,6 @@ env:
   PROMPTFOO_PASS_RATE_THRESHOLD: 75
   PROMPTFOO_REQUEST_BACKOFF_MS: 10000
 
-# maxConcurrency drives parallelism; each row makes one production translation
-# call, one deterministic contract assertion, and one semantic judge call, so
-# peak in-flight ≈ 2 × this value. Transient 429s are absorbed by the app's own
-# retry layer (src/lib/providers/transport.ts) and PROMPTFOO_REQUEST_BACKOFF_MS.
-# `delay` is intentionally omitted — it only applies at maxConcurrency: 1.
 commandLineOptions:
   maxConcurrency: 4
   share: false
@@ -16,9 +11,7 @@ commandLineOptions:
 prompts:
   - "{{input}}"
 
-# `npm run eval` replaces this entry and the judge below with the ones named by
-# --model and --judge (evals/promptfoo/run.ts). They are here so the file still
-# validates on its own and a bare `promptfoo eval` runs the production default.
+# Required for eval:validate; npm run eval replaces it with the --model entries (run.ts).
 providers:
   - id: file://promptfoo/provider.ts
     label: vocabuilder-anthropic
@@ -29,13 +22,8 @@ defaultTest:
   options:
     transformVars: file://promptfoo/transform-vars.cjs
     rubricPrompt: file://promptfoo/judge-prompt.txt
-    # The judge. Keep it here, not on the assertion: an assertion-level provider
-    # would override the one run.ts sets from --judge.
-    provider:
-      id: anthropic:messages:claude-sonnet-5-5
-      config:
-        max_tokens: 16000
-        effort: high
+    # No judge here or on the assertion: run.ts sets it from --judge, and an
+    # assertion-level provider would override that.
   assert:
     - type: javascript
       metric: application_contract

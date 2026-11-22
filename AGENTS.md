@@ -161,7 +161,7 @@ A route alone (`--model anthropic`) leaves the model unset, so the app sends its
 
 ## Layout
 
-- `evals/promptfooconfig.yaml` — suite settings plus deterministic and model-graded assertions. Its one provider entry and its judge (`defaultTest.options.provider`) are defaults for a bare `promptfoo` run; `npm run eval` replaces both
+- `evals/promptfooconfig.yaml` — suite settings plus deterministic and model-graded assertions. Its one provider entry exists so `eval:validate` loads; `npm run eval` replaces it and supplies the judge (`defaultTest.options.provider`) itself
 - `evals/promptfoo/cases.cjs` — generated risk-based dataset plus an optional common-word matrix covering every directed language pair
 - `evals/promptfoo/assert-output.cjs` — deterministic application-contract assertion for projections, corrections, rejections, sense uniqueness, exact source-form examples, and known-wrong translations
 - `evals/promptfoo/judge-prompt.txt` — isolated, injection-resistant judge wrapper
@@ -194,7 +194,7 @@ A route alone (`--model anthropic`) leaves the model unset, so the app sends its
 **Suite configuration**
 
 - **Select the suite by case metadata.** `eval` passes `--filter-metadata suite=standard`, `eval:smoke` `tier=smoke` and `eval:matrix` `suite=matrix`; all three take the same `--model`/`--judge` flags. Every run gets its own timestamped directory, so no run replaces another.
-- **Keep the judge in `defaultTest.options.provider`.** Promptfoo merges the generated config over the YAML and the generated judge replaces that object whole; a `provider:` on the `llm-rubric` assertion itself would override `--judge` silently.
+- **Keep the judge out of the YAML.** `run.ts` writes it into `defaultTest.options.provider` of the generated config; a `provider:` on the `llm-rubric` assertion itself would override `--judge` silently.
 - **Only the Google judges get sampling settings.** `gemini` and `vertex` judges run with `temperature: 0`; current Claude models and OpenAI reasoning models reject a non-default temperature. Claude judges get `max_tokens: 16000` and `effort: "high"` instead (`ANTHROPIC_JUDGE_CONFIG` in `run.ts`): their adaptive thinking counts toward `max_tokens`, and Promptfoo's default of 2048 can cut the reply before the verdict.
 - **Judge credentials.** `EVAL_JUDGE_API_KEY` (and `EVAL_JUDGE_API_BASE_URL`) give a key-based judge its own key or server; the runner puts the key in the judge's native variable and keeps a candidate on the same route on its own key, never the judge's. Both are rejected for `vertex` and `bedrock`, which sign in with cloud credentials. For a Vertex judge the runner removes `GOOGLE_API_KEY` and `VERTEX_API_KEY`, because Promptfoo silently switches Vertex to API-key "express mode" when either is set. Keep secrets in the process environment because raw Promptfoo JSON can retain assertion-provider config.
 - **CI runs one matrix leg per vendor, on manual dispatch only.** Pull requests and pushes do not trigger `.github/workflows/prompt-eval.yml`; start it from the Actions tab. It runs `npm run eval -- --model <vendor> --judge "$EVAL_JUDGE"` for anthropic, gemini and openai under `anthropic/claude-sonnet-5-5`, each with `ANTHROPIC_API_KEY` (the judge) plus its own key from repository secrets, and appends each leg's summary to the job summary. The anthropic leg fails when its key is missing; the gemini and openai legs only warn and skip, so they cost nothing until their secrets are added. A Vertex or Bedrock judge in CI would also need the cloud's sign-in action and `id-token: write`.
