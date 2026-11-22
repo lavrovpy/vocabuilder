@@ -33,10 +33,12 @@ type CandidateEnvSpec = {
   fixedBaseUrl?: string;
 };
 
+// Server overrides carry an EVAL_ prefix: agent shells export ANTHROPIC_BASE_URL for
+// their own proxy, and the vendor names would send the candidate there.
 const CANDIDATE_ENV = {
-  gemini: { provider: "gemini", apiKey: "GEMINI_API_KEY", baseUrl: "GEMINI_BASE_URL" },
-  anthropic: { provider: "anthropic", apiKey: "ANTHROPIC_API_KEY", baseUrl: "ANTHROPIC_BASE_URL" },
-  openai: { provider: "openai", apiKey: "OPENAI_API_KEY", baseUrl: "OPENAI_BASE_URL" },
+  gemini: { provider: "gemini", apiKey: "GEMINI_API_KEY", baseUrl: "EVAL_GEMINI_BASE_URL" },
+  anthropic: { provider: "anthropic", apiKey: "ANTHROPIC_API_KEY", baseUrl: "EVAL_ANTHROPIC_BASE_URL" },
+  openai: { provider: "openai", apiKey: "OPENAI_API_KEY", baseUrl: "EVAL_OPENAI_BASE_URL" },
   "openai-compatible": {
     provider: "openai-compatible",
     apiKey: "OPENAI_COMPATIBLE_API_KEY",
