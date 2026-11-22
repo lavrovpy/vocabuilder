@@ -38,6 +38,13 @@ describe("structured output JSON schemas", () => {
     expect(new Set(WordResponseJsonSchema.properties.senses.items.propertyOrdering)).toEqual(new Set(jsonKeys));
   });
 
+  it("has the model write the source example before the target example", () => {
+    const { properties, propertyOrdering } = WordResponseJsonSchema.properties.senses.items;
+    for (const order of [Object.keys(properties), [...propertyOrdering]]) {
+      expect(order.indexOf("exampleTranslation")).toBeLessThan(order.indexOf("example"));
+    }
+  });
+
   it("constrains register to the shared enum", () => {
     expect(WordResponseJsonSchema.properties.senses.items.properties.register.enum).toEqual(REGISTER_VALUES);
   });

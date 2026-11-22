@@ -97,13 +97,13 @@ export const WordResponseJsonSchema = {
             description:
               'Part of speech label. Use "phrasal verb", "idiom", or "expression" for multi-word items; "expression" is a catch-all for borderline cases.',
           },
-          example: {
-            type: "string",
-            description: "Natural target-language example sentence.",
-          },
           exampleTranslation: {
             type: "string",
-            description: "Source-language example sentence containing the source item or corrected item.",
+            description: "Typical source-language sentence using the source item or corrected item in this sense.",
+          },
+          example: {
+            type: "string",
+            description: "The target-language sentence a native speaker would say with the same meaning.",
           },
           transcription: {
             type: "string",
@@ -123,11 +123,14 @@ export const WordResponseJsonSchema = {
         },
         required: ["translation", "partOfSpeech", "example", "exampleTranslation"],
         additionalProperties: false,
+        // Models generate fields in this order (Anthropic and OpenAI follow the key order of
+        // `properties` instead). Keep exampleTranslation before example in both: a target
+        // sentence written first gets back-translated into an unnatural source one.
         propertyOrdering: [
           "translation",
           "partOfSpeech",
-          "example",
           "exampleTranslation",
+          "example",
           "transcription",
           "forms",
           "register",
