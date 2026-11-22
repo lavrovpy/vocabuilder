@@ -90,7 +90,7 @@ The matrix translates each source language's word for “water” into the other
 Two assertions grade each result:
 
 - **Application contract:** [`assert-output.cjs`](../evals/promptfoo/assert-output.cjs) checks projection, exact outcome/correction fields, one to five complete unique senses, source-form examples, and explicit known-wrong glosses. Sense identity, forbidden forms, and source-form matching use NFKC normalization, trimming, and lowercasing; source-form matching is a substring check without stemming.
-- **Translation quality:** [`judge-prompt.txt`](../evals/promptfoo/judge-prompt.txt) and the YAML rubric grade meaning, useful sense coverage, target-language quality, and natural paired examples. Any failed applicable criterion fails the semantic assertion. Inputs and candidate output are treated as untrusted evidence.
+- **Translation quality:** [`judge-prompt.cjs`](../evals/promptfoo/judge-prompt.cjs) defines the static `system` grading instructions (security boundary, schema semantics, criteria 1–6, and JSON verdict format) and isolates the candidate output and per-case YAML fields inside the `user` message as untrusted data. Any failed applicable criterion fails the semantic assertion.
 
 The judge has not been calibrated against a human-labeled holdout set. Use native-speaker review and repeated runs before treating its score as release evidence or tightening the threshold.
 

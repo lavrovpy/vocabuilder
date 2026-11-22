@@ -24,7 +24,7 @@ const SUITE_FILES = [
   "evals/promptfooconfig.yaml",
   "evals/promptfoo/cases.cjs",
   "evals/promptfoo/assert-output.cjs",
-  "evals/promptfoo/judge-prompt.txt",
+  "evals/promptfoo/judge-prompt.cjs",
   "evals/promptfoo/transform-vars.cjs",
 ];
 
