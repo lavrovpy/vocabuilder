@@ -24,7 +24,7 @@ const SUITE_FILES = [
   "evals/promptfooconfig.yaml",
   "evals/promptfoo/cases.cjs",
   "evals/promptfoo/assert-output.cjs",
-  "evals/promptfoo/judge-prompt.txt",
+  "evals/promptfoo/judge-prompt.cjs",
   "evals/promptfoo/transform-vars.cjs",
 ];
 
@@ -608,6 +608,12 @@ if (import.meta.vitest) {
   describe("readCodeState", () => {
     it("reads the commit this checkout is on", () => {
       expect(readCodeState().commit).toMatch(/^[0-9a-f]{40}$/);
+    });
+  });
+
+  describe("suiteSha256", () => {
+    it("produces a SHA-256 digest of the suite files", () => {
+      expect(suiteSha256()).toMatch(SHA256);
     });
   });
 }
