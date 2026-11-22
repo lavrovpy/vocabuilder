@@ -97,13 +97,13 @@ export const WordResponseJsonSchema = {
             description:
               'Part of speech label. Use "phrasal verb", "idiom", or "expression" for multi-word items; "expression" is a catch-all for borderline cases.',
           },
-          example: {
-            type: "string",
-            description: "Natural target-language example sentence.",
-          },
           exampleTranslation: {
             type: "string",
-            description: "Source-language example sentence containing the source item or corrected item.",
+            description: "Typical source-language sentence using the source item or corrected item in this sense.",
+          },
+          example: {
+            type: "string",
+            description: "The target-language sentence a native speaker would say with the same meaning.",
           },
           transcription: {
             type: "string",
@@ -126,8 +126,8 @@ export const WordResponseJsonSchema = {
         propertyOrdering: [
           "translation",
           "partOfSpeech",
-          "example",
           "exampleTranslation",
+          "example",
           "transcription",
           "forms",
           "register",
