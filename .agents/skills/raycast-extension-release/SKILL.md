@@ -166,4 +166,3 @@ When the docs and the CI scripts disagree, **the scripts win**. `reference.md` l
 
 - Run every command through `mise exec --` (`mise exec -- npm run build`). The shell default Node is not the `.nvmrc` one, and git hooks inherit the Node of the `git commit` process.
 - Store CI provisions Node 22.22.2 / npm 10.9.7. Regenerate `package-lock.json` only on npm 10.x — npm 11 drops an optional-peer node that `npm ci` then reports as `Missing: <pkg> from lock file`.
-- `AGENTS.md` holds the project conventions; `CLAUDE.md` is a symlink to it and publishes as a regular file.
