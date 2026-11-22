@@ -30,6 +30,8 @@ defaultTest:
       value: file://promptfoo/assert-output.cjs
     - type: llm-rubric
       metric: translation_quality
+      # judge-prompt.cjs references the "Intended meaning and coverage" and
+      # "Deterministic expectations JSON" labels below and the "application_contract" metric above.
       value: |
         Source item: {{input}}
         Source language: {{sourceLanguageName}}

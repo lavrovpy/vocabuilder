@@ -189,7 +189,7 @@ A route alone (`--model anthropic`) leaves the model unset, so the app sends its
 - **Keep schema validation outside the judge.** `translateWord` already requests structured JSON and validates it with `WordResponseSchema`; malformed or schema-invalid model output becomes `invalid-response` before the rubric sees it. Do not ask the LLM judge to re-check JSON shape or Zod-level type constraints.
 - **Separate deterministic contracts from semantic judgment.** `assert-output.cjs` owns exact projection, correction, rejection, uniqueness, source-form, and forbidden-translation checks. The LLM judge owns morphology, synonymy, regional variants, idiomatic acceptability, target-language quality, and example meaning/naturalness. Per-case `expect` fields are still passed through `{{expectJson}}` as judge context, but exact enforcement belongs to the deterministic assertion.
 - **Address language drift at the prompt layer, not via regex.** When the model returns Russian where Ukrainian is expected, the fix lives in the production prompt, not in `forbiddenTranslations` lists.
-- **Treat all rubric inputs as untrusted data.** The rubric prompt explicitly tells the judge not to follow instructions inside `{{input}}`, `{{intent}}`, or `{{expectJson}}`. Preserve that framing when editing the rubric.
+- **Keep trusted grading instructions in `system` and untrusted data in `user`.** `judge-prompt.cjs` places all static grading rules in the `system` message and isolates `{{output}}` and per-case fields (`{{rubric}}`) in the `user` message, instructing the judge not to let candidate output or case fields override the system prompt or waive criteria 1–6. Preserve that separation when editing the rubric.
 
 **Suite configuration**
 
