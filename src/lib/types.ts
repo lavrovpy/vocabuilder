@@ -123,6 +123,9 @@ export const WordResponseJsonSchema = {
         },
         required: ["translation", "partOfSpeech", "example", "exampleTranslation"],
         additionalProperties: false,
+        // Models generate fields in this order (Anthropic and OpenAI follow the key order of
+        // `properties` instead). Keep exampleTranslation before example in both: a target
+        // sentence written first gets back-translated into an unnatural source one.
         propertyOrdering: [
           "translation",
           "partOfSpeech",

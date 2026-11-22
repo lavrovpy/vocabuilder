@@ -38,9 +38,6 @@ describe("structured output JSON schemas", () => {
     expect(new Set(WordResponseJsonSchema.properties.senses.items.propertyOrdering)).toEqual(new Set(jsonKeys));
   });
 
-  // Providers generate fields in schema order. A target sentence written before its
-  // source sentence gets built around the gloss and back-translated into an
-  // unnatural source example ("The bread went stiff" / «Хліб став твердим»).
   it("has the model write the source example before the target example", () => {
     const { properties, propertyOrdering } = WordResponseJsonSchema.properties.senses.items;
     for (const order of [Object.keys(properties), [...propertyOrdering]]) {
