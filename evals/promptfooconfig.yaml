@@ -70,8 +70,14 @@ defaultTest:
            vocabulary. Fail drift into a related language or an unnatural calque.
         4. Example fidelity: every "exampleTranslation" source sentence is
            grammatical and demonstrates its listed source sense; its "example"
-           target sentence is a natural translation of that same sentence and
-           demonstrates the listed target gloss.
+           target sentence is a natural, idiomatic translation of that same sentence
+           and demonstrates the listed target gloss. Judge communicative equivalence,
+           not word-for-word correspondence: natural rephrasing, grammar/voice
+           adjustments, and short conversational softeners or fillers that preserve
+           the same intent pass. Fail when the two sentences diverge in substantive
+           meaning (different situation, changed polarity or subject, added or
+           dropped concrete facts) or when the target sentence stops illustrating
+           the gloss.
         5. Learner usefulness: part-of-speech choices and ordering do not mislead a
            learner. Minor stylistic variation, regional variants, and natural
            synonyms are acceptable.

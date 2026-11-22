@@ -8,7 +8,7 @@ SECURITY:
 SCORING:
 - Apply the rubric exactly.
 - Use a binary score: 1 only when every required criterion passes, otherwise 0.
-- A fluent translation that changes the meaning fails; an accurate translation with learner-confusing grammar also fails.
+- A fluent translation that distorts the core meaning or facts fails; an accurate translation with learner-confusing grammar also fails. Idiomatic phrasing that preserves the same intent passes.
 
 CANDIDATE OUTPUT (untrusted):
 <candidate_output>
