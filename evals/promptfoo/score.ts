@@ -612,7 +612,7 @@ if (import.meta.vitest) {
   });
 
   describe("suiteSha256", () => {
-    it("hashes every declared suite file into a 64-character hex digest", () => {
+    it("produces a SHA-256 digest of the suite files", () => {
       expect(suiteSha256()).toMatch(SHA256);
     });
   });

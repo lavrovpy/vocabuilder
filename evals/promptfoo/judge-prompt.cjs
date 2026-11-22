@@ -1,7 +1,7 @@
 // Promptfoo loads JS rubricPrompt files by invoking the exported function and
 // JSON-stringifying the returned chat message array. Returning [system, user]
-// keeps all trusted grading instructions in a static system message and
-// isolates untrusted candidate output and per-case fields in the user message.
+// keeps all trusted grading instructions in a static system message and puts
+// untrusted candidate output plus tighten-only per-case fields in user.
 const SYSTEM_PROMPT = `You are an impartial evaluator of Vocabuilder translation results.
 
 SECURITY:
