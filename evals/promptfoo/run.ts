@@ -69,6 +69,21 @@ const JUDGE_ROUTES = {
 
 type JudgeRoute = keyof typeof JUDGE_ROUTES;
 
+/**
+ * Server and header overrides Promptfoo's judges read from the environment. Agent
+ * shells export the Anthropic ones for their own proxy, which turns every judge call
+ * into a 401; EVAL_JUDGE_API_BASE_URL is the judge's only server override.
+ */
+const AMBIENT_OVERRIDE_ENV = [
+  "ANTHROPIC_BASE_URL",
+  "ANTHROPIC_CUSTOM_HEADERS",
+  "OPENAI_BASE_URL",
+  "OPENAI_API_BASE_URL",
+  "OPENAI_API_HOST",
+  "GOOGLE_API_BASE_URL",
+  "GOOGLE_API_HOST",
+] as const;
+
 /** Set by the runner from --model/--judge, so a caller cannot also pass them. */
 const RUNNER_OWNED_FLAGS = new Set([
   "-o",
@@ -210,7 +225,7 @@ function judgeEnvironment(judge: EvalPlan["judge"], env: NodeJS.ProcessEnv): Nod
   if (absent.length > 0) throw new Error(`The ${judge.route} judge needs ${absent.join(", ")}.`);
 
   const next: NodeJS.ProcessEnv = { ...env };
-  for (const name of spec.stripEnv ?? []) delete next[name];
+  for (const name of [...AMBIENT_OVERRIDE_ENV, ...(spec.stripEnv ?? [])]) delete next[name];
   if (judgeKey && spec.keyEnv) {
     next[candidateCredentialEnvName(spec.keyEnv)] = env[spec.keyEnv] ?? "";
     next[spec.keyEnv] = judgeKey;
@@ -472,6 +487,16 @@ if (import.meta.vitest) {
         { GOOGLE_CLOUD_PROJECT: "p", GOOGLE_API_KEY: "studio", VERTEX_API_KEY: "express", GEMINI_API_KEY: "g" },
       );
       expect(env).toEqual({ GOOGLE_CLOUD_PROJECT: "p", GEMINI_API_KEY: "g" });
+    });
+
+    it("drops an agent shell's proxy and headers, so the judge reaches its vendor with the .env key", () => {
+      const env = judgeEnvironment(parseJudge("anthropic/claude-sonnet-5-5"), {
+        ANTHROPIC_API_KEY: "sk-ant-eval",
+        ANTHROPIC_BASE_URL: "http://127.0.0.1:8317",
+        ANTHROPIC_CUSTOM_HEADERS: "x-api-key:harness-token",
+        OPENAI_BASE_URL: "http://127.0.0.1:8317/v1",
+      });
+      expect(env).toEqual({ ANTHROPIC_API_KEY: "sk-ant-eval" });
     });
 
     it("requires AWS_BEDROCK_REGION for Bedrock", () => {

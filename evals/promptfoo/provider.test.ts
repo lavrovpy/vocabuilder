@@ -189,11 +189,12 @@ describe("VocabuilderTranslateWordProvider", () => {
   beforeEach(() => {
     for (const name of [
       "GEMINI_API_KEY",
-      "GEMINI_BASE_URL",
+      "EVAL_GEMINI_BASE_URL",
       "ANTHROPIC_API_KEY",
       "ANTHROPIC_BASE_URL",
+      "EVAL_ANTHROPIC_BASE_URL",
       "OPENAI_API_KEY",
-      "OPENAI_BASE_URL",
+      "EVAL_OPENAI_BASE_URL",
       "OPENAI_COMPATIBLE_API_KEY",
       "OPENAI_COMPATIBLE_BASE_URL",
       "OPENROUTER_API_KEY",
@@ -275,9 +276,17 @@ describe("VocabuilderTranslateWordProvider", () => {
     );
   });
 
-  it("sends a gemini candidate to GEMINI_BASE_URL when it is set", async () => {
+  it("keeps an anthropic candidate on api.anthropic.com when the shell exports ANTHROPIC_BASE_URL", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-eval");
+    vi.stubEnv("ANTHROPIC_BASE_URL", "http://127.0.0.1:8317");
+
+    await callWith(new VocabuilderTranslateWordProvider({ config: { provider: "anthropic" } }));
+    expect(new URL(sentRequest().url).host).toBe("api.anthropic.com");
+  });
+
+  it("sends a gemini candidate to EVAL_GEMINI_BASE_URL when it is set", async () => {
     vi.stubEnv("GEMINI_API_KEY", "AIza-eval");
-    vi.stubEnv("GEMINI_BASE_URL", "http://127.0.0.1:8317");
+    vi.stubEnv("EVAL_GEMINI_BASE_URL", "http://127.0.0.1:8317");
 
     await callWith(new VocabuilderTranslateWordProvider({ config: { provider: "gemini" } }));
     expect(sentRequest().url).toBe(
