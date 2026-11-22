@@ -489,6 +489,14 @@ const englishUkrainianDepthCases = [
   [
     "en",
     "uk",
+    "stiff",
+    "polysemy",
+    "hard",
+    "Cover the core sense of something that does not bend easily, as in stiff cardboard, a stiff collar or new boots, with an equivalent such as жорсткий or цупкий. скутий for stiff muscles or joints, суворий for a stiff penalty, міцний for a stiff drink, сильний for a stiff wind or stiff competition, and the slang noun труп are welcome as separate senses. Each English example must be a typical use of stiff for its sense: English bread goes stale, not stiff, so 'The bread went stiff overnight' fails. Each Ukrainian example must read the way a native speaker would write it and use its listed gloss: «Хліб за ніч став твердим» fails, because Ukrainian bread зачерствів or is черствий. A literal sense such as stiff cardboard must not be labelled figurative.",
+  ],
+  [
+    "en",
+    "uk",
     "red herring",
     "idiom",
     "hard",
