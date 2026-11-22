@@ -6,7 +6,7 @@
 # covers public GitHub repos (Team features, no paid seat). Until the repo has
 # 10 GitHub stars, CodeRabbit does not auto-review: comment
 # "@coderabbitai review" or click Trigger review on the status comment.
-# AGENTS.md / CLAUDE.md are picked up automatically as code guidelines.
+# AGENTS.md is picked up automatically as code guidelines.
 
 language: en-US
 

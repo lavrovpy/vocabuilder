@@ -87,7 +87,7 @@ Raycast's built-in Window Capture produces conforming geometry; hand-cropped scr
 
 It never reads `.gitignore`. Ignored files are copied into the monorepo checkout and then left unstaged only because your `.gitignore` travels with them — so removing an entry from `.gitignore` is enough to commit a secret to a public PR.
 
-The directory branch is `lstat(path).isDirectory()`, which is false for every symlink. A symlink to a file therefore reaches `copyFileSync` and is copied as a regular file (this is why a `CLAUDE.md -> AGENTS.md` symlink publishes as a normal 194-line file); a symlink to a directory reaches the same call and throws.
+The directory branch is `lstat(path).isDirectory()`, which is false for every symlink. A symlink to a file therefore reaches `copyFileSync` and is copied as a regular file; a symlink to a directory reaches the same call and throws.
 
 ## Merge-time behavior
 
